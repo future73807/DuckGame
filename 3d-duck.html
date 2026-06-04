@@ -37,7 +37,7 @@ canvas{display:block}
 #clock{position:absolute;top:40px;right:50px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
 .btn{position:absolute;width:34px;height:34px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;pointer-events:auto;z-index:110}
 .btn:active{transform:scale(.88)}
-#fs-btn{top:40px;left:12px}#music-btn{top:40px;left:52px}
+#fs-btn{top:40px;left:12px}#music-btn{top:40px;left:52px}#lb-btn{top:40px;left:92px}
 #help-btn{bottom:16px;right:16px;width:34px;height:34px;border-radius:50%;font-size:15px}
 #help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.88);backdrop-filter:blur(20px);color:#fff;padding:28px 32px;border-radius:20px;max-width:320px;text-align:center;font-size:14px;line-height:2.2;display:none;border:1px solid rgba(255,255,255,.08)}
 #help.show{display:block}
@@ -55,6 +55,50 @@ canvas{display:block}
 #err-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(180,30,30,.95);backdrop-filter:blur(16px);color:#fff;padding:24px 32px;border-radius:16px;max-width:400px;text-align:center;font-size:14px;line-height:1.8;display:none;z-index:250}
 #err-popup .msg{font-size:12px;font-family:monospace;word-break:break-all;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;margin-top:10px}
 #err-popup button{margin-top:16px;padding:8px 24px;background:#fff;color:#c00;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+/* 排行榜 & 游戏结束 */
+#timer-hud{background:rgba(0,0,0,.45);backdrop-filter:blur(8px);color:#ff9944;padding:5px 14px;border-radius:10px;font-size:14px;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
+#timer-hud.urgent{color:#ff4444;animation:pulse .5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+#game-over-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center}
+#game-over-overlay.show{display:flex}
+#game-over-card{background:rgba(20,30,50,.94);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px 36px;text-align:center;color:#fff;max-width:380px;width:90%;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+#game-over-card h2{font-size:28px;color:#ffd700;margin-bottom:4px}
+#game-over-card .final-score{font-size:56px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,200,0,.5);margin:10px 0}
+#game-over-card .high-badge{display:none;background:linear-gradient(135deg,#ff6b6b,#ffd700);color:#fff;padding:4px 16px;border-radius:20px;font-size:13px;font-weight:600;margin:6px auto}
+#game-over-card .high-badge.show{display:inline-block}
+#game-over-card .info-row{color:rgba(255,255,255,.55);font-size:13px;margin:4px 0}
+#game-over-card input{width:100%;padding:10px 14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-size:15px;text-align:center;margin-top:12px;outline:none}
+#game-over-card input::placeholder{color:rgba(255,255,255,.3)}
+#game-over-card input:focus{border-color:#ffd700}
+#game-over-card .btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+#game-over-card button{padding:10px 22px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:transform .15s}
+#game-over-card button:active{transform:scale(.92)}
+#game-over-card .btn-save{background:linear-gradient(135deg,#ffd700,#f0a000);color:#000}
+#game-over-card .btn-restart{background:rgba(255,255,255,.12);color:#fff}
+#game-over-card .btn-lb{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+#game-over-card .btn-skip{background:transparent;color:rgba(255,255,255,.5);font-size:12px;padding:6px 12px;margin-top:4px}
+/* 排行榜面板 */
+#lb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(12px);z-index:160;display:none;flex-direction:column;align-items:center;justify-content:center}
+#lb-overlay.show{display:flex}
+#lb-panel{background:rgba(15,25,45,.95);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px 30px;color:#fff;max-width:420px;width:92%;max-height:80vh;overflow-y:auto;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+#lb-panel h2{font-size:22px;color:#ffd700;text-align:center;margin-bottom:16px}
+#lb-panel .lb-list{list-style:none;padding:0;margin:0}
+#lb-panel .lb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);font-size:14px;border-radius:8px}
+#lb-panel .lb-item:nth-child(1){background:rgba(255,215,0,.1)}
+#lb-panel .lb-item:nth-child(2){background:rgba(192,192,192,.06)}
+#lb-panel .lb-item:nth-child(3){background:rgba(205,127,50,.06)}
+#lb-panel .lb-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;flex-shrink:0}
+#lb-panel .lb-item:nth-child(1) .lb-rank{background:#ffd700;color:#000}
+#lb-panel .lb-item:nth-child(2) .lb-rank{background:#c0c0c0;color:#000}
+#lb-panel .lb-item:nth-child(3) .lb-rank{background:#cd7f32;color:#000}
+#lb-panel .lb-name{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#lb-panel .lb-score{color:#ffd700;font-weight:bold;font-size:15px;flex-shrink:0}
+#lb-panel .lb-date{color:rgba(255,255,255,.35);font-size:11px;flex-shrink:0}
+#lb-panel .lb-empty{text-align:center;color:rgba(255,255,255,.4);padding:30px 0;font-size:14px}
+#lb-panel .lb-close{margin-top:16px;width:100%;padding:10px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;font-size:15px;cursor:pointer;text-align:center}
+#lb-panel .lb-close:hover{background:rgba(255,255,255,.14)}
+#lb-panel .lb-me{border-left:3px solid #ffd700;background:rgba(255,215,0,.08)!important}
 </style>
 </head>
 <body>
@@ -62,13 +106,14 @@ canvas{display:block}
 <div id="rotate-hint"><div class="ri"><i class="fa-solid fa-mobile-screen-button"></i></div><div style="margin-top:16px">请横屏使用</div></div>
 <div id="err-popup"><div><i class="fa-solid fa-triangle-exclamation"></i> 加载失败</div><div class="msg" id="err-msg"></div><button onclick="location.reload()">重试</button></div>
 <div id="ui">
-    <div id="hud"><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
+    <div id="hud"><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div><div id="timer-hud"><i class="fa-solid fa-hourglass-half"></i> <span id="game-timer">60</span>s</div></div>
 
     <div id="combo-border"></div>
     <div id="multi-text"></div>
     <div id="clock" onclick="cycleTime()"><span id="clock-icon"><i class="fa-solid fa-sun"></i></span> <span id="clock-text">中午 12:00</span></div>
     <div class="btn" id="fs-btn"><i class="fa-solid fa-expand"></i></div>
     <div class="btn" id="music-btn"><i class="fa-solid fa-volume-high"></i></div>
+    <div class="btn" id="lb-btn" onclick="showLeaderboard()"><i class="fa-solid fa-list-ol"></i></div>
     <div class="btn" id="help-btn"><i class="fa-solid fa-question"></i></div>
     <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
     <div class="toast" id="toast"><div class="toast-inner" id="toast-text"></div></div>
@@ -77,6 +122,31 @@ canvas{display:block}
         <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 · A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！</div>
         <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 摇杆控制方向和速度（相对视角）<br><br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <i class="fa-solid fa-leaf"></i> 荷叶=护盾+3<br><i class="fa-solid fa-gem"></i> 石头-1<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！</div>
         <button class="cb" onclick="document.getElementById('help').classList.remove('show')">开始冒险</button>
+    </div>
+    <!-- 游戏结束弹窗 -->
+    <div id="game-over-overlay">
+        <div id="game-over-card">
+            <h2><i class="fa-solid fa-flag-checkered"></i> 游戏结束</h2>
+            <div class="final-score" id="final-score">0</div>
+            <div class="high-badge" id="high-badge"><i class="fa-solid fa-crown"></i> 新最高分！</div>
+            <div class="info-row" id="best-info">历史最高：<span id="best-score-display">0</span> 分</div>
+            <input type="text" id="player-name" placeholder="输入你的昵称..." maxlength="12" autocomplete="off">
+            <div class="btn-row">
+                <button class="btn-save" onclick="saveAndRestart()"><i class="fa-solid fa-save"></i> 保存并再来一局</button>
+                <button class="btn-restart" onclick="restartGame()"><i class="fa-solid fa-rotate-right"></i> 直接重来</button>
+                <button class="btn-lb" onclick="showLeaderboard()"><i class="fa-solid fa-list-ol"></i> 排行榜</button>
+            </div>
+            <button class="btn-skip" onclick="restartGame()">不保存，直接开始新游戏</button>
+        </div>
+    </div>
+    <!-- 排行榜弹窗 -->
+    <div id="lb-overlay">
+        <div id="lb-panel">
+            <h2><i class="fa-solid fa-trophy"></i> 排行榜 TOP 20</h2>
+            <ul class="lb-list" id="lb-list"></ul>
+            <div class="lb-empty" id="lb-empty" style="display:none">暂无记录，快去创造新高吧！<br><i class="fa-solid fa-duck" style="font-size:32px;margin-top:12px;display:block"></i>（其实是找不到鸭子emoji）</div>
+            <button class="lb-close" onclick="hideLeaderboard()">关闭</button>
+        </div>
     </div>
 </div>
 <canvas id="c"></canvas>
@@ -411,6 +481,8 @@ const auraMesh=new THREE.Mesh(new THREE.SphereGeometry(2.5,24,16),auraMat);auraM
 
 // 游戏状态
 let score=0,hasShield=false,shieldTimer=0,invincible=0;
+let gameTimeLeft=60,gameRunning=true,gameEnded=false;
+const GAME_DURATION=60;
 function toast(t,type){const el=document.getElementById('toast');document.getElementById('toast-text').innerHTML=t;el.className='toast show '+type;setTimeout(()=>el.className='toast',1200)}
 let streakItems=[];let streakActive=false;let streakTimer=0;let scoreMultiplier=1;let streakType='';// 'same' or 'diff'
 const STREAK_ICONS={flower:'fa-sun',grass:'fa-seedling',lily:'fa-leaf',rock:'fa-gem'};
@@ -438,6 +510,23 @@ document.getElementById('multi-text').classList.remove('show');document.getEleme
 if(duckModel)duckModel.scale.setScalar(.72);invincible=0;crownGroup.visible=false;auraMesh.visible=false;
 updateStreakUI()}}
 function activateShield(){hasShield=true;shieldTimer=15;document.getElementById('shield-hud').style.display='flex';shieldMesh.visible=true;playSFX('shield');toast('<i class="fa-solid fa-shield-halved"></i> 护盾','s')}
+
+// ===== 排行榜系统 =====
+function getLeaderboard(){try{const d=localStorage.getItem('duck-leaderboard');return d?JSON.parse(d):[]}catch(e){return[]}}
+function saveLeaderboard(board){try{localStorage.setItem('duck-leaderboard',JSON.stringify(board))}catch(e){}}
+function getBestScore(){const b=getLeaderboard();return b.length>0?b[0].score:0}
+function addToLeaderboard(name,sc){const b=getLeaderboard();b.push({name:name||'匿名小鸭',score:sc,date:new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})});b.sort((a,b)=>b.score-a.score);const t20=b.slice(0,20);saveLeaderboard(t20);return t20}
+function isNewHighScore(sc){const b=getLeaderboard();return b.length===0||sc>b[0].score}
+function showLeaderboard(){const b=getLeaderboard();const list=document.getElementById('lb-list');const empty=document.getElementById('lb-empty');list.innerHTML='';if(b.length===0){empty.style.display='block';list.style.display='none'}else{empty.style.display='none';list.style.display='block';b.forEach((e,i)=>{const li=document.createElement('li');li.className='lb-item';const isMe=e.name===(document.getElementById('player-name').value||'匿名小鸭')&&e.score===score;if(isMe)li.classList.add('lb-me');const medal=i<3?['🥇','🥈','🥉'][i]:'';li.innerHTML=`<div class="lb-rank">${medal||(i+1)}</div><div class="lb-name">${e.name}</div><div class="lb-score">${e.score} 分</div><div class="lb-date">${e.date}</div>`;list.appendChild(li)})}document.getElementById('lb-overlay').classList.add('show')}
+function hideLeaderboard(){document.getElementById('lb-overlay').classList.remove('show')}
+document.getElementById('lb-overlay').addEventListener('click',function(e){if(e.target===this)hideLeaderboard()})
+function updateTimerDisplay(){const el=document.getElementById('game-timer');const hud=document.getElementById('timer-hud');const t=Math.ceil(gameTimeLeft);el.textContent=t;if(t<=10)hud.classList.add('urgent');else hud.classList.remove('urgent')}
+function endGame(){if(gameEnded)return;gameEnded=true;gameRunning=false;document.getElementById('final-score').textContent=score;const best=getBestScore();const isNew=isNewHighScore(score);document.getElementById('best-score-display').textContent=Math.max(best,score);if(isNew&&score>0){document.getElementById('high-badge').classList.add('show')}else{document.getElementById('high-badge').classList.remove('show')}document.getElementById('player-name').value='';document.getElementById('game-over-overlay').classList.add('show');document.getElementById('streak-hud').style.display='none';document.getElementById('multi-text').classList.remove('show');document.getElementById('combo-border').classList.remove('active')}
+function saveAndRestart(){const nameEl=document.getElementById('player-name');const name=nameEl.value.trim()||'匿名小鸭';addToLeaderboard(name,score);restartGame()}
+function restartGame(){score=0;gameTimeLeft=GAME_DURATION;gameRunning=true;gameEnded=false;streakActive=false;streakTimer=0;scoreMultiplier=1;streakType='';streakItems=[];hasShield=false;shieldTimer=0;invincible=0;document.getElementById('score').textContent='0';document.getElementById('game-over-overlay').classList.remove('show');document.getElementById('lb-overlay').classList.remove('show');document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;document.getElementById('streak-timer').style.display='none';document.getElementById('multi-text').classList.remove('show');document.getElementById('combo-border').classList.remove('active');crownGroup.visible=false;auraMesh.visible=false;document.getElementById('high-badge').classList.remove('show');document.getElementById('timer-hud').classList.remove('urgent');updateTimerDisplay();updateStreakUI();if(duckModel){duckModel.position.set(0,.05,0);duckModel.scale.setScalar(.72);duckVel.set(0,0,0)}for(const it of items){if(it.mesh.parent)scene.remove(it.mesh)}items.length=0}
+// 暴露到全局作用域，供 onclick 调用
+window.saveAndRestart=saveAndRestart;window.restartGame=restartGame;window.showLeaderboard=showLeaderboard;window.hideLeaderboard=hideLeaderboard;
+// ===== 排行榜系统结束 =====
 
 // 随机海浪事件
 const cur={x:0,z:0,y:0};let waveT=0;
@@ -630,7 +719,11 @@ const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.s
 // 动画
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
 (function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);gameClock+=dt;timeOfDay=(timeOfDay+dt*TIME_SPEED/60)%24;
-setCartoonSky(timeOfDay);updateDuck(dt);updateCam(dt);
+// 游戏计时器（帮助界面显示时暂停计时）
+const helpVisible=document.getElementById('help').classList.contains('show');
+if(gameRunning&&!helpVisible){gameTimeLeft-=dt;updateTimerDisplay();if(gameTimeLeft<=0){gameTimeLeft=0;updateTimerDisplay();endGame()}}
+if(gameRunning){updateDuck(dt)}
+updateCam(dt);
 if(duckModel){waterMesh.position.x=duckModel.position.x;waterMesh.position.z=duckModel.position.z;waveMesh.position.x=duckModel.position.x;waveMesh.position.z=duckModel.position.z;arrowPlane.position.x=duckModel.position.x;arrowPlane.position.z=duckModel.position.z}
 // 波浪动画
 const wp=waveGeo.attributes.position;
