@@ -72,6 +72,48 @@ canvas{display:block}
 #err-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(180,30,30,.95);backdrop-filter:blur(16px);color:#fff;padding:24px 32px;border-radius:16px;max-width:400px;text-align:center;font-size:14px;line-height:1.8;display:none;z-index:250}
 #err-popup .msg{font-size:12px;font-family:monospace;word-break:break-all;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;margin-top:10px}
 #err-popup button{margin-top:16px;padding:8px 24px;background:#fff;color:#c00;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+/* ===== v2.0 生命/事件/漩涡/血瓶/排行榜 ===== */
+#hearts-hud{background:rgba(0,0,0,.45);backdrop-filter:blur(8px);padding:5px 12px;border-radius:10px;display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,.06)}
+#hearts-hud .hp{font-size:16px;line-height:1;color:#ff4d6d;transition:transform .3s,filter .3s,opacity .3s}
+#hearts-hud .hp.empty{color:#5a6472;opacity:.45}
+#hearts-hud .hp.beat{animation:hpBeat .45s}
+@keyframes hpBeat{0%,100%{transform:scale(1)}45%{transform:scale(1.6)}}
+#event-hud{position:absolute;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;padding:6px 16px;border-radius:12px;font-size:14px;display:none;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.1);pointer-events:none;z-index:106}
+#event-hud .ev-icon{font-size:18px;display:inline-flex}
+#event-hud .ev-name{font-weight:600}
+#event-hud .ev-fx{color:#8fe0ff;font-size:12px;opacity:.9;padding-left:6px;margin-left:2px;border-left:1px solid rgba(255,255,255,.18)}
+#event-hud .ev-time{color:#ffd700;font-weight:bold;min-width:26px;text-align:right}
+#event-warn{position:absolute;top:130px;left:50%;transform:translateX(-50%) scale(.85);background:rgba(200,40,40,.85);backdrop-filter:blur(8px);color:#fff;padding:8px 20px;border-radius:14px;font-size:15px;font-weight:bold;display:none;align-items:center;gap:8px;z-index:107;opacity:0;transition:all .3s;pointer-events:none}
+#event-warn.show{display:flex;opacity:1;transform:translateX(-50%) scale(1);animation:warnPulse 1s ease-in-out infinite}
+@keyframes warnPulse{0%,100%{box-shadow:0 0 0 rgba(255,80,80,.5)}50%{box-shadow:0 0 26px rgba(255,80,80,.9)}}
+#red-flash{position:fixed;inset:0;pointer-events:none;z-index:108;box-shadow:inset 0 0 130px rgba(255,0,0,.65);opacity:0;transition:opacity .35s}
+#red-flash.show{opacity:1;transition:opacity 0s}
+#rain-overlay{position:fixed;inset:0;pointer-events:none;z-index:104;opacity:0;transition:opacity 1s;background:repeating-linear-gradient(102deg,transparent 0 6px,rgba(180,205,235,.14) 6px 7px)}
+#rain-overlay.show{opacity:1;animation:rainMove .35s linear infinite}
+@keyframes rainMove{from{background-position:0 0}to{background-position:-30px 120px}}
+#rainbow-overlay{position:fixed;inset:0;pointer-events:none;z-index:103;opacity:0;transition:opacity 1s;background:linear-gradient(120deg,rgba(255,0,0,.07),rgba(255,165,0,.07),rgba(255,255,0,.07),rgba(0,200,0,.07),rgba(0,120,255,.07),rgba(140,0,255,.07))}
+#rainbow-overlay.show{opacity:1}
+#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
+#gameover.show{display:flex}
+#gameover h1{font-size:34px;color:#ff6b6b;margin-bottom:4px;text-shadow:0 0 20px rgba(255,80,80,.5)}
+#gameover .go-score{font-size:19px;margin:4px 0}
+#gameover .go-score b{color:#ffd700;font-size:28px}
+#gameover .go-best{font-size:13px;color:#aaa;margin-bottom:12px}
+#gameover .go-name{padding:9px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:15px;text-align:center;width:210px;margin-bottom:10px;outline:none}
+#gameover .go-name:focus{border-color:#ffd700}
+#gameover .go-btn{padding:10px 40px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
+#gameover .go-btn:active{transform:scale(.95)}
+.lb{width:330px;max-width:90vw;background:rgba(0,0,0,.3);border-radius:14px;padding:12px 14px;border:1px solid rgba(255,255,255,.08)}
+.lb h3{font-size:15px;color:#ffd700;text-align:center;margin-bottom:8px}
+.lb-list{max-height:32vh;overflow-y:auto}
+.lb-item{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;font-size:13px}
+.lb-item:nth-child(odd){background:rgba(255,255,255,.04)}
+.lb-item.me{background:rgba(255,215,0,.18);border:1px solid rgba(255,215,0,.4)}
+.lb-item .rk{width:24px;color:#fff;font-weight:bold;text-align:center;opacity:.7}
+.lb-item.top1 .rk{color:#ffd700;opacity:1}.lb-item.top2 .rk{color:#dfe6ee;opacity:1}.lb-item.top3 .rk{color:#e0a066;opacity:1}
+.lb-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-item .sc{color:#ffd700;font-weight:bold}
+.lb-empty{text-align:center;color:#888;font-size:13px;padding:14px}
 </style>
 </head>
 <body>
@@ -79,10 +121,23 @@ canvas{display:block}
 <div id="rotate-hint"><div class="ri"><i class="fa-solid fa-mobile-screen-button"></i></div><div style="margin-top:16px">请横屏使用</div></div>
 <div id="err-popup"><div><i class="fa-solid fa-triangle-exclamation"></i> 加载失败</div><div class="msg" id="err-msg"></div><button onclick="location.reload()">重试</button></div>
 <div id="ui">
-    <div id="hud"><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
+    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
 
     <div id="combo-border"></div>
     <div id="multi-text"></div>
+    <div id="rain-overlay"></div>
+    <div id="rainbow-overlay"></div>
+    <div id="red-flash"></div>
+    <div id="event-hud"><span class="ev-icon"></span><span class="ev-name"></span><span class="ev-fx"></span><span class="ev-time"></span></div>
+    <div id="event-warn"><i class="fa-solid fa-triangle-exclamation"></i><span class="warn-txt"></span></div>
+    <div id="gameover">
+        <h1>游戏结束</h1>
+        <div class="go-score">本次得分 <b id="go-score">0</b></div>
+        <div class="go-best" id="go-best">历史最高：0</div>
+        <input class="go-name" id="go-name" maxlength="12" placeholder="输入昵称">
+        <div class="lb"><h3><i class="fa-solid fa-trophy"></i> 排行榜 Top 20</h3><div class="lb-list" id="lb-list"></div></div>
+        <button class="go-btn" onclick="restartGame()">再来一局</button>
+    </div>
     <div id="clock" onclick="cycleTime()"><span id="clock-icon"><i class="fa-solid fa-sun"></i></span> <span id="clock-text">中午 12:00</span></div>
     <div class="btn" id="fs-btn"><i class="fa-solid fa-expand"></i></div>
     <div class="btn" id="music-btn"><i class="fa-solid fa-volume-high"></i></div>
@@ -91,8 +146,8 @@ canvas{display:block}
     <div class="toast" id="toast"><div class="toast-inner" id="toast-text"></div></div>
     <div id="help">
         <h2><svg viewBox="29 12 62 62" width="28" height="28" style="display:block;flex-shrink:0;margin-right:2px"><g transform="translate(90.7,12) scale(-0.12,0.12)"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></g></svg> 小黄鸭漂流记</h2>
-        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！</div>
-        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！</div>
+        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 初始生命×3<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 爱心血瓶加血 · <i class="fa-solid fa-hurricane" style="color:#66ccff"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt" style="color:#ffd700"></i> 每60秒随机事件（提示栏显示效果）</div>
+        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 初始生命×3<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 爱心血瓶加血 · <i class="fa-solid fa-hurricane" style="color:#66ccff"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt" style="color:#ffd700"></i> 每60秒随机事件（提示栏显示效果）</div>
         <button class="cb" onclick="document.getElementById('help').classList.remove('show')">开始冒险</button>
     </div>
 </div>
@@ -271,7 +326,8 @@ const duckSpot=new THREE.SpotLight(0xffeecc,0,60,Math.PI*.45,.2,1);duckSpot.cast
 // ===== 卡通水面 =====
 // 统一波浪高度函数：水面网格、鸭子、道具全部共用（世界坐标采样），保证鸭子严丝合缝地浮在浪上
 let waveBoost=1; // 海浪事件期间的振幅倍率（平滑过渡）
-function waveHeight(x,z,t){
+const whirlZones=[]; // 活跃漩涡对水体的凹陷 {x,z,r,depth}
+function waveBase(x,z,t){
     // 主涌浪：三组不同方向/波长的低频大浪叠加，更像真实海面
     let h=Math.sin(x*.09+t*.8)*.6
         +Math.sin(z*.11-t*.62)*.5
@@ -282,6 +338,15 @@ function waveHeight(x,z,t){
     h*=waveBoost;
     // 海浪事件：沿事件方向传播的行波
     if(waveBoost>1.01)h+=Math.sin((x*waveEventDir.x+z*waveEventDir.z)*.22-t*3.2)*.5*(waveBoost-1);
+    return h;
+}
+function waveHeight(x,z,t){
+    let h=waveBase(x,z,t);
+    // 漩涡把水面向下拉成漏斗（真正改变水体形状）
+    for(let k=0;k<whirlZones.length;k++){
+        const w=whirlZones[k];const dx=x-w.x,dz=z-w.z;const d2=dx*dx+dz*dz;
+        if(d2<w.r*w.r){const s=1-Math.sqrt(d2)/w.r;h-=w.depth*s*s;}
+    }
     return h;
 }
 // 深层底板（在浪谷下方兜住视野，跟随鸭子移动）
@@ -413,7 +478,7 @@ window.cycleTime=()=>{const ts=[6,9,12,15,18,20,22,0];let idx=0;for(let i=0;i<ts
 
 
 // ===== 物品 =====
-const items=[];const MAP=14;
+const items=[];const MAP=14;let eventRockBoost=0,eventWaveTarget=1;
 function mkRock(p,s){const g=new THREE.DodecahedronGeometry(1,1);const a=g.attributes.position;for(let i=0;i<a.count;i++){let x=a.getX(i),y=a.getY(i),z=a.getZ(i);const n=Math.sin(x*3.7)*Math.cos(y*2.3)*Math.sin(z*4.1)*.15;x+=n;y+=n*.5;z+=n;y*=.55;a.setXYZ(i,x,y,z)}g.computeVertexNormals();const tint=.92+Math.random()*.16;const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:new THREE.Color(0x8d8177).multiplyScalar(tint),roughness:.85,flatShading:true}));m.position.copy(p);m.scale.setScalar(s);m.rotation.set(Math.random(),Math.random(),0);m.castShadow=true;m.receiveShadow=true;return m}
 function mkGrass(x,z,n){const g=new THREE.Group();const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide});const cRoot=new THREE.Color(0x1d5c22),cTip=new THREE.Color(0x8fdd55),cc=new THREE.Color();for(let i=0;i<n;i++){const h=.4+Math.random()*.35,w=.05+Math.random()*.035;const geo=new THREE.PlaneGeometry(w,h,1,6);const a=geo.attributes.position;const cols=new Float32Array(a.count*3);const bend=(Math.random()-.5)*.4;for(let j=0;j<a.count;j++){let px=a.getX(j),py=a.getY(j);const t=py/h+.5;px*=1-t*.85;px+=t*t*bend;a.setX(j,px);cc.copy(cRoot).lerp(cTip,t);cols[j*3]=cc.r;cols[j*3+1]=cc.g;cols[j*3+2]=cc.b}geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();const b=new THREE.Mesh(geo,mat);b.position.set((Math.random()-.5)*.6,h*.5,(Math.random()-.5)*.6);b.rotation.y=Math.random()*Math.PI;b.castShadow=true;g.add(b)}g.position.set(x,0,z);return g}
 function mkLily(x,z,s){const g=new THREE.Group();const pg=new THREE.CircleGeometry(s,24,0,Math.PI*1.85);const pa=pg.attributes.position;const pcols=new Float32Array(pa.count*3);const cIn=new THREE.Color(0x46a857),cOut=new THREE.Color(0x1e6b31),cc=new THREE.Color();for(let i=0;i<pa.count;i++){const px=pa.getX(i),py=pa.getY(i);const r=Math.min(Math.sqrt(px*px+py*py)/s,1);pa.setZ(i,r*r*.14*s);cc.copy(cIn).lerp(cOut,r);pcols[i*3]=cc.r;pcols[i*3+1]=cc.g;pcols[i*3+2]=cc.b}pg.setAttribute('color',new THREE.BufferAttribute(pcols,3));pg.computeVertexNormals();const pad=new THREE.Mesh(pg,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.55,side:THREE.DoubleSide}));pad.rotation.x=-Math.PI/2;pad.receiveShadow=true;g.add(pad);
@@ -431,7 +496,7 @@ const core=new THREE.Mesh(new THREE.SphereGeometry(.055,12,10),new THREE.MeshSta
 const SPAWN_R=40,DESPAWN_R=55,MAX_I=160;
 function spawnAround(cx,cz){
     const cnt={rock:0,flower:0,grass:0,lily:0};items.forEach(i=>{if(!i.coll)cnt[i.type]++});
-    const tgt={rock:10,flower:18,grass:14,lily:8};
+    const tgt={rock:10+eventRockBoost,flower:18,grass:14,lily:8};
     for(const[type,target]of Object.entries(tgt)){while(cnt[type]<target&&items.length<MAX_I){const ang=Math.random()*Math.PI*2,dist=8+Math.random()*(SPAWN_R-8);const x=cx+Math.cos(ang)*dist,z=cz+Math.sin(ang)*dist;let mesh,radius;
     switch(type){case'rock':const rs=.3+Math.random()*.5;mesh=mkRock(new THREE.Vector3(x,-.1,z),rs);radius=rs*1.2;break;case'flower':mesh=mkFlower(x,z);radius=.4;break;case'grass':mesh=mkGrass(x,z,5+Math.floor(Math.random()*4));radius=.4;break;case'lily':const ls=.3+Math.random()*.25;mesh=mkLily(x,z,ls);radius=ls;break}
     if(mesh){scene.add(mesh);items.push({mesh,type,r:radius,coll:false});cnt[type]++}}}
@@ -475,7 +540,7 @@ streakItems.push(type);updateStreakUI();
 if(streakItems.length>=3){const last3=streakItems.slice(-3);const allSame=last3[0]===last3[1]&&last3[1]===last3[2];if(allSame){activateStreak('same',last3[0])}else{activateStreak('diff','')}streakItems=[];updateStreakUI()}}
 function updateStreakUI(){const hud=document.getElementById('streak-hud');for(let i=0;i<3;i++){const el=document.getElementById('s'+i);if(i<streakItems.length){el.className='si active';el.innerHTML=`<i class="fa-solid ${STREAK_ICONS[streakItems[i]]||'fa-circle'}"></i>`;el.style.color=STREAK_COLORS[streakItems[i]]||'#fff'}else{el.className='si';el.innerHTML='●';el.style.color='rgba(255,255,255,.3)'}}hud.style.display=streakItems.length>0||streakActive?'flex':'none'}
 function activateStreak(kind,itemType){streakActive=true;streakTimer=60;streakType=kind;
-if(kind==='same'){scoreMultiplier=10;document.getElementById('multi-text').textContent='🔥 ×10 连胜！';playSFX('shield')}else{scoreMultiplier=5;document.getElementById('multi-text').textContent='✨ ×5 连胜！';playSFX('shield')}
+if(kind==='same'){scoreMultiplier=10;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-fire"></i> ×10 连胜！';playSFX('shield')}else{scoreMultiplier=5;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-star"></i> ×5 连胜！';playSFX('shield')}
 document.getElementById('multi-text').classList.add('show');setTimeout(()=>document.getElementById('multi-text').classList.remove('show'),3000);
 document.getElementById('combo-border').classList.add('active');
 // 鸭子变大4倍+无敌
@@ -521,7 +586,7 @@ function updateCur(dt){
         }
     }
     // 浪高振幅随海浪事件平滑增减（事件时波涛汹涌，平时平缓）
-    waveBoost+=((waveEventActive?1.55:1)-waveBoost)*Math.min(1,dt*1.2);
+    waveBoost+=((Math.max(waveEventActive?1.55:1,eventWaveTarget))-waveBoost)*Math.min(1,dt*1.2);
     return cur}
 
 // 鸭子（base64 内嵌 GLB 模型）
@@ -562,6 +627,7 @@ if(manualCamTimer<=0){
     camera.position.lerp(targetPos,.04);
 }
 controls.target.lerp(duckModel.position.clone().add(new THREE.Vector3(0,1,0)),.05);
+if(stormActive){const d=camera.position.distanceTo(controls.target);if(d>9)camera.position.lerp(controls.target,dt*.4);}
 }
 
 // 碰撞
@@ -574,10 +640,11 @@ const duckScale=duckModel.scale.x/.72;const duckRadius=0.6*duckScale;const hitR=
 if(hDist<hitR){
 // 无敌状态：跳过岩石碰撞，但可以收集物品
 if(invincible>0&&it.type==='rock')continue;
-switch(it.type){case'rock':if(hasShield){hasShield=false;shieldTimer=0;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;toast('<i class="fa-solid fa-shield-halved"></i> 护盾挡住了','s');playSFX('hit')}else{addScore(-1);toast('<i class="fa-solid fa-gem"></i> -1','m');playSFX('hit')}invincible=.5;duckVel.add(dp.clone().sub(it.mesh.position).normalize().multiplyScalar(2));break;
-case'flower':addScore(2);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +2','p');playSFX('collect');trackStreak('flower');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,-.02,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
-case'grass':addScore(1);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-seedling"></i> +1','p');playSFX('collect');trackStreak('grass');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,0,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
-case'lily':if(!it.coll){addScore(3);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-leaf"></i> 荷叶','p');playSFX('collect');trackStreak('lily');activateShield();it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,.01,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},6000)}break}}}}
+switch(it.type){case'rock':{const kb=dp.clone().sub(it.mesh.position).normalize().multiplyScalar(2);takeDamage(1);duckVel.add(kb);break;}
+case'flower':addScore(2);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +2','p');playSFX('collect');trackStreak('flower');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,-.02,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
+case'grass':addScore(1);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-seedling"></i> +1','p');playSFX('collect');trackStreak('grass');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,0,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
+case'lily':if(!it.coll){addScore(3);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-leaf"></i> 荷叶','p');playSFX('collect');trackStreak('lily');activateShield();it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,.01,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},6000)}break;
+case'heart':heal(1);it.coll=true;scene.remove(it.mesh);spawnHeartParticles(it.mesh.position.clone());break}}}}
 
 // 更新鸭子
 let duckYaw=0; // 鸭子面朝方向（弧度，自动跟随移动方向）
@@ -585,7 +652,10 @@ let duckSpeed=0; // 当前速度
 const DUCK_MAX_SPEED=4.0,DUCK_ACCEL=5.0,DUCK_DECEL=6.0;
 // GLB 模型初始朝向修正：经典 Rubber Duck 模型面朝 -Z，需旋转 Math.PI 使其面朝 +Z
 const DUCK_ROT_OFFSET=Math.PI;
-function updateDuck(dt){if(!duckModel)return;
+function updateDuck(dt){if(!duckModel)return;if(!gameActive)return;
+// 变大时（连胜巨鸭）移动更灵敏：最大速度/加速度/转向随体型提升
+const bigMul=1+(duckModel.scale.x/.72-1)*0.45;
+const maxSpd=DUCK_MAX_SPEED*bigMul,accel=DUCK_ACCEL*bigMul;
 // ===== 视角相对控制 =====
 // 用 controls.target - camera.position 获取可靠的视角方向
 const _lookDir=controls.target.clone().sub(camera.position);
@@ -600,8 +670,8 @@ if(joyActive){
   moveDir.addScaledVector(camFwd, mv.joyDy||0);
   moveDir.addScaledVector(camRight, mv.joyDx||0);
   if(moveDir.length()>0.01)moveDir.normalize();
-  const targetSpd=mv._joySpeed;
-  duckSpeed+=(targetSpd-duckSpeed)*dt*8;
+  const targetSpd=mv._joySpeed*bigMul;
+  duckSpeed+=(targetSpd-duckSpeed)*dt*8*Math.min(bigMul,2);
 }else{
   // 键盘模式：W/S=前后, A/D=左右
   if(mv.f)moveDir.add(camFwd);
@@ -610,7 +680,7 @@ if(joyActive){
   if(mv.r)moveDir.add(camRight);
   if(moveDir.length()>0.01){
     moveDir.normalize();
-    duckSpeed=Math.min(DUCK_MAX_SPEED,duckSpeed+DUCK_ACCEL*dt);
+    duckSpeed=Math.min(maxSpd,duckSpeed+accel*dt);
   }else{
     // 松开按键减速停止
     if(duckSpeed>0)duckSpeed=Math.max(0,duckSpeed-DUCK_DECEL*dt);
@@ -622,7 +692,8 @@ const tv=moveDir.clone().multiplyScalar(duckSpeed);
 // 水流影响（始终影响，增强效果）
 const c=updateCur(dt);
 tv.x+=c.x*1.5; tv.z+=c.z*1.5;
-duckVel.lerp(tv,tv.length()>.1?.12:.06);
+if(windActive){tv.multiplyScalar(windSpeedMul);}
+duckVel.lerp(tv,tv.length()>.1?Math.min(.32,.12*bigMul):.06);
 duckModel.position.add(duckVel.clone().multiplyScalar(dt));
 // 鸭子自动面向移动方向
 const hVel=duckVel.clone(); hVel.y=0;
@@ -630,7 +701,7 @@ if(hVel.length()>0.15){
   const targetYaw=Math.atan2(hVel.x,hVel.z);
   let diff=targetYaw-duckYaw;
   while(diff>Math.PI)diff-=Math.PI*2;while(diff<-Math.PI)diff+=Math.PI*2;
-  duckYaw+=diff*dt*8; // 平滑转向
+  duckYaw+=diff*dt*8*Math.min(bigMul,1.8); // 平滑转向（变大时更灵敏）
 }
 // 鸭子始终浮在海浪之上：与水面网格共用同一个 waveHeight 公式（世界坐标采样），保证贴合
 const px=duckModel.position.x,pz=duckModel.position.z;
@@ -686,9 +757,319 @@ mv._joySpeed=speedRatio*DUCK_MAX_SPEED;
 const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.str=0;mv._joySpeed=0;mv.joyDx=0;mv.joyDy=0};zone.ontouchend=rst;zone.ontouchcancel=rst}
 
 // 动画
+// ===== v2.0 生命 / 排行榜 / 漩涡 / 血瓶 / 随机事件 系统 =====
+// ---- 生命系统 ----
+let hearts=3;const MAX_HEARTS=5;let gameActive=true;let playStartTime=Date.now();
+function updateHeartsUI(){const el=document.getElementById('hearts-hud');if(!el)return;let html='';for(let i=0;i<MAX_HEARTS;i++){html+=`<span class="hp ${i<hearts?'':'empty'}"><i class="fa-solid fa-heart"></i></span>`}el.innerHTML=html}
+function screenFlash(){const f=document.getElementById('red-flash');if(!f)return;f.classList.add('show');setTimeout(()=>f.classList.remove('show'),40)}
+function takeDamage(amount=1){
+    if(!gameActive)return;
+    if(invincible>0||streakActive)return; // 无敌 / 连胜期间免伤
+    if(hasShield){hasShield=false;shieldTimer=0;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;toast('<i class="fa-solid fa-shield-halved"></i> 护盾挡住了','s');playSFX('hit');invincible=.5;return}
+    hearts=Math.max(0,hearts-amount);
+    updateHeartsUI();
+    toast('-'+amount+' <i class="fa-solid fa-heart"></i>','m');
+    screenFlash();playSFX('hit');invincible=.6;
+    if(hearts<=0)gameOver();
+}
+function heal(amount=1){
+    if(!gameActive)return;
+    const before=hearts;hearts=Math.min(MAX_HEARTS,hearts+amount);updateHeartsUI();
+    if(hearts>before){toast('+'+(hearts-before)+' <i class="fa-solid fa-heart"></i>','p');playSFX('collect');
+        const beats=document.getElementById('hearts-hud').querySelectorAll('.hp');const b=beats[hearts-1];if(b){b.classList.add('beat');setTimeout(()=>b.classList.remove('beat'),450)}
+    }else{toast('<i class="fa-solid fa-heart"></i> 生命已满','p')}
+}
+
+// ---- 治愈粒子特效 ----
+const transientFx=[];
+function spawnHeartParticles(pos){
+    for(let i=0;i<10;i++){
+        const m=new THREE.Mesh(new THREE.SphereGeometry(.07,6,6),new THREE.MeshBasicMaterial({color:0xff5577,transparent:true,opacity:.95,fog:false}));
+        m.position.copy(pos);scene.add(m);
+        const a=Math.random()*Math.PI*2,sp=1+Math.random()*1.8;
+        transientFx.push({m,vx:Math.cos(a)*sp,vy:1.6+Math.random()*1.2,vz:Math.sin(a)*sp,life:.9,max:.9});
+    }
+}
+function updateTransientFx(dt){
+    for(let i=transientFx.length-1;i>=0;i--){const f=transientFx[i];f.life-=dt;
+        f.m.position.x+=f.vx*dt;f.m.position.y+=f.vy*dt;f.m.position.z+=f.vz*dt;f.vy-=3.2*dt;
+        const t=Math.max(0,f.life/f.max);f.m.material.opacity=t*.95;f.m.scale.setScalar(Math.max(.1,t));
+        if(f.life<=0){scene.remove(f.m);transientFx.splice(i,1)}
+    }
+}
+
+// ---- 排行榜（localStorage） ----
+const Leaderboard={
+    KEY:'duck_leaderboard_v2',
+    get(){try{const d=localStorage.getItem(this.KEY);return d?JSON.parse(d):{entries:[]}}catch(e){return{entries:[]}}},
+    save(d){try{localStorage.setItem(this.KEY,JSON.stringify(d))}catch(e){}},
+    submit(sc,pt,name){const d=this.get();const entry={name:name||'匿名小鸭',score:sc,playTime:pt,ts:Date.now(),id:'e'+Date.now()+Math.floor(Math.random()*1000)};d.entries.push(entry);d.entries.sort((a,b)=>b.score-a.score);d.entries=d.entries.slice(0,50);this.save(d);return{data:d,entry}},
+    best(){const d=this.get();return d.entries[0]?d.entries[0].score:0}
+};
+let lastEntry=null;
+function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function renderLeaderboard(data){
+    const list=document.getElementById('lb-list');
+    if(!data.entries.length){list.innerHTML='<div class="lb-empty">暂无记录，成为第一名吧！</div>';return}
+    list.innerHTML=data.entries.slice(0,20).map((e,i)=>{
+        const me=lastEntry&&e.id===lastEntry.id?'me':'';const top=i<3?'top'+(i+1):'';
+        return `<div class="lb-item ${top} ${me}"><span class="rk">${i+1}</span><span class="nm">${escapeHtml(e.name)}</span><span class="sc">${e.score}</span></div>`
+    }).join('');
+}
+function showGameOver(data){
+    const go=document.getElementById('gameover');
+    document.getElementById('go-score').textContent=score;
+    document.getElementById('go-best').textContent='历史最高：'+Leaderboard.best();
+    document.getElementById('go-name').value=localStorage.getItem('duck_name')||'';
+    renderLeaderboard(data);
+    go.classList.add('show');
+}
+function gameOver(){
+    if(!gameActive)return;gameActive=false;
+    playSFX('hit');
+    const pt=Math.floor((Date.now()-playStartTime)/1000);
+    const r=Leaderboard.submit(score,pt,localStorage.getItem('duck_name')||'匿名小鸭');
+    lastEntry=r.entry;
+    showGameOver(r.data);
+}
+window.restartGame=function(){
+    const nm=(document.getElementById('go-name').value||'').trim()||'匿名小鸭';
+    localStorage.setItem('duck_name',nm);
+    if(lastEntry){const d=Leaderboard.get();const e=d.entries.find(x=>x.id===lastEntry.id);if(e){e.name=nm;Leaderboard.save(d)}}
+    location.reload();
+};
+
+// ---- 加心道具：红色爱心血瓶 ----
+function mkHeart(x,z){
+    const g=new THREE.Group();
+    const shape=new THREE.Shape();
+    shape.moveTo(0,0.3);
+    shape.bezierCurveTo(0,0.45,-0.2,0.65,-0.45,0.65);
+    shape.bezierCurveTo(-0.8,0.65,-0.8,0.2,-0.8,0.2);
+    shape.bezierCurveTo(-0.8,-0.1,-0.4,-0.35,0,-0.7);
+    shape.bezierCurveTo(0.4,-0.35,0.8,-0.1,0.8,0.2);
+    shape.bezierCurveTo(0.8,0.2,0.8,0.65,0.45,0.65);
+    shape.bezierCurveTo(0.2,0.65,0,0.45,0,0.3);
+    const geo=new THREE.ExtrudeGeometry(shape,{depth:0.14,bevelEnabled:true,bevelThickness:0.4,bevelSize:0.34,bevelSegments:14,steps:1,curveSegments:40});
+    geo.center();
+    const glass=new THREE.MeshPhysicalMaterial({color:0xff2d55,roughness:.12,metalness:0,transmission:.35,transparent:true,opacity:.95,thickness:.6,clearcoat:1,clearcoatRoughness:.08,emissive:0xd11133,emissiveIntensity:.55,side:THREE.DoubleSide});
+    const heart=new THREE.Mesh(geo,glass);heart.castShadow=true;g.add(heart);
+    // 白色回血十字（血瓶标识，正反面）
+    const crossMat=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xff9aac,emissiveIntensity:.5,roughness:.4});
+    for(const zz of[0.42,-0.42]){
+        const cv=new THREE.Mesh(new THREE.BoxGeometry(.13,.4,.05),crossMat);cv.position.set(0,.02,zz);g.add(cv);
+        const ch=new THREE.Mesh(new THREE.BoxGeometry(.4,.13,.05),crossMat);ch.position.set(0,.02,zz);g.add(ch);
+    }
+    // 瓶塞（软木色，插在爱心顶部凹口，营造"血瓶"感）
+    const cork=new THREE.Mesh(new THREE.CylinderGeometry(.15,.19,.28,16),new THREE.MeshStandardMaterial({color:0xc79a5b,roughness:.85}));cork.position.set(0,.72,0);cork.castShadow=true;g.add(cork);
+    // 微光
+    const glow=new THREE.PointLight(0xff3355,.9,4);glow.position.set(0,0,0);g.add(glow);
+    g.scale.setScalar(.42);
+    g.position.set(x,0,z);
+    return g;
+}
+let heartTimer=15;
+function spawnHeart(){
+    if(!duckModel)return;
+    const ang=Math.random()*Math.PI*2,dist=8+Math.random()*16;
+    const x=duckModel.position.x+Math.cos(ang)*dist,z=duckModel.position.z+Math.sin(ang)*dist;
+    const mesh=mkHeart(x,z);scene.add(mesh);
+    items.push({mesh,type:'heart',r:.6,coll:false});
+}
+function trySpawnHeart(dt){
+    if(!gameActive||!duckModel)return;
+    heartTimer-=dt;
+    if(heartTimer>0)return;
+    heartTimer=18+Math.random()*12;
+    if(hearts>=MAX_HEARTS)return;
+    const present=items.filter(i=>i.type==='heart'&&!i.coll).length;
+    const cap=hearts<=1?3:2;
+    if(present>=cap)return;
+    // 基础30%，生命≤1时仁慈提升到60%
+    if(Math.random()<(hearts<=1?0.6:0.3))spawnHeart();
+}
+
+// ---- 漩涡系统 ----
+const whirlpools=[];
+function mkWhirlpool(x,z){
+    const g=new THREE.Group();
+    const rTop=3.0,depth=2.4;
+    // 漏斗形水体（LatheGeometry 抛物线剖面，真正的下凹水体）
+    const pts=[];const N=22;
+    for(let i=0;i<=N;i++){const t=i/N;const r=rTop*Math.pow(t,.82);const y=-depth*(1-t)*(1-t);pts.push(new THREE.Vector2(Math.max(r,.03),y));}
+    const funnel=new THREE.Mesh(new THREE.LatheGeometry(pts,52),new THREE.MeshStandardMaterial({color:0x0c4c74,roughness:.22,metalness:0,side:THREE.DoubleSide,transparent:true,opacity:.94,emissive:0x05202f,emissiveIntensity:.45}));
+    g.add(funnel);
+    // 旋涡水流泡沫环（贴着漏斗壁）
+    const swirls=[];
+    for(let i=0;i<3;i++){const rr=.9+i*.85;const t=Math.pow(rr/rTop,1/.82);const yy=-depth*(1-t)*(1-t);const ring=new THREE.Mesh(new THREE.TorusGeometry(rr,.055,8,44),new THREE.MeshBasicMaterial({color:0xbfe8ff,transparent:true,opacity:.5-i*.11,fog:false}));ring.rotation.x=-Math.PI/2;ring.position.y=yy+.03;swirls.push(ring);g.add(ring);}
+    // 中心暗洞
+    const core=new THREE.Mesh(new THREE.CircleGeometry(.45,24),new THREE.MeshBasicMaterial({color:0x02121e,transparent:true,opacity:.92,side:THREE.DoubleSide,depthWrite:false}));core.rotation.x=-Math.PI/2;core.position.y=-depth+.06;g.add(core);
+    // 外缘影响圈
+    const field=new THREE.Mesh(new THREE.RingGeometry(4.7,5,48),new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false,fog:false}));field.rotation.x=-Math.PI/2;field.position.y=.07;g.add(field);
+    g.position.set(x,0,z);scene.add(g);
+    const zone={x,z,r:rTop,depth};whirlZones.push(zone);
+    return{group:g,funnel,swirls,field,zone,life:9+Math.random()*4,x,z};
+}
+function spawnWhirlpool(){
+    if(!duckModel)return;
+    const ang=Math.random()*Math.PI*2,dist=12+Math.random()*16;
+    whirlpools.push(mkWhirlpool(duckModel.position.x+Math.cos(ang)*dist,duckModel.position.z+Math.sin(ang)*dist));
+}
+function updateWhirlpools(dt){
+    for(let i=whirlpools.length-1;i>=0;i--){
+        const w=whirlpools[i];w.life-=dt;
+        w.group.position.y=waveBase(w.x,w.z,gameClock);
+        w.funnel.rotation.y+=dt*1.7;
+        w.swirls.forEach((r,k)=>{r.rotation.z+=dt*(2.2+k)*(k%2?1:-1)});
+        w.field.rotation.z+=dt*.5;
+        if(gameActive&&duckModel){
+            const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
+            if(d<5&&d>0.001){
+                const nx=dx/d,nz=dz/d,k=(1-d/5)*(1-d/5);
+                duckVel.x+=nx*k*7*dt;duckVel.z+=nz*k*7*dt;               // 径向吸引
+                duckVel.x+=-nz*(1-d/5)*3*dt;duckVel.z+=nx*(1-d/5)*3*dt;  // 切向旋涡
+                if(d<1.6&&invincible<=0&&!streakActive){
+                    takeDamage(1);
+                    if(gameActive){duckModel.position.set(0,.05,0);duckVel.set(0,0,0);invincible=2;toast('<i class="fa-solid fa-water"></i> 被漩涡吸入！','m')}
+                }
+            }
+        }
+        // 对周围道具产生吸引力
+        for(const it of items){if(it.coll)continue;const ax=w.x-it.mesh.position.x,az=w.z-it.mesh.position.z;const ad=Math.sqrt(ax*ax+az*az);if(ad<5&&ad>0.001){const f=(1-ad/5)*.9*dt;it.mesh.position.x+=ax/ad*f;it.mesh.position.z+=az/ad*f;}}
+        if(w.life<=0){scene.remove(w.group);const zi=whirlZones.indexOf(w.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1)}
+    }
+}
+
+// ---- 水下暗影（鲨鱼） ----
+let shark=null,sharkHitCd=0,sharkSpawnCount=0;
+const SHARK_MAX=2; // 整局最多出现2次
+function spawnShark(){
+    if(shark||!duckModel||sharkSpawnCount>=SHARK_MAX)return;
+    sharkSpawnCount++;
+    const g=new THREE.Group();
+    // 卡通鲨鱼俯视剪影：圆润饱满的身体 + 胸鳍 + 分叉尾鳍
+    const s=new THREE.Shape();
+    s.moveTo(0,-1.85);
+    s.bezierCurveTo(0.85,-1.78,1.06,-0.55,0.86,0.15);   // 右侧身体鼓起
+    s.bezierCurveTo(0.92,0.3,1.55,0.52,1.62,0.95);      // 右胸鳍
+    s.bezierCurveTo(1.22,0.74,0.95,0.62,0.7,0.56);
+    s.bezierCurveTo(0.6,0.98,0.5,1.32,0.46,1.56);       // 收窄向尾
+    s.lineTo(1.0,2.18);                                 // 右尾叉
+    s.lineTo(0.16,1.7);
+    s.lineTo(0,1.82);
+    s.lineTo(-0.16,1.7);
+    s.lineTo(-1.0,2.18);                                // 左尾叉
+    s.lineTo(-0.46,1.56);
+    s.bezierCurveTo(-0.5,1.32,-0.6,0.98,-0.7,0.56);
+    s.bezierCurveTo(-0.95,0.62,-1.22,0.74,-1.62,0.95);  // 左胸鳍
+    s.bezierCurveTo(-1.55,0.52,-0.92,0.3,-0.86,0.15);
+    s.bezierCurveTo(-1.06,-0.55,-0.85,-1.78,0,-1.85);
+    const body=new THREE.Mesh(new THREE.ShapeGeometry(s,40),new THREE.MeshBasicMaterial({color:0x03131f,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false,fog:false}));
+    body.rotation.x=-Math.PI/2;g.add(body);
+    // 内层浅色肚皮（增加层次/精致感）
+    const belly=new THREE.Mesh(new THREE.ShapeGeometry(s,40),new THREE.MeshBasicMaterial({color:0x0d3a58,transparent:true,opacity:.4,side:THREE.DoubleSide,depthWrite:false,fog:false}));
+    belly.rotation.x=-Math.PI/2;belly.position.y=.02;belly.scale.set(.62,.62,.62);g.add(belly);
+    // 卡通眼睛（靠近鼻尖）
+    const eyeMat=new THREE.MeshBasicMaterial({color:0x9fd8f0,transparent:true,opacity:.55,fog:false});
+    for(const ex of[0.34,-0.34]){const eye=new THREE.Mesh(new THREE.CircleGeometry(.12,16),eyeMat);eye.rotation.x=-Math.PI/2;eye.position.set(ex,.03,1.15);g.add(eye);}
+    // 弯曲背鳍（露出水面，卡通圆润）
+    const fs=new THREE.Shape();
+    fs.moveTo(-0.55,0);
+    fs.quadraticCurveTo(0.15,0.12,0.55,0.98);
+    fs.quadraticCurveTo(0.08,0.6,-0.55,0.4);
+    fs.lineTo(-0.55,0);
+    const finGeo=new THREE.ExtrudeGeometry(fs,{depth:0.1,bevelEnabled:true,bevelThickness:0.04,bevelSize:0.04,bevelSegments:3,curveSegments:16});
+    finGeo.center();
+    const fin=new THREE.Mesh(finGeo,new THREE.MeshBasicMaterial({color:0x0a2233,transparent:true,opacity:.92,fog:false}));
+    fin.rotation.y=Math.PI/2;fin.position.set(0,.55,-.05);g.add(fin);
+    g.scale.setScalar(1.15);
+    const a=Math.random()*Math.PI*2;
+    g.position.set(duckModel.position.x+Math.cos(a)*14,-.4,duckModel.position.z+Math.sin(a)*14);
+    scene.add(g);shark={g,fin};
+}
+function updateShark(dt){
+    if(!shark)return;
+    const p=shark.g.position;
+    if(gameActive&&duckModel){
+        const dx=duckModel.position.x-p.x,dz=duckModel.position.z-p.z;const d=Math.sqrt(dx*dx+dz*dz)||1;
+        const spd=3.2;p.x+=dx/d*spd*dt;p.z+=dz/d*spd*dt;
+        p.y=waveHeight(p.x,p.z,gameClock)-.4;
+        shark.g.rotation.y=Math.atan2(dx,dz);
+        sharkHitCd-=dt;
+        if(d<2.2&&sharkHitCd<=0&&invincible<=0&&!streakActive){takeDamage(1);sharkHitCd=3;p.x-=dx/d*3;p.z-=dz/d*3}
+    }
+}
+function removeShark(){if(shark){scene.remove(shark.g);shark=null}}
+
+// ---- 随机事件系统（每60秒全局触发） ----
+const EVENTS={
+    tailwind:{n:'顺风',ic:'fa-wind',d:15,fx:'移动加速',t:'good'},
+    headwind:{n:'逆风',ic:'fa-tornado',d:15,fx:'移动减速',t:'bad'},
+    storm:{n:'暴风雨',ic:'fa-cloud-showers-heavy',d:20,fx:'落石增多·浪高',t:'bad'},
+    rainbow:{n:'彩虹祝福',ic:'fa-rainbow',d:15,fx:'花草额外+5分',t:'good'},
+    shadow:{n:'水下暗影',ic:'fa-fish',d:20,fx:'暗影追踪·撞击扣心',t:'bad'},
+    bigwave:{n:'海浪汹涌',ic:'fa-water',d:15,fx:'巨浪起伏',t:'neutral'},
+    itemrain:{n:'道具雨',ic:'fa-gift',d:10,fx:'血瓶荷叶掉落',t:'good'},
+    calm:{n:'平静时刻',ic:'fa-sun',d:15,fx:'风平浪静',t:'neutral'}
+};
+// 事件类别配色：好（绿）/坏（红）/中性（黄）
+const EV_TINT={good:'rgba(24,150,74,.62)',bad:'rgba(196,46,46,.62)',neutral:'rgba(200,158,32,.62)'};
+const EV_BORDER={good:'rgba(90,230,150,.6)',bad:'rgba(255,120,120,.6)',neutral:'rgba(255,220,110,.6)'};
+const EV_W_NORMAL=[['tailwind',10],['headwind',10],['storm',15],['rainbow',15],['shadow',15],['bigwave',15],['itemrain',10],['calm',10]];
+const EV_W_MERCY=[['itemrain',40],['rainbow',30],['calm',20],['tailwind',10]];
+function pickEvent(){let w=hearts<=1?EV_W_MERCY:EV_W_NORMAL;if(sharkSpawnCount>=SHARK_MAX)w=w.filter(p=>p[0]!=='shadow');let tot=0;for(const p of w)tot+=p[1];let r=Math.random()*tot;for(const p of w){r-=p[1];if(r<=0)return p[0]}return w[0][0]}
+let globalEventTimer=60,activeEvent=null,activeEventTime=0,pendingEvent=null,warnedFor=null;
+let windActive=false;let windSpeedMul=1;
+let stormActive=false,rainbowActive=false;
+function showEventHud(e){const el=document.getElementById('event-hud');el.style.display='flex';el.style.background=EV_TINT[e.t]||'rgba(0,0,0,.5)';el.style.borderColor=EV_BORDER[e.t]||'rgba(255,255,255,.1)';el.querySelector('.ev-icon').innerHTML='<i class="fa-solid '+e.ic+'"></i>';el.querySelector('.ev-name').textContent=e.n;el.querySelector('.ev-fx').textContent=e.fx||'';el.querySelector('.ev-time').textContent=Math.ceil(activeEventTime)+'s'}
+function hideEventHud(){document.getElementById('event-hud').style.display='none'}
+function showWarn(e){const el=document.getElementById('event-warn');el.style.background=EV_TINT[e.t]||'rgba(200,40,40,.85)';el.querySelector('.warn-txt').innerHTML=' 即将来临：<i class="fa-solid '+e.ic+'"></i> '+e.n+' · '+(e.fx||'');el.classList.add('show')}
+function hideWarn(){document.getElementById('event-warn').classList.remove('show')}
+function startEvent(key){
+    activeEvent=key;activeEventTime=EVENTS[key].d;showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');
+    windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;
+    document.getElementById('rain-overlay').classList.remove('show');
+    document.getElementById('rainbow-overlay').classList.remove('show');
+    if(key==='tailwind'){windActive=true;windSpeedMul=1.7}       // 顺风：加速
+    else if(key==='headwind'){windActive=true;windSpeedMul=0.5}  // 逆风：减速
+    else if(key==='storm'){stormActive=true;eventRockBoost=6;eventWaveTarget=1.5;document.getElementById('rain-overlay').classList.add('show')}
+    else if(key==='rainbow'){rainbowActive=true;document.getElementById('rainbow-overlay').classList.add('show')}
+    else if(key==='shadow'){spawnShark()}
+    else if(key==='bigwave'){eventWaveTarget=1.9}
+    else if(key==='itemrain'){for(let i=0;i<3;i++)spawnHeart();for(let i=0;i<4;i++){const an=Math.random()*Math.PI*2,ds=6+Math.random()*12,ls=.3+Math.random()*.25;const m=mkLily(duckModel.position.x+Math.cos(an)*ds,duckModel.position.z+Math.sin(an)*ds,ls);scene.add(m);items.push({mesh:m,type:'lily',r:ls,coll:false})}}
+    else if(key==='calm'){eventWaveTarget=.7}
+}
+function endEvent(){
+    activeEvent=null;hideEventHud();
+    windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;
+    document.getElementById('rain-overlay').classList.remove('show');
+    document.getElementById('rainbow-overlay').classList.remove('show');
+    removeShark();
+}
+function updateGlobalEvent(dt){
+    if(!gameActive)return;
+    if(!activeEvent){
+        globalEventTimer-=dt;
+        if(globalEventTimer<=3&&globalEventTimer>0){if(!pendingEvent)pendingEvent=pickEvent();if(warnedFor!==pendingEvent){warnedFor=pendingEvent;showWarn(EVENTS[pendingEvent])}}
+        if(globalEventTimer<=0){
+            const key=pendingEvent||pickEvent();pendingEvent=null;warnedFor=null;hideWarn();
+            // 40%概率同时刷新1-2个漩涡
+            if(Math.random()<0.4){const n=1+Math.floor(Math.random()*2);for(let i=0;i<n;i++)spawnWhirlpool()}
+            startEvent(key);
+            globalEventTimer=60;
+        }
+    }else{
+        activeEventTime-=dt;
+        document.getElementById('event-hud').querySelector('.ev-time').textContent=Math.ceil(Math.max(0,activeEventTime))+'s';
+        if(activeEventTime<=0)endEvent();
+    }
+}
+
+updateHeartsUI();
+
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
 (function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);gameClock+=dt;timeOfDay=(timeOfDay+dt*TIME_SPEED/60)%24;
-setCartoonSky(timeOfDay);updateDuck(dt);updateCam(dt);
+setCartoonSky(timeOfDay);updateDuck(dt);updateCam(dt);updateGlobalEvent(dt);updateWhirlpools(dt);updateShark(dt);trySpawnHeart(dt);updateTransientFx(dt);
 if(duckModel){waterMesh.position.x=duckModel.position.x;waterMesh.position.z=duckModel.position.z;waveMesh.position.x=duckModel.position.x;waveMesh.position.z=duckModel.position.z;arrowPlane.position.x=duckModel.position.x;arrowPlane.position.z=duckModel.position.z}
 // 波浪动画（顶点按世界坐标采样 waveHeight，与鸭子/道具完全同步）
 const wp=waveGeo.attributes.position,wcA=waveGeo.attributes.color;
@@ -712,7 +1093,7 @@ if(++frameCount%2===0)waveGeo.computeVertexNormals();
 // 方向箭头贴合浪面起伏
 if(arrowPlane.material.opacity>.01){const ap=arrowPlane.geometry.attributes.position;for(let i=0;i<ap.count;i++){const lx=ap.getX(i),ly=ap.getY(i);ap.setZ(i,waveHeight(lx+arrowPlane.position.x,-ly+arrowPlane.position.z,gameClock)+.14)}ap.needsUpdate=true}
 // 花朵/海草/荷叶随海浪漂浮
-for(const it of items){if(it.coll)continue;const ix=it.mesh.position.x,iz=it.mesh.position.z;const floatY=waveHeight(ix,iz,gameClock);if(it.type==='lily'){it.mesh.position.y=floatY+.04;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06}else if(it.type==='flower'){it.mesh.position.y=floatY-.02;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05}else if(it.type==='grass'){it.mesh.position.y=floatY-.06;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}}
+for(const it of items){if(it.coll)continue;const ix=it.mesh.position.x,iz=it.mesh.position.z;const floatY=waveHeight(ix,iz,gameClock);if(it.type==='lily'){it.mesh.position.y=floatY+.04;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06}else if(it.type==='flower'){it.mesh.position.y=floatY-.02;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05}else if(it.type==='grass'){it.mesh.position.y=floatY-.06;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}}
 // 连胜边框柔和呼吸
 if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('combo-border').style.opacity=s}
 controls.update();renderer.render(scene,camera)})();
