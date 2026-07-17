@@ -2,13 +2,13 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>小黄鸭漂流记</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cg transform='scale(-1,1) translate(-512,0)'%3E%3Cpath fill='%23FFDE76' d='M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z'/%3E%3Cpath fill='%23FFB641' d='M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z'/%3E%3Cpath fill='%23FFB641' d='M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z'/%3E%3Cpath fill='%23FFB641' d='M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z'/%3E%3Cpath fill='%2338484A' d='M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{overflow:hidden;background:#000;font-family:-apple-system,sans-serif;touch-action:none;user-select:none}
+body{overflow:hidden;background:#000;font-family:-apple-system,sans-serif;touch-action:none;-webkit-user-select:none;user-select:none}
 canvas{display:block}
 #loader{position:fixed;inset:0;background:#1a2a5e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;transition:opacity 1s}
 #loader.done{opacity:0;pointer-events:none}
@@ -39,10 +39,10 @@ canvas{display:block}
 #ui{position:fixed;inset:0;z-index:100;pointer-events:none}
 #ui>*{pointer-events:auto}
 #hud{position:absolute;top:40px;left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none}
-.hi{background:rgba(0,0,0,.45);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:14px;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
+.hi{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:14px;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
 .hi.sc i{color:#ffd700}.hi.sc span{color:#ffd700;font-weight:bold;font-size:16px}
 .hi.sh{color:#44ddff;display:none}
-#streak-hud{background:rgba(0,0,0,.45);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:13px;display:none;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
+#streak-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:13px;display:none;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
 #streak-hud .si{font-size:16px;opacity:.3;transition:all .3s}
 #streak-hud .si.active{opacity:1;transform:scale(1.3)}
 
@@ -51,41 +51,42 @@ canvas{display:block}
 @keyframes comboVignette{0%,100%{box-shadow:inset 0 0 60px rgba(255,215,0,.2),inset 0 0 160px rgba(255,140,0,.08)}50%{box-shadow:inset 0 0 100px rgba(255,215,0,.35),inset 0 0 240px rgba(255,140,0,.15)}}
 #multi-text{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,200,0,.8),0 0 40px rgba(255,100,0,.5);pointer-events:none;z-index:115;opacity:0;transition:all .5s cubic-bezier(.175,.885,.32,1.275)}
 #multi-text.show{opacity:1;transform:translate(-50%,-50%) scale(1.2)}
-#clock{position:absolute;top:40px;right:50px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
-.btn{position:absolute;width:34px;height:34px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;pointer-events:auto;z-index:110}
+#clock{position:absolute;top:40px;right:54px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
+.btn{position:absolute;width:34px;height:34px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;pointer-events:auto;z-index:110}
 .btn:active{transform:scale(.88)}
 #fs-btn{top:40px;left:12px}#music-btn{top:40px;left:52px}
+#lb-btn-top{top:40px;right:12px}
 #help-btn{bottom:16px;right:16px;width:34px;height:34px;border-radius:50%;font-size:15px}
-#help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.88);backdrop-filter:blur(20px);color:#fff;padding:28px 32px;border-radius:20px;max-width:320px;text-align:center;font-size:14px;line-height:2.2;display:none;border:1px solid rgba(255,255,255,.08)}
+#help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.88);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:28px 32px;border-radius:20px;max-width:320px;text-align:center;font-size:14px;line-height:2.2;display:none;border:1px solid rgba(255,255,255,.08)}
 #help.show{display:block}
 #help h2{font-size:20px;margin-bottom:8px;color:#ffd700;display:inline-flex;align-items:center;justify-content:center}
 #help .cb{margin-top:18px;padding:10px 32px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
 .toast{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%) scale(.5);opacity:0;transition:all .3s cubic-bezier(.175,.885,.32,1.275);pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-.toast-inner{padding:8px 22px;border-radius:14px;font-size:20px;font-weight:bold;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px}
+.toast-inner{padding:8px 22px;border-radius:14px;font-size:20px;font-weight:bold;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px}
 .toast.p .toast-inner{background:rgba(0,180,80,.7);color:#fff}
 .toast.m .toast-inner{background:rgba(220,40,40,.7);color:#fff}
 .toast.s .toast-inner{background:rgba(40,160,220,.7);color:#fff}
 #joy-zone{position:absolute;bottom:0;left:0;width:50%;height:45%;display:none;pointer-events:auto}
 #joy-base{width:130px;height:130px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);border-radius:50%;position:absolute;display:none}
 #joy-knob{width:54px;height:54px;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.2);border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
-#err-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(180,30,30,.95);backdrop-filter:blur(16px);color:#fff;padding:24px 32px;border-radius:16px;max-width:400px;text-align:center;font-size:14px;line-height:1.8;display:none;z-index:250}
+#err-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(180,30,30,.95);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff;padding:24px 32px;border-radius:16px;max-width:400px;text-align:center;font-size:14px;line-height:1.8;display:none;z-index:250}
 #err-popup .msg{font-size:12px;font-family:monospace;word-break:break-all;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;margin-top:10px}
 #err-popup button{margin-top:16px;padding:8px 24px;background:#fff;color:#c00;border:none;border-radius:8px;font-size:14px;cursor:pointer}
 /* ===== v2.0 生命/事件/漩涡/血瓶/排行榜 ===== */
-#hearts-hud{background:rgba(0,0,0,.45);backdrop-filter:blur(8px);padding:5px 12px;border-radius:10px;display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,.06)}
+#hearts-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:5px 12px;border-radius:10px;display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,.06)}
 #hearts-hud .hp{font-size:16px;line-height:1;color:#ff4d6d;transition:transform .3s,filter .3s,opacity .3s}
 #hearts-hud .hp.empty{color:#5a6472;opacity:.45}
 #hearts-hud .hp.beat{animation:hpBeat .45s}
 @keyframes hpBeat{0%,100%{transform:scale(1)}45%{transform:scale(1.6)}}
-#event-hud{position:absolute;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;padding:6px 16px;border-radius:12px;font-size:14px;display:none;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.1);pointer-events:none;z-index:106}
+#event-hud{position:absolute;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:6px 16px;border-radius:12px;font-size:14px;display:none;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.1);pointer-events:none;z-index:106}
 #event-hud .ev-icon{font-size:18px;display:inline-flex}
 #event-hud .ev-name{font-weight:600}
 #event-hud .ev-fx{color:#8fe0ff;font-size:12px;opacity:.9;padding-left:6px;margin-left:2px;border-left:1px solid rgba(255,255,255,.18)}
 #event-hud .ev-time{color:#ffd700;font-weight:bold;min-width:26px;text-align:right}
-#event-warn{position:absolute;top:130px;left:50%;transform:translateX(-50%) scale(.85);background:rgba(200,40,40,.85);backdrop-filter:blur(8px);color:#fff;padding:8px 20px;border-radius:14px;font-size:15px;font-weight:bold;display:none;align-items:center;gap:8px;z-index:107;opacity:0;transition:all .3s;pointer-events:none}
+#event-warn{position:absolute;top:130px;left:50%;transform:translateX(-50%) scale(.85);background:rgba(200,40,40,.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:8px 20px;border-radius:14px;font-size:15px;font-weight:bold;display:none;align-items:center;gap:8px;z-index:107;opacity:0;transition:all .3s;pointer-events:none;--warn-glow:rgba(255,80,80,1)}
 #event-warn.show{display:flex;opacity:1;transform:translateX(-50%) scale(1);animation:warnPulse 1s ease-in-out infinite}
-@keyframes warnPulse{0%,100%{box-shadow:0 0 0 rgba(255,80,80,.5)}50%{box-shadow:0 0 26px rgba(255,80,80,.9)}}
+@keyframes warnPulse{0%,100%{box-shadow:0 0 0 var(--warn-glow)}50%{box-shadow:0 0 26px var(--warn-glow)}}
 #red-flash{position:fixed;inset:0;pointer-events:none;z-index:108;box-shadow:inset 0 0 130px rgba(255,0,0,.65);opacity:0;transition:opacity .35s}
 #red-flash.show{opacity:1;transition:opacity 0s}
 #rain-overlay{position:fixed;inset:0;pointer-events:none;z-index:104;opacity:0;transition:opacity 1s;background:repeating-linear-gradient(102deg,transparent 0 6px,rgba(180,205,235,.14) 6px 7px)}
@@ -93,19 +94,24 @@ canvas{display:block}
 @keyframes rainMove{from{background-position:0 0}to{background-position:-30px 120px}}
 #rainbow-overlay{position:fixed;inset:0;pointer-events:none;z-index:103;opacity:0;transition:opacity 1s;background:linear-gradient(120deg,rgba(255,0,0,.07),rgba(255,165,0,.07),rgba(255,255,0,.07),rgba(0,200,0,.07),rgba(0,120,255,.07),rgba(140,0,255,.07))}
 #rainbow-overlay.show{opacity:1}
-#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
+#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
 #gameover.show{display:flex}
 #gameover h1{font-size:34px;color:#ff6b6b;margin-bottom:4px;text-shadow:0 0 20px rgba(255,80,80,.5)}
 #gameover .go-score{font-size:19px;margin:4px 0}
 #gameover .go-score b{color:#ffd700;font-size:28px}
 #gameover .go-best{font-size:13px;color:#aaa;margin-bottom:12px}
-#gameover .go-name{padding:9px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:15px;text-align:center;width:210px;margin-bottom:10px;outline:none}
+#gameover .go-name{padding:9px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:15px;text-align:center;width:210px;outline:none}
 #gameover .go-name:focus{border-color:#ffd700}
+#gameover .go-name-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px}
+#gameover .go-name-wrap .greeting{font-size:14px;color:#8fe0ff;margin-bottom:6px}
+#gameover .go-name-row{display:flex;gap:8px;align-items:center}
+#gameover .go-name-ok{padding:9px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;font-weight:700;cursor:pointer;font-size:14px}
+#gameover .go-name-ok:active{transform:scale(.95)}
 #gameover .go-btn{padding:10px 40px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
 #gameover .go-btn:active{transform:scale(.95)}
 .lb{width:330px;max-width:90vw;background:rgba(0,0,0,.3);border-radius:14px;padding:12px 14px;border:1px solid rgba(255,255,255,.08)}
 .lb h3{font-size:15px;color:#ffd700;text-align:center;margin-bottom:8px}
-.lb-list{max-height:32vh;overflow-y:auto}
+.lb-list{max-height:32vh;overflow-y:auto;padding-bottom:10px}
 .lb-item{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;font-size:13px}
 .lb-item:nth-child(odd){background:rgba(255,255,255,.04)}
 .lb-item.me{background:rgba(255,215,0,.18);border:1px solid rgba(255,215,0,.4)}
@@ -114,14 +120,54 @@ canvas{display:block}
 .lb-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lb-item .sc{color:#ffd700;font-weight:bold}
 .lb-empty{text-align:center;color:#888;font-size:13px;padding:14px}
+/* 无敌显示 - 与护盾同位置 */
+#invincible-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#44ddff;padding:5px 14px;border-radius:10px;font-size:14px;display:none;align-items:center;gap:6px;border:1px solid rgba(68,221,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(68,221,255,.3)}
+#invincible-hud .inv-time{color:#ffd700;font-weight:bold;font-size:16px}
+/* 详情弹窗 */
+#detail-modal,#share-modal{position:fixed;inset:0;background:rgba(5,10,25,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
+/* 关闭叉号（弹窗右上角） */
+.close-x{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:501;transition:all .15s}
+.close-x:hover{background:rgba(255,80,80,.6);transform:rotate(90deg)}
+.close-x:active{transform:scale(.9)}
+#detail-modal.show,#share-modal.show{display:flex}
+#detail-modal .dm-box{width:380px;max-width:90vw;background:rgba(0,0,0,.6);border-radius:16px;padding:20px;border:1px solid rgba(255,255,255,.1)}
+#detail-modal .dm-title{font-size:18px;color:#ffd700;text-align:center;margin-bottom:12px}
+#detail-modal .dm-list{max-height:50vh;overflow-y:auto;margin-bottom:12px}
+#detail-modal .dm-item{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05)}
+#detail-modal .dm-item .rk{width:24px;font-weight:bold;text-align:center;opacity:.7}
+#detail-modal .dm-item.top1 .rk{color:#ffd700}
+#detail-modal .dm-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#detail-modal .dm-item .sc{color:#ffd700;font-weight:bold}
+#detail-modal .dm-item .pt{color:#888;font-size:11px;min-width:50px;text-align:right}
+#detail-modal .dm-item .ts{color:#666;font-size:11px;min-width:60px;text-align:right}
+#detail-modal .dm-btn{padding:10px 32px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin:4px}
+#detail-modal .dm-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+/* 分享卡片 */
+#share-modal .sm-card{width:340px;background:linear-gradient(135deg,#1a2a5e,#2a4a8e);border-radius:20px;padding:24px;border:2px solid rgba(255,215,0,.3);text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#share-modal .sm-card .sm-title{font-size:22px;color:#ffd700;font-weight:bold;margin-bottom:4px}
+#share-modal .sm-card .sm-sub{font-size:12px;color:#8fe0ff;margin-bottom:16px}
+#share-modal .sm-card .sm-score{font-size:48px;color:#fff;font-weight:900;text-shadow:0 0 20px rgba(255,215,0,.5)}
+#share-modal .sm-card .sm-label{font-size:13px;color:#aaa;margin-bottom:16px}
+#share-modal .sm-card .sm-qr{width:140px;height:140px;background:#fff;border-radius:12px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
+#share-modal .sm-card .sm-qr canvas{border-radius:8px}
+#share-modal .sm-card .sm-url{font-size:11px;color:#888;word-break:break-all}
+#share-modal .sm-btns{display:flex;gap:8px;justify-content:center;margin-top:16px}
+#share-modal .sm-btn{padding:10px 24px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+#share-modal .sm-btn.outline{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
+/* 游戏结束按钮区 */
+#gameover .go-btn.share{background:linear-gradient(135deg,#4dc9ff,#2a8adf)}
+/* 排行榜按钮区 */
+.lb-btns{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.lb-btn{padding:6px 14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:12px;cursor:pointer}
+.lb-btn:hover{background:rgba(255,255,255,.2)}
 </style>
 </head>
 <body>
-<div id="loader"><div class="icon"><svg viewBox="0 0 120 100" width="84" height="84"><g class="wvBack1"><path d="M-6 72 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#8ad4ff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".9"/></g><g class="wvBack2"><path d="M-6 80 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#5ec2ff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".7"/></g><g class="wvBack3"><path d="M-6 80 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#3fb4ef" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".6"/></g><g class="wvBack4"><path d="M-6 88 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#2a9fd6" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".45"/></g><g class="wvBack5"><path d="M-6 96 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#1e88c4" stroke-width="2" fill="none" stroke-linecap="round" opacity=".35"/></g><g class="duck-wrap"><g transform="translate(99.5,8) scale(-0.14,0.14)"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></g></g></svg></div><div class="bar"><div class="bar-inner" id="load-bar"></div></div><div class="loader-title">小黄鸭漂流记</div><div class="txt">加载中...</div></div>
+<div id="loader"><div class="icon"><svg viewBox="0 0 120 100" width="84" height="84"><g class="wvBack1"><path d="M-6 72 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#8ad4ff" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".9"/></g><g class="wvBack2"><path d="M-6 78 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#5ec2ff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".7"/></g><g class="wvBack3"><path d="M-6 84 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#3fb4ef" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".6"/></g><g class="wvBack4"><path d="M-6 90 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#2a9fd6" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".45"/></g><g class="wvBack5"><path d="M-6 96 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#1e88c4" stroke-width="2" fill="none" stroke-linecap="round" opacity=".35"/></g><g class="duck-wrap"><g transform="translate(99.5,8) scale(-0.14,0.14)"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></g></g></svg></div><div class="bar"><div class="bar-inner" id="load-bar"></div></div><div class="loader-title">小黄鸭漂流记</div><div class="txt">加载中...</div></div>
 <div id="rotate-hint"><div class="ri"><i class="fa-solid fa-mobile-screen-button"></i></div><div style="margin-top:16px">请横屏使用</div></div>
 <div id="err-popup"><div><i class="fa-solid fa-triangle-exclamation"></i> 加载失败</div><div class="msg" id="err-msg"></div><button onclick="location.reload()">重试</button></div>
 <div id="ui">
-    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
+    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div class="hi" id="invincible-hud"><i class="fa-solid fa-shield-halved"></i> 无敌 <span class="inv-time" id="inv-time">0</span>s</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
 
     <div id="combo-border"></div>
     <div id="multi-text"></div>
@@ -134,11 +180,36 @@ canvas{display:block}
         <h1>游戏结束</h1>
         <div class="go-score">本次得分 <b id="go-score">0</b></div>
         <div class="go-best" id="go-best">历史最高：0</div>
-        <input class="go-name" id="go-name" maxlength="12" placeholder="输入昵称">
+        <div class="go-name-wrap" id="go-name-wrap"><div class="greeting">请输入昵称</div><div class="go-name-row"><input class="go-name" id="go-name" maxlength="12" placeholder="输入昵称"><button class="go-name-ok" id="go-name-ok" onclick="confirmName()">确定</button></div></div>
         <div class="lb"><h3><i class="fa-solid fa-trophy"></i> 排行榜 Top 20</h3><div class="lb-list" id="lb-list"></div></div>
-        <button class="go-btn" onclick="restartGame()">再来一局</button>
+        <div class="go-btns">
+            <button class="go-btn" onclick="restartGame()">再来一局</button>
+            <button class="go-btn share" onclick="showShareModal()"><i class="fa-solid fa-share-nodes"></i> 分享</button>
+        </div>
+    </div>
+    <div id="detail-modal">
+        <div class="dm-box">
+            <button class="close-x" onclick="document.getElementById('detail-modal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="dm-title"><i class="fa-solid fa-trophy"></i> 排行榜明细</div>
+            <div class="dm-list" id="dm-list"></div>
+        </div>
+    </div>
+    <div id="share-modal">
+        <button class="close-x" onclick="document.getElementById('share-modal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        <div class="sm-card">
+            <div class="sm-title">🦆 小黄鸭漂流记</div>
+            <div class="sm-sub">我的最高分</div>
+            <div class="sm-score" id="share-score">0</div>
+            <div class="sm-label">快来挑战吧！</div>
+            <div class="sm-qr" id="share-qr"></div>
+            <div class="sm-url" id="share-url"></div>
+        </div>
+        <div class="sm-btns">
+            <button class="sm-btn" onclick="downloadShareCard()"><i class="fa-solid fa-download"></i> 保存卡片</button>
+        </div>
     </div>
     <div id="clock" onclick="cycleTime()"><span id="clock-icon"><i class="fa-solid fa-sun"></i></span> <span id="clock-text">中午 12:00</span></div>
+    <div class="btn" id="lb-btn-top" onclick="showDetailModal()" title="查看排行榜明细"><i class="fa-solid fa-trophy"></i></div>
     <div class="btn" id="fs-btn"><i class="fa-solid fa-expand"></i></div>
     <div class="btn" id="music-btn"><i class="fa-solid fa-volume-high"></i></div>
     <div class="btn" id="help-btn"><i class="fa-solid fa-question"></i></div>
@@ -146,8 +217,8 @@ canvas{display:block}
     <div class="toast" id="toast"><div class="toast-inner" id="toast-text"></div></div>
     <div id="help">
         <h2><svg viewBox="29 12 62 62" width="28" height="28" style="display:block;flex-shrink:0;margin-right:2px"><g transform="translate(90.7,12) scale(-0.12,0.12)"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></g></svg> 小黄鸭漂流记</h2>
-        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 初始生命×3<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 爱心血瓶加血 · <i class="fa-solid fa-hurricane" style="color:#66ccff"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt" style="color:#ffd700"></i> 每60秒随机事件（提示栏显示效果）</div>
-        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分60秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分60秒！<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 初始生命×3<br><i class="fa-solid fa-heart" style="color:#ff5577"></i> 爱心血瓶加血 · <i class="fa-solid fa-hurricane" style="color:#66ccff"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt" style="color:#ffd700"></i> 每60秒随机事件（提示栏显示效果）</div>
+        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
+        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-leaf"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
         <button class="cb" onclick="document.getElementById('help').classList.remove('show')">开始冒险</button>
     </div>
 </div>
@@ -160,6 +231,7 @@ canvas{display:block}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
@@ -188,7 +260,7 @@ document.getElementById('help-btn').onclick=()=>document.getElementById('help').
 
 // ===== 渲染器 =====
 const canvas=document.getElementById('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
@@ -491,14 +563,68 @@ const leafMat=new THREE.MeshStandardMaterial({color:0x3f8f3f,roughness:.6});for(
 const pm=new THREE.MeshStandardMaterial({color:0xffd93c,roughness:.45,emissive:0x442200,emissiveIntensity:.25});for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2;const p=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),pm);p.scale.set(1,.4,1.7);p.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);p.rotation.y=Math.PI/2-a;p.rotateX(-.3);g.add(p)}
 // 花心
 const core=new THREE.Mesh(new THREE.SphereGeometry(.055,12,10),new THREE.MeshStandardMaterial({color:0xff8c1a,roughness:.4,emissive:0x552200,emissiveIntensity:.35}));core.position.y=.52;core.scale.y=.7;g.add(core);g.position.set(x,-.02,z);return g}
+// 卡通横向 U 形马蹄铁磁铁（一体化：TubeGeometry 沿 U 形曲线生成单根管子，groups 多材质分段着色）
+function mkMagnet(x,z){
+    const poleLen=.5,poleR=.12,gap=.22;
+    // 横放 U 形马蹄铁路径（XZ 平面，y=0；开口朝 -X 方向，两极水平指向左）：
+    // 红极尖（左）→ 红极根（右）→ 银色半圆弧（向 +X 凸出）→ 蓝极根（右）→ 蓝极尖（左）
+    const pts=[
+        new THREE.Vector3(-poleLen,0,-gap),   // 红极尖（-X 方向，z=-gap）
+        new THREE.Vector3(0,0,-gap),          // 红极根（弧起点）
+    ];
+    // 银弧：x = gap*sin(a) 从 0 经 +gap 到 0；z = -gap*cos(a) 从 -gap 经 0 到 +gap
+    for(let i=1;i<16;i++){
+        const a=Math.PI*(i/16);
+        pts.push(new THREE.Vector3(gap*Math.sin(a),0,-gap*Math.cos(a)));
+    }
+    pts.push(new THREE.Vector3(0,0,gap));           // 蓝极根（弧终点）
+    pts.push(new THREE.Vector3(-poleLen,0,gap));     // 蓝极尖（-X 方向，z=+gap）
+    const curve=new THREE.CatmullRomCurve3(pts,false,'catmullrom',.5);
+    const tubularSeg=80,radialSeg=14;
+    const tubeGeo=new THREE.TubeGeometry(curve,tubularSeg,poleR,radialSeg,false);
+    // 按 tubularSeg 比例划分 groups：红极 0-25%，银弧 25-75%，蓝极 75-100%
+    const totalIdx=tubeGeo.index?tubeGeo.index.count:tubeGeo.attributes.position.count;
+    const perSeg=totalIdx/(tubularSeg+1);
+    const redEnd=Math.floor(perSeg*(tubularSeg*.25));
+    const silverEnd=Math.floor(perSeg*(tubularSeg*.75));
+    tubeGeo.addGroup(0,redEnd,0);
+    tubeGeo.addGroup(redEnd,silverEnd-redEnd,1);
+    tubeGeo.addGroup(silverEnd,totalIdx-silverEnd,2);
+    const redMat=new THREE.MeshStandardMaterial({color:0xff4466,roughness:.35,emissive:0xff2244,emissiveIntensity:.45,metalness:.1});
+    const blueMat=new THREE.MeshStandardMaterial({color:0x4488ff,roughness:.35,emissive:0x2266ff,emissiveIntensity:.45,metalness:.1});
+    const silverMat=new THREE.MeshStandardMaterial({color:0xe8edf5,roughness:.2,metalness:.95,emissive:0x222a36,emissiveIntensity:.15});
+    const magnetMesh=new THREE.Mesh(tubeGeo,[redMat,silverMat,blueMat]);
+    magnetMesh.castShadow=true;
+    // 两极顶端的银色圆头（圆润封顶，标识 N/S 极）
+    const capGeo=new THREE.SphereGeometry(poleR*1.02,16,12);
+    const redCap=new THREE.Mesh(capGeo,silverMat);
+    redCap.position.set(-poleLen,0,-gap);redCap.castShadow=true;
+    const blueCap=new THREE.Mesh(capGeo,silverMat);
+    blueCap.position.set(-poleLen,0,gap);blueCap.castShadow=true;
+    // N/S 字母标识（白色小圆环，贴在极帽 -X 外侧，圆环面朝 -X）
+    const labelMat=new THREE.MeshBasicMaterial({color:0xffffff});
+    const nLabel=new THREE.Mesh(new THREE.TorusGeometry(.05,.015,8,16),labelMat);
+    nLabel.position.set(-poleLen-poleR*1.05,0,-gap);
+    nLabel.rotation.y=Math.PI/2;
+    const sLabel=new THREE.Mesh(new THREE.TorusGeometry(.05,.015,8,16),labelMat);
+    sLabel.position.set(-poleLen-poleR*1.05,0,gap);
+    sLabel.rotation.y=Math.PI/2;
+    const g=new THREE.Group();
+    g.add(magnetMesh,redCap,blueCap,nLabel,sLabel);
+    g.position.set(x,0,z);return g}
 
 // 动态刷新
-const SPAWN_R=40,DESPAWN_R=55,MAX_I=160;
+const SPAWN_R=60,DESPAWN_R=90,MAX_I=520;
+const MAGNET_RANGE=16,MAGNET_DURATION=12;// 磁铁吸引范围16单位（减半），持续12秒
+let magnetTimer=0,magnetActive=false;
 function spawnAround(cx,cz){
-    const cnt={rock:0,flower:0,grass:0,lily:0};items.forEach(i=>{if(!i.coll)cnt[i.type]++});
-    const tgt={rock:10+eventRockBoost,flower:18,grass:14,lily:8};
-    for(const[type,target]of Object.entries(tgt)){while(cnt[type]<target&&items.length<MAX_I){const ang=Math.random()*Math.PI*2,dist=8+Math.random()*(SPAWN_R-8);const x=cx+Math.cos(ang)*dist,z=cz+Math.sin(ang)*dist;let mesh,radius;
-    switch(type){case'rock':const rs=.3+Math.random()*.5;mesh=mkRock(new THREE.Vector3(x,-.1,z),rs);radius=rs*1.2;break;case'flower':mesh=mkFlower(x,z);radius=.4;break;case'grass':mesh=mkGrass(x,z,5+Math.floor(Math.random()*4));radius=.4;break;case'lily':const ls=.3+Math.random()*.25;mesh=mkLily(x,z,ls);radius=ls;break}
+    const cnt={rock:0,flower:0,grass:0,lily:0,magnet:0};items.forEach(i=>{if(!i.coll)cnt[i.type]++});
+    const tgt={rock:12+eventRockBoost,flower:26,grass:22,lily:12,magnet:1};
+    for(const[type,target]of Object.entries(tgt)){while(cnt[type]<target&&items.length<MAX_I){
+    // 磁铁刷新概率 50%（稀有道具）
+    if(type==='magnet'&&Math.random()>.5)break;
+    const ang=Math.random()*Math.PI*2,dist=8+Math.random()*(SPAWN_R-8);const x=cx+Math.cos(ang)*dist,z=cz+Math.sin(ang)*dist;let mesh,radius;
+    switch(type){case'rock':{const rs=.3+Math.random()*.5;const rm=1+Math.floor(Math.random()*5)*.5;mesh=mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);radius=rs*1.2*rm;break}case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;break}case'grass':{const gm=1+Math.floor(Math.random()*3)*.5;mesh=mkGrass(x,z,5+Math.floor(Math.random()*4));mesh.scale.multiplyScalar(gm);radius=.4*gm;break}case'lily':{const ls=.3+Math.random()*.25;const lm=1+Math.floor(Math.random()*3)*.5;mesh=mkLily(x,z,ls);mesh.scale.multiplyScalar(lm);radius=ls*lm;break}case'magnet':{const mm=1+Math.floor(Math.random()*3)*.5;mesh=mkMagnet(x,z);mesh.scale.multiplyScalar(mm);radius=.35*mm;break}}
     if(mesh){scene.add(mesh);items.push({mesh,type,r:radius,coll:false});cnt[type]++}}}
     for(let i=items.length-1;i>=0;i--){const it=items[i];const dx=it.mesh.position.x-cx,dz=it.mesh.position.z-cz;if(Math.sqrt(dx*dx+dz*dz)>DESPAWN_R||it.coll){scene.remove(it.mesh);items.splice(i,1)}}
 }
@@ -527,36 +653,125 @@ crownGroup.add(crownInner);
 // 连胜特效光环（柔和发光球）
 const auraMat=new THREE.MeshBasicMaterial({color:0xffd700,transparent:true,opacity:0,side:THREE.DoubleSide});
 const auraMesh=new THREE.Mesh(new THREE.SphereGeometry(2.5,24,16),auraMat);auraMesh.visible=false;scene.add(auraMesh);
+// 磁吸激活时的范围圈（单层淡蓝色环，表明吸引边界）
+const magnetRangeRing=new THREE.Mesh(new THREE.RingGeometry(MAGNET_RANGE-1.5,MAGNET_RANGE,80),
+    new THREE.MeshBasicMaterial({color:0x66bbff,transparent:true,opacity:0,fog:false}));
+magnetRangeRing.rotation.x=-Math.PI/2;magnetRangeRing.visible=false;scene.add(magnetRangeRing);
+// 磁场蓝色粒子特效（环绕鸭子螺旋向内的发光粒子，激活时可见）
+const MAG_PARTICLES=120;
+const magParticleGeo=new THREE.BufferGeometry();
+const magParticlePos=new Float32Array(MAG_PARTICLES*3);
+const magParticleData=[]; // 每个粒子的 {angle,radius,yOff,speed}
+for(let i=0;i<MAG_PARTICLES;i++){
+    const angle=Math.random()*Math.PI*2;
+    const radius=2+Math.random()*(MAGNET_RANGE-2);
+    magParticleData.push({angle,radius,yOff:(Math.random()-.5)*1.2,speed:.6+Math.random()*.9});
+}
+magParticleGeo.setAttribute('position',new THREE.BufferAttribute(magParticlePos,3));
+const magParticleMat=new THREE.PointsMaterial({
+    color:0x66bbff,size:.25,transparent:true,opacity:0,
+    blending:THREE.AdditiveBlending,depthWrite:false,fog:false,
+    map:(()=>{const c=document.createElement('canvas');c.width=c.height=32;
+        const ctx=c.getContext('2d');const g=ctx.createRadialGradient(16,16,0,16,16,16);
+        g.addColorStop(0,'rgba(180,220,255,1)');g.addColorStop(.4,'rgba(102,187,255,.6)');
+        g.addColorStop(1,'rgba(102,187,255,0)');ctx.fillStyle=g;ctx.fillRect(0,0,32,32);
+        const t=new THREE.CanvasTexture(c);return t;})()
+});
+const magParticles=new THREE.Points(magParticleGeo,magParticleMat);
+magParticles.frustumCulled=false;magParticles.visible=false;scene.add(magParticles);
+// 磁铁 HUD（激活时显示倒计时）
+const magnetHud=document.createElement('div');magnetHud.id='magnet-hud';
+magnetHud.style.cssText='background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#66bbff;padding:5px 14px;border-radius:10px;font-size:14px;display:none;align-items:center;gap:6px;border:1px solid rgba(102,187,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(102,187,255,.3)';
+magnetHud.innerHTML='<i class="fa-solid fa-magnet"></i> 磁吸 <span style="color:#ffd700;font-weight:bold;font-size:16px" id="mag-time">0</span>s';
+document.getElementById('hud').appendChild(magnetHud);
 
 // 游戏状态
 let score=0,hasShield=false,shieldTimer=0,invincible=0;
 function toast(t,type){const el=document.getElementById('toast');document.getElementById('toast-text').innerHTML=t;el.className='toast show '+type;setTimeout(()=>el.className='toast',1200)}
-let streakItems=[];let streakActive=false;let streakTimer=0;let scoreMultiplier=1;let streakType='';// 'same' or 'diff'
-const STREAK_ICONS={flower:'fa-sun',grass:'fa-seedling',lily:'fa-leaf',rock:'fa-gem'};
-const STREAK_COLORS={flower:'#ffee44',grass:'#44dd44',lily:'#44ddff',rock:'#cc8844'};
+let streakItems=[];let streakActive=false;let streakTimer=0;let scoreMultiplier=1;let streakType='';let bigTimer=0;// 'same' or 'diff'
+const STREAK_ICONS={flower:'fa-sun',grass:'fa-seedling',lily:'fa-leaf',rock:'fa-gem',heart:'fa-heart',magnet:'fa-magnet'};
+const STREAK_COLORS={flower:'#ffee44',grass:'#44dd44',lily:'#44ddff',rock:'#cc8844',heart:'#ff4d6d',magnet:'#aa66ff'};
 function addScore(n){const mult=streakActive?scoreMultiplier:1;const actual=n*mult;score=Math.max(0,score+actual);document.getElementById('score').textContent=score;if(streakActive&&mult>1&&n>0){toast(`<i class="fa-solid fa-fire"></i> +${n}×${mult}`,actual>=0?'p':'m')}}
-function trackStreak(type){if(type==='rock')return;// 岩石不计入连胜
-streakItems.push(type);updateStreakUI();
-if(streakItems.length>=3){const last3=streakItems.slice(-3);const allSame=last3[0]===last3[1]&&last3[1]===last3[2];if(allSame){activateStreak('same',last3[0])}else{activateStreak('diff','')}streakItems=[];updateStreakUI()}}
-function updateStreakUI(){const hud=document.getElementById('streak-hud');for(let i=0;i<3;i++){const el=document.getElementById('s'+i);if(i<streakItems.length){el.className='si active';el.innerHTML=`<i class="fa-solid ${STREAK_ICONS[streakItems[i]]||'fa-circle'}"></i>`;el.style.color=STREAK_COLORS[streakItems[i]]||'#fff'}else{el.className='si';el.innerHTML='●';el.style.color='rgba(255,255,255,.3)'}}hud.style.display=streakItems.length>0||streakActive?'flex':'none'}
-function activateStreak(kind,itemType){streakActive=true;streakTimer=60;streakType=kind;
+function trackStreak(type){
+    if(type==='rock')return;// 岩石不计入连胜
+    // 血瓶(heart)也算入；每收集3个判定一次
+    streakItems.push(type);
+    updateStreakUI();
+    if(streakItems.length>=3){
+        const [a,b,c]=streakItems;
+        if(a===b&&b===c){
+            // 3个相同 → 同色连胜10倍
+            activateStreak('same',a);
+        }else if(a!==b&&b!==c&&a!==c){
+            // 3个完全不同 → 异色连胜5倍
+            activateStreak('diff','');
+        }else{
+            // 混合（2同1异）→ 不触发连胜，仅提示
+            toast('<i class="fa-solid fa-xmark"></i> 组合失败','m');
+        }
+        // 判定后清空进度，开启下一轮收集
+        streakItems=[];
+        updateStreakUI();
+    }
+}
+function updateStreakUI(){const hud=document.getElementById('streak-hud');for(let i=0;i<3;i++){const el=document.getElementById('s'+i);if(i<streakItems.length){el.className='si active';el.innerHTML=`<i class="fa-solid ${STREAK_ICONS[streakItems[i]]||'fa-circle'}"></i>`;el.style.color=STREAK_COLORS[streakItems[i]]||'#fff'}else{el.className='si';el.innerHTML='●';el.style.color='rgba(255,255,255,.3)'}}hud.style.display='flex'}
+function activateStreak(kind,itemType){streakActive=true;streakTimer=10;streakType=kind;
 if(kind==='same'){scoreMultiplier=10;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-fire"></i> ×10 连胜！';playSFX('shield')}else{scoreMultiplier=5;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-star"></i> ×5 连胜！';playSFX('shield')}
 document.getElementById('multi-text').classList.add('show');setTimeout(()=>document.getElementById('multi-text').classList.remove('show'),3000);
 document.getElementById('combo-border').classList.add('active');
-// 鸭子变大4倍+无敌
-if(duckModel)duckModel.scale.setScalar(.72*4);invincible=999;
+// 鸭子变大4倍+无敌3s+积分倍率 全部持续10秒
+if(duckModel)duckModel.scale.setScalar(.72*4);bigTimer=10;invincible=3;
 // 皇冠可见
 crownGroup.visible=true;
 // 显示计时器
 document.getElementById('streak-timer').style.display='inline';
 toast(`<i class="fa-solid fa-crown"></i> ${kind==='same'?'同色':'混色'}连胜 ${scoreMultiplier}倍积分！`,'p')}
 function updateStreak(dt){if(!streakActive)return;streakTimer-=dt;document.getElementById('streak-timer').textContent=Math.ceil(streakTimer)+'s';
+// 变大持续10s，到时缩回正常尺寸（积分倍率仍持续至 streakTimer 结束）
+if(bigTimer>0){bigTimer-=dt;if(bigTimer<=0){bigTimer=0;if(duckModel)duckModel.scale.setScalar(.72)}}
 if(streakTimer<=0){streakActive=false;scoreMultiplier=1;streakType='';
 document.getElementById('combo-border').classList.remove('active');
 document.getElementById('multi-text').classList.remove('show');document.getElementById('streak-timer').style.display='none';
-if(duckModel)duckModel.scale.setScalar(.72);invincible=0;crownGroup.visible=false;auraMesh.visible=false;
+if(duckModel)duckModel.scale.setScalar(.72);bigTimer=0;invincible=0;crownGroup.visible=false;auraMesh.visible=false;
 updateStreakUI()}}
 function activateShield(){hasShield=true;shieldTimer=15;document.getElementById('shield-hud').style.display='flex';shieldMesh.visible=true;playSFX('shield');toast('<i class="fa-solid fa-shield-halved"></i> 护盾','s')}
+function activateMagnet(){
+    magnetActive=true;magnetTimer=MAGNET_DURATION;
+    magnetRangeRing.visible=true;
+    magParticles.visible=true;
+    magnetHud.style.display='flex';
+    playSFX('shield');
+    toast('<i class="fa-solid fa-magnet"></i> 磁吸激活','s');
+}
+function updateMagnet(dt){
+    if(!magnetActive)return;
+    magnetTimer-=dt;
+    const dp=duckModel.position;
+    // 范围圈跟随鸭子，缓慢旋转 + 呼吸闪烁
+    magnetRangeRing.position.set(dp.x,dp.y+.05,dp.z);
+    magnetRangeRing.rotation.z+=dt*.3;
+    const breathe=.5+Math.sin(gameClock*4)*.25;
+    magnetRangeRing.material.opacity=.18*breathe;
+    // 蓝色磁场粒子：环绕鸭子螺旋向内流动，到达近端后重置到外圈
+    magParticles.position.set(0,0,0);
+    const pos=magParticleGeo.attributes.position;
+    for(let i=0;i<MAG_PARTICLES;i++){
+        const p=magParticleData[i];
+        p.angle+=dt*p.speed*1.5;            // 角速度（环绕）
+        p.radius-=dt*p.speed*2.2;           // 径向速度（向内吸入）
+        if(p.radius<.6){                    // 到达中心，重置到外圈
+            p.radius=MAGNET_RANGE-Math.random()*2;
+            p.angle=Math.random()*Math.PI*2;
+            p.yOff=(Math.random()-.5)*1.2;
+        }
+        const y=dp.y+p.yOff+Math.sin(gameClock*3+p.angle*2)*.15;
+        pos.setXYZ(i,dp.x+Math.cos(p.angle)*p.radius,y,dp.z+Math.sin(p.angle)*p.radius);
+    }
+    pos.needsUpdate=true;
+    magParticleMat.opacity=.85*breathe;
+    document.getElementById('mag-time').textContent=Math.ceil(Math.max(0,magnetTimer));
+    if(magnetTimer<=0){magnetActive=false;magnetRangeRing.visible=false;magnetRangeRing.material.opacity=0;magParticles.visible=false;magParticleMat.opacity=0;magnetHud.style.display='none'}
+}
 
 // 随机海浪事件
 const cur={x:0,z:0,y:0};let waveT=0;
@@ -640,11 +855,18 @@ const duckScale=duckModel.scale.x/.72;const duckRadius=0.6*duckScale;const hitR=
 if(hDist<hitR){
 // 无敌状态：跳过岩石碰撞，但可以收集物品
 if(invincible>0&&it.type==='rock')continue;
-switch(it.type){case'rock':{const kb=dp.clone().sub(it.mesh.position).normalize().multiplyScalar(2);takeDamage(1);duckVel.add(kb);break;}
+switch(it.type){case'rock':{const kb=dp.clone().sub(it.mesh.position).normalize().multiplyScalar(2);takeDamage(1);duckVel.add(kb);
+// 保护机制：撞击后石头粉碎销毁，避免连续扣血
+const rockScale=it.mesh.scale.x;
+spawnRockShatter(it.mesh.position.clone(),rockScale);
+it.coll=true;scene.remove(it.mesh); // 立即从场景移除，下一帧由 despawn 逻辑清理 items
+playSFX('hit');
+break;}
 case'flower':addScore(2);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +2','p');playSFX('collect');trackStreak('flower');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,-.02,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
 case'grass':addScore(1);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-seedling"></i> +1','p');playSFX('collect');trackStreak('grass');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,0,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
-case'lily':if(!it.coll){addScore(3);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-leaf"></i> 荷叶','p');playSFX('collect');trackStreak('lily');activateShield();it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,.01,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},6000)}break;
-case'heart':heal(1);it.coll=true;scene.remove(it.mesh);spawnHeartParticles(it.mesh.position.clone());break}}}}
+case'lily':if(!it.coll){addScore(3);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-leaf"></i> 荷叶','p');playSFX('collect');trackStreak('lily');activateShield();it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,.01,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},3000)}break;
+case'heart':heal(1);trackStreak('heart');it.coll=true;scene.remove(it.mesh);spawnHeartParticles(it.mesh.position.clone());break;
+case'magnet':activateMagnet();trackStreak('magnet');it.coll=true;scene.remove(it.mesh);break}}}}
 
 // 更新鸭子
 let duckYaw=0; // 鸭子面朝方向（弧度，自动跟随移动方向）
@@ -729,8 +951,26 @@ if(streakActive&&duckModel){crownGroup.visible=true;
 // 王冠是鸭子子节点，位置/倾斜/缩放自动跟随，只需原地旋转
 crownGroup.rotation.y=gameClock*2;crownGroup.children.forEach((c,i)=>{if(c.material)c.material.opacity=.7+Math.sin(gameClock*6+i)*.3});auraMesh.visible=true;auraMesh.position.copy(duckModel.position);auraMesh.position.y+=.5;auraMesh.material.opacity=.04+Math.sin(gameClock*3)*.02;auraMesh.rotation.y=gameClock*.5;const auraScale=duckModel.scale.x*1.5+Math.sin(gameClock*2)*.2;auraMesh.scale.setScalar(auraScale)}else{crownGroup.visible=false;auraMesh.visible=false}
 updateStreak(dt);
-if(invincible>0&&!streakActive)invincible-=dt;
-if(streakActive)invincible=999;
+if(invincible>0)invincible-=dt;
+// 无敌显示：在上方护盾的位置显示无敌+剩余秒数（仅3秒）
+const invHud=document.getElementById('invincible-hud');
+const shieldHud=document.getElementById('shield-hud');
+if(invincible>0){
+    invHud.style.display='flex';
+    shieldHud.style.display='none'; // 无敌时隐藏护盾，由无敌 HUD 接管该位置
+    document.getElementById('inv-time').textContent=Math.ceil(Math.max(0,invincible));
+}else{
+    invHud.style.display='none';
+    if(hasShield)shieldHud.style.display='flex'; // 恢复护盾显示
+}
+// 磁铁激活：吸引附近所有可收集道具（花/草/荷叶/血瓶/磁铁）向鸭子靠近，石头不吸引
+if(magnetActive&&duckModel){const dp=duckModel.position;for(const it of items){if(it.coll||it.type==='rock')continue;const dx=dp.x-it.mesh.position.x,dz=dp.z-it.mesh.position.z;const d=Math.sqrt(dx*dx+dz*dz);if(d<MAGNET_RANGE&&d>0.1){
+// 吸引动画：越近吸力越强（指数加速）；不旋转物品、不改动 y，保持物品原有漂浮姿态
+const t=1-d/MAGNET_RANGE; // 0=远，1=近
+const f=(0.5+t*t*8)*dt; // 近距离加速
+it.mesh.position.x+=dx/d*f;it.mesh.position.z+=dz/d*f;
+}}}
+updateMagnet(dt);
 spawnAround(duckModel.position.x,duckModel.position.z);checkHit()}
 
 // 键盘（W/S 前后，A/D 左右，均相对相机视角）
@@ -764,7 +1004,7 @@ function updateHeartsUI(){const el=document.getElementById('hearts-hud');if(!el)
 function screenFlash(){const f=document.getElementById('red-flash');if(!f)return;f.classList.add('show');setTimeout(()=>f.classList.remove('show'),40)}
 function takeDamage(amount=1){
     if(!gameActive)return;
-    if(invincible>0||streakActive)return; // 无敌 / 连胜期间免伤
+    if(invincible>0)return; // 无敌期间免伤（连胜只在触发后3秒内无敌）
     if(hasShield){hasShield=false;shieldTimer=0;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;toast('<i class="fa-solid fa-shield-halved"></i> 护盾挡住了','s');playSFX('hit');invincible=.5;return}
     hearts=Math.max(0,hearts-amount);
     updateHeartsUI();
@@ -790,21 +1030,161 @@ function spawnHeartParticles(pos){
         transientFx.push({m,vx:Math.cos(a)*sp,vy:1.6+Math.random()*1.2,vz:Math.sin(a)*sp,life:.9,max:.9});
     }
 }
+// ---- 岩石粉碎特效：生成多个小多面体碎片向四周飞溅 ----
+function spawnRockShatter(pos,scale){
+    const tint=.92+Math.random()*.16;
+    const baseColor=new THREE.Color(0x8d8177).multiplyScalar(tint);
+    const count=8+Math.floor(Math.random()*4);
+    for(let i=0;i<count;i++){
+        const sz=(.15+Math.random()*.2)*scale;
+        const g=new THREE.DodecahedronGeometry(sz,0);
+        const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:baseColor.clone(),roughness:.9,flatShading:true,transparent:true,opacity:1,fog:false}));
+        m.position.copy(pos);m.position.y+=Math.random()*.1;
+        m.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
+        m.castShadow=false;
+        scene.add(m);
+        const a=Math.random()*Math.PI*2,sp=2+Math.random()*2.5;
+        const vy=2.5+Math.random()*1.5;
+        transientFx.push({
+            m,
+            vx:Math.cos(a)*sp,vy:vy,vz:Math.sin(a)*sp,
+            rx:(Math.random()-.5)*8,ry:(Math.random()-.5)*8,rz:(Math.random()-.5)*8, // 角速度
+            life:1.2+Math.random()*.3,max:1.5,
+            gravity:5,shatter:true
+        });
+    }
+    // 中心冲击波（短暂闪光）
+    const ring=new THREE.Mesh(
+        new THREE.RingGeometry(.1*scale,.2*scale,16),
+        new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,side:THREE.DoubleSide,fog:false})
+    );
+    ring.position.copy(pos);ring.position.y+=.05;ring.rotation.x=-Math.PI/2;
+    scene.add(ring);
+    transientFx.push({m:ring,ring:true,vx:0,vy:0,vz:0,life:.4,max:.4});
+}
 function updateTransientFx(dt){
     for(let i=transientFx.length-1;i>=0;i--){const f=transientFx[i];f.life-=dt;
-        f.m.position.x+=f.vx*dt;f.m.position.y+=f.vy*dt;f.m.position.z+=f.vz*dt;f.vy-=3.2*dt;
-        const t=Math.max(0,f.life/f.max);f.m.material.opacity=t*.95;f.m.scale.setScalar(Math.max(.1,t));
+        if(f.ring){
+            // 冲击波环：扩大 + 淡出
+            const t=Math.max(0,f.life/f.max);
+            const sc=1+(1-t)*4;
+            f.m.scale.setScalar(sc);
+            f.m.material.opacity=t*.9;
+        }else{
+            f.m.position.x+=f.vx*dt;f.m.position.y+=f.vy*dt;f.m.position.z+=f.vz*dt;
+            f.vy-=(f.gravity||3.2)*dt;
+            // 旋转
+            if(f.rx!==undefined)f.m.rotation.x+=f.rx*dt;
+            if(f.ry!==undefined)f.m.rotation.y+=f.ry*dt;
+            if(f.rz!==undefined)f.m.rotation.z+=f.rz*dt;
+            const t=Math.max(0,f.life/f.max);
+            f.m.material.opacity=f.shatter?Math.min(1,t*1.5):t*.95;
+            f.m.scale.setScalar(Math.max(.1,t));
+        }
         if(f.life<=0){scene.remove(f.m);transientFx.splice(i,1)}
     }
 }
 
-// ---- 排行榜（localStorage） ----
+// ---- 排行榜（File System Access API 直接读写 JSON 文件；不支持的浏览器回退 localStorage） ----
 const Leaderboard={
-    KEY:'duck_leaderboard_v2',
-    get(){try{const d=localStorage.getItem(this.KEY);return d?JSON.parse(d):{entries:[]}}catch(e){return{entries:[]}}},
-    save(d){try{localStorage.setItem(this.KEY,JSON.stringify(d))}catch(e){}},
-    submit(sc,pt,name){const d=this.get();const entry={name:name||'匿名小鸭',score:sc,playTime:pt,ts:Date.now(),id:'e'+Date.now()+Math.floor(Math.random()*1000)};d.entries.push(entry);d.entries.sort((a,b)=>b.score-a.score);d.entries=d.entries.slice(0,50);this.save(d);return{data:d,entry}},
-    best(){const d=this.get();return d.entries[0]?d.entries[0].score:0}
+    FILE_NAME:'leaderboard.json',
+    LS_KEY:'duck_leaderboard_v2',  // 回退方案
+    NAME_KEY:'duck_name',
+    DIR_KEY:'duck_dir_handle',     // 存目录句柄的标识
+    cache:{entries:[]},
+    loaded:false,
+    fileHandle:null,
+    supported:('showOpenFilePicker'in window),
+    // IndexedDB 持久化句柄
+    idbGet(k){return new Promise(r=>{const req=indexedDB.open('duckdb',1);req.onupgradeneeded=e=>{e.target.result.createObjectStore('kv')};req.onsuccess=e=>{const db=e.target.result;const tx=db.transaction('kv','readonly').objectStore('kv').get(k);tx.onsuccess=()=>r(tx.result);tx.onerror=()=>r(null)};req.onerror=()=>r(null)})},
+    idbSet(k,v){return new Promise(r=>{const req=indexedDB.open('duckdb',1);req.onupgradeneeded=e=>{e.target.result.createObjectStore('kv')};req.onsuccess=e=>{const db=e.target.result;const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>r(true);tx.onerror=()=>r(false)};req.onerror=()=>r(false)})},
+    // 加载：优先从已授权的文件句柄读取
+    async load(){
+        if(this.loaded)return this.cache;
+        if(this.supported){
+            try{
+                const h=await this.idbGet(this.DIR_KEY);
+                if(h){
+                    // 验证授权
+                    const perm=await h.queryPermission({mode:'readwrite'});
+                    if(perm==='granted'){this.fileHandle=h;await this.readFile()}
+                    else if(perm==='prompt'){const p=await h.requestPermission({mode:'readwrite'});if(p==='granted'){this.fileHandle=h;await this.readFile()}}
+                }
+            }catch(e){console.warn('文件句柄恢复失败',e)}
+        }
+        if(!this.loaded){
+            // 回退：fetch 静态文件 + localStorage
+            try{const r=await fetch('./'+this.FILE_NAME);if(r.ok){this.cache=await r.json();this.loaded=true}}catch(e){}
+            if(!this.loaded){try{this.cache=JSON.parse(localStorage.getItem(this.LS_KEY)||'{"entries":[]}')}catch(e){this.cache={entries:[]}};this.loaded=true}
+        }
+        return this.cache;
+    },
+    async readFile(){
+        try{
+            const f=await this.fileHandle.getFile();
+            const text=await f.text();
+            this.cache=text?JSON.parse(text):{entries:[]};
+            this.loaded=true;
+        }catch(e){console.warn('读取 JSON 文件失败',e);this.cache={entries:[]};this.loaded=true}
+    },
+    // 同步读取（内存缓存）
+    get(){return this.cache||{entries:[]}},
+    // 保存到 JSON 文件
+    async save(d){
+        this.cache=d;
+        if(this.fileHandle){
+            try{
+                const w=await this.fileHandle.createWritable();
+                await w.write(JSON.stringify(d,null,2));
+                await w.close();
+                return true;
+            }catch(e){console.warn('写入 JSON 文件失败',e)}
+        }
+        // 回退 localStorage
+        try{localStorage.setItem(this.LS_KEY,JSON.stringify(d))}catch(_){}
+        return false;
+    },
+    // 选择/创建 JSON 文件（用户授权一次后，句柄存 IndexedDB 持久化）
+    async pickFile(){
+        if(!this.supported){toast('浏览器不支持文件读写，已用本地存储','m');return false}
+        try{
+            const [h]=await window.showSaveFilePicker({
+                suggestedName:this.FILE_NAME,
+                types:[{description:'JSON',accept:{'application/json':['.json']}}]
+            });
+            this.fileHandle=h;
+            await this.idbSet(this.DIR_KEY,h);
+            // 首次保存当前数据
+            await this.save(this.get());
+            toast('<i class="fa-solid fa-check"></i> 已绑定 '+h.name,'p');
+            return true;
+        }catch(e){
+            if(e.name!=='AbortError')console.warn(e);
+            return false;
+        }
+    },
+    // 提交分数
+    submit(sc,pt,name){
+        const d=this.get();
+        const cachedName=localStorage.getItem(this.NAME_KEY);
+        const finalName=cachedName||name||'匿名小鸭';
+        let existingEntry=d.entries.find(e=>e.name===finalName);
+        if(existingEntry){
+            if(sc>existingEntry.score){existingEntry.score=sc;existingEntry.playTime=pt;existingEntry.ts=Date.now()}
+        }else{
+            const entry={name:finalName,score:sc,playTime:pt,ts:Date.now(),id:'e'+Date.now()+Math.floor(Math.random()*1000)};
+            d.entries.push(entry);
+            existingEntry=entry;
+        }
+        d.entries.sort((a,b)=>b.score-a.score);
+        d.entries=d.entries.slice(0,50);
+        this.save(d); // 异步落盘
+        return{data:d,entry:existingEntry};
+    },
+    best(){const d=this.get();return d.entries[0]?d.entries[0].score:0},
+    getCachedName(){return localStorage.getItem(this.NAME_KEY)||''},
+    setCachedName(name){localStorage.setItem(this.NAME_KEY,name)},
+    isBound(){return !!this.fileHandle}
 };
 let lastEntry=null;
 function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
@@ -820,24 +1200,248 @@ function showGameOver(data){
     const go=document.getElementById('gameover');
     document.getElementById('go-score').textContent=score;
     document.getElementById('go-best').textContent='历史最高：'+Leaderboard.best();
-    document.getElementById('go-name').value=localStorage.getItem('duck_name')||'';
+    // 排行榜昵称：第一次需要输入并点击"确定"，之后有缓存自动用之前的
+    const cachedName=Leaderboard.getCachedName();
+    const nameRow=document.querySelector('#go-name-wrap .go-name-row');
+    const nameInput=document.getElementById('go-name');
+    const nameWrap=document.getElementById('go-name-wrap');
+    if(cachedName){
+        if(nameRow)nameRow.style.display='none';
+        if(nameWrap)nameWrap.querySelector('.greeting').textContent='欢迎回来，'+cachedName+'！';
+    }else{
+        if(nameRow)nameRow.style.display='flex';
+        nameInput.value='';
+        nameInput.placeholder='请输入昵称';
+        if(nameWrap)nameWrap.querySelector('.greeting').textContent='首次游戏，请输入昵称';
+    }
     renderLeaderboard(data);
     go.classList.add('show');
 }
+// 昵称确定按钮：保存昵称到缓存并更新当前记录
+window.confirmName=function(){
+    const v=(document.getElementById('go-name').value||'').trim();
+    if(!v){toast('请输入昵称','m');return}
+    Leaderboard.setCachedName(v);
+    // 更新当前记录的昵称
+    if(lastEntry){
+        const d=Leaderboard.get();
+        const e=d.entries.find(x=>x.id===lastEntry.id);
+        if(e){e.name=v;Leaderboard.save(d);renderLeaderboard(d)}
+    }
+    // 隐藏输入区，显示欢迎回来
+    const nameRow=document.querySelector('#go-name-wrap .go-name-row');
+    const nameWrap=document.getElementById('go-name-wrap');
+    if(nameRow)nameRow.style.display='none';
+    if(nameWrap)nameWrap.querySelector('.greeting').textContent='欢迎回来，'+v+'！';
+    toast('<i class="fa-solid fa-check"></i> 昵称已保存','p');
+};
 function gameOver(){
     if(!gameActive)return;gameActive=false;
     playSFX('hit');
     const pt=Math.floor((Date.now()-playStartTime)/1000);
-    const r=Leaderboard.submit(score,pt,localStorage.getItem('duck_name')||'匿名小鸭');
+    const cachedName=Leaderboard.getCachedName();
+    const r=Leaderboard.submit(score,pt,cachedName||'匿名小鸭');
     lastEntry=r.entry;
     showGameOver(r.data);
 }
 window.restartGame=function(){
-    const nm=(document.getElementById('go-name').value||'').trim()||'匿名小鸭';
-    localStorage.setItem('duck_name',nm);
-    if(lastEntry){const d=Leaderboard.get();const e=d.entries.find(x=>x.id===lastEntry.id);if(e){e.name=nm;Leaderboard.save(d)}}
+    // 如果用户没点"确定"就直接开始下一局，尝试用输入框的值兜底
+    const cachedName=Leaderboard.getCachedName();
+    if(!cachedName){
+        const v=(document.getElementById('go-name').value||'').trim()||'匿名小鸭';
+        Leaderboard.setCachedName(v);
+        if(lastEntry){
+            const d=Leaderboard.get();
+            const e=d.entries.find(x=>x.id===lastEntry.id);
+            if(e){e.name=v;Leaderboard.save(d)}
+        }
+    }
     location.reload();
 };
+
+// ---- 详情弹窗 ----
+function showDetailModal(){
+    const d=Leaderboard.get();
+    const list=document.getElementById('dm-list');
+    if(!d.entries.length){list.innerHTML='<div class="lb-empty">暂无记录</div>';}else{
+        list.innerHTML=d.entries.map((e,i)=>{
+            const top=i<3?'top'+(i+1):'';
+            const pt=formatTime(e.playTime);
+            const ts=formatDate(e.ts);
+            return `<div class="dm-item ${top}"><span class="rk">${i+1}</span><span class="nm">${escapeHtml(e.name)}</span><span class="sc">${e.score}</span><span class="pt">${pt}</span><span class="ts">${ts}</span></div>`;
+        }).join('');
+    }
+    document.getElementById('detail-modal').classList.add('show');
+}
+function formatTime(s){const m=Math.floor(s/60),sec=s%60;return m>0?m+'分'+sec+'秒':sec+'秒'}
+function formatDate(ts){const d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+
+// ---- 分享卡片 ----
+function ensureQRCodeLib(){
+    return new Promise((resolve)=>{
+        if(typeof QRCode!=='undefined'){resolve();return}
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        s.onload=()=>resolve();
+        s.onerror=()=>resolve();
+        document.head.appendChild(s);
+    });
+}
+function generateQRDataURL(text,size){
+    return new Promise((resolve)=>{
+        const holder=document.createElement('div');
+        holder.style.position='fixed';holder.style.left='-9999px';holder.style.top='0';
+        document.body.appendChild(holder);
+        try{
+            new QRCode(holder,{text,width:size,height:size});
+            setTimeout(()=>{
+                const cv=holder.querySelector('canvas');
+                const img=holder.querySelector('img');
+                let dataURL=null;
+                if(cv)dataURL=cv.toDataURL('image/png');
+                else if(img)dataURL=img.src;
+                document.body.removeChild(holder);
+                resolve(dataURL);
+            },80);
+        }catch(e){document.body.removeChild(holder);resolve(null)}
+    });
+}
+function showShareModal(){
+    const best=Leaderboard.best();
+    document.getElementById('share-score').textContent=best;
+    const url=location.href.split('?')[0];
+    document.getElementById('share-url').textContent=url;
+    const qrContainer=document.getElementById('share-qr');
+    qrContainer.innerHTML='';
+    ensureQRCodeLib().then(()=>{
+        try{new QRCode(qrContainer,{text:url,width:140,height:140})}catch(e){qrContainer.innerHTML='<div style="color:#888;font-size:11px;padding:20px">二维码加载失败</div>'}
+    });
+    document.getElementById('share-modal').classList.add('show');
+}
+async function downloadShareCard(){
+    const best=Leaderboard.best();
+    const url=location.href.split('?')[0];
+    // 生成二维码 dataURL
+    await ensureQRCodeLib();
+    const qrDataURL=await generateQRDataURL(url,256);
+    // 截取当前游戏画面（最高分截图）
+    let gameShot=null;
+    try{
+        if(typeof renderer!=='undefined'&&renderer.domElement){
+            renderer.render(scene,camera);
+            gameShot=renderer.domElement.toDataURL('image/png');
+        }
+    }catch(e){gameShot=null}
+    const W=720,H=1080;
+    const canvas=document.createElement('canvas');
+    canvas.width=W;canvas.height=H;
+    const ctx=canvas.getContext('2d');
+    // 背景：海洋蓝渐变
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,'#0a1838');bg.addColorStop(.5,'#1a3a6e');bg.addColorStop(1,'#0a2444');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    // 顶部光晕
+    const halo=ctx.createRadialGradient(W/2,120,0,W/2,120,360);
+    halo.addColorStop(0,'rgba(255,215,0,.18)');halo.addColorStop(1,'rgba(255,215,0,0)');
+    ctx.fillStyle=halo;ctx.fillRect(0,0,W,420);
+    // 装饰波浪线
+    ctx.strokeStyle='rgba(120,200,255,.25)';ctx.lineWidth=2;
+    for(let k=0;k<3;k++){
+        ctx.beginPath();
+        const baseY=820+k*60;
+        for(let x=0;x<=W;x+=8){
+            const y=baseY+Math.sin(x*.025+k)*8;
+            if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    }
+    // 圆角边框
+    ctx.strokeStyle='rgba(255,215,0,.5)';ctx.lineWidth=3;
+    roundRect(ctx,18,18,W-36,H-36,28);ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;
+    roundRect(ctx,26,26,W-52,H-52,22);ctx.stroke();
+    // 标题
+    ctx.textAlign='center';
+    ctx.fillStyle='#ffd700';ctx.font='bold 44px sans-serif';
+    ctx.fillText('🦆 小黄鸭漂流记',W/2,90);
+    ctx.fillStyle='#8fe0ff';ctx.font='20px sans-serif';
+    ctx.fillText('我的最高分纪录',W/2,128);
+    // 分数（大号）
+    ctx.fillStyle='#fff';ctx.font='bold 96px sans-serif';
+    ctx.shadowColor='rgba(255,215,0,.6)';ctx.shadowBlur=24;
+    ctx.fillText(best,W/2,230);
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#ffd700';ctx.font='bold 22px sans-serif';
+    ctx.fillText('快来挑战吧！',W/2,272);
+    // 游戏截图（如可截取）
+    let layoutY=310;
+    if(gameShot){
+        try{
+            const img=new Image();
+            img.src=gameShot;
+            await new Promise((res,rej)=>{img.onload=res;img.onerror=rej});
+            const iw=W-120,ih=Math.floor(iw*9/16);
+            ctx.save();
+            roundRect(ctx,60,layoutY,iw,ih,16);ctx.clip();
+            ctx.drawImage(img,60,layoutY,iw,ih);
+            ctx.restore();
+            ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=2;
+            roundRect(ctx,60,layoutY,iw,ih,16);ctx.stroke();
+            layoutY+=ih+24;
+        }catch(e){}
+    }else{
+        // 无截图时绘制装饰条
+        ctx.fillStyle='rgba(255,255,255,.06)';
+        roundRect(ctx,60,layoutY,W-120,160,16);ctx.fill();
+        ctx.fillStyle='#8fe0ff';ctx.font='18px sans-serif';ctx.textAlign='center';
+        ctx.fillText('🌊 在浪花中漂流收集 🌊',W/2,layoutY+90);
+        layoutY+=184;
+    }
+    // 二维码区域（实际渲染 QR）
+    const qrSize=180;
+    const qrX=W/2-qrSize/2;
+    if(qrDataURL){
+        const qrImg=new Image();
+        qrImg.src=qrDataURL;
+        await new Promise((res,rej)=>{qrImg.onload=res;qrImg.onerror=rej});
+        // 白底圆角
+        ctx.fillStyle='#fff';
+        roundRect(ctx,qrX-12,layoutY-12,qrSize+24,qrSize+24,16);ctx.fill();
+        ctx.drawImage(qrImg,qrX,layoutY,qrSize,qrSize);
+        ctx.fillStyle='#666';ctx.font='bold 16px sans-serif';
+        ctx.fillText('扫码挑战',W/2,layoutY+qrSize+30);
+        layoutY+=qrSize+50;
+    }else{
+        ctx.fillStyle='#888';ctx.font='14px sans-serif';
+        ctx.fillText('（二维码生成失败）',W/2,layoutY+90);
+        layoutY+=180;
+    }
+    // URL
+    ctx.fillStyle='#aaa';ctx.font='13px sans-serif';
+    const shortURL=url.length>48?url.substring(0,48)+'...':url;
+    ctx.fillText(shortURL,W/2,layoutY);
+    // 底部水印
+    ctx.fillStyle='rgba(255,215,0,.5)';ctx.font='bold 14px sans-serif';
+    ctx.fillText('🏆 小黄鸭漂流记 · 排行榜见详情',W/2,H-50);
+    // 下载
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download='duck_best_score_'+best+'.png';
+    a.click();
+}
+function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+}
+// 挂载到 window（script type=module 中函数不在全局作用域，需要显式挂载以支持 onclick）
+window.showShareModal=showShareModal;
+window.downloadShareCard=downloadShareCard;
+window.showDetailModal=showDetailModal;
 
 // ---- 加心道具：红色爱心血瓶 ----
 function mkHeart(x,z){
@@ -868,7 +1472,7 @@ function mkHeart(x,z){
     g.position.set(x,0,z);
     return g;
 }
-let heartTimer=15;
+let heartTimer=8;
 function spawnHeart(){
     if(!duckModel)return;
     const ang=Math.random()*Math.PI*2,dist=8+Math.random()*16;
@@ -880,13 +1484,13 @@ function trySpawnHeart(dt){
     if(!gameActive||!duckModel)return;
     heartTimer-=dt;
     if(heartTimer>0)return;
-    heartTimer=18+Math.random()*12;
+    heartTimer=8+Math.random()*7;
     if(hearts>=MAX_HEARTS)return;
     const present=items.filter(i=>i.type==='heart'&&!i.coll).length;
     const cap=hearts<=1?3:2;
     if(present>=cap)return;
-    // 基础30%，生命≤1时仁慈提升到60%
-    if(Math.random()<(hearts<=1?0.6:0.3))spawnHeart();
+    // 基础45%，生命≤1时仁慈提升到75%（刷新更密集）
+    if(Math.random()<(hearts<=1?0.75:0.45))spawnHeart();
 }
 
 // ---- 漩涡系统 ----
@@ -906,9 +1510,12 @@ function mkWhirlpool(x,z){
     const core=new THREE.Mesh(new THREE.CircleGeometry(.45,24),new THREE.MeshBasicMaterial({color:0x02121e,transparent:true,opacity:.92,side:THREE.DoubleSide,depthWrite:false}));core.rotation.x=-Math.PI/2;core.position.y=-depth+.06;g.add(core);
     // 外缘影响圈
     const field=new THREE.Mesh(new THREE.RingGeometry(4.7,5,48),new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false,fog:false}));field.rotation.x=-Math.PI/2;field.position.y=.07;g.add(field);
+    // 随机大小：1/1.5/2/2.5/3 倍（0.5 档位）
+    const wm=1+Math.floor(Math.random()*5)*.5;
+    g.scale.setScalar(wm);
     g.position.set(x,0,z);scene.add(g);
-    const zone={x,z,r:rTop,depth};whirlZones.push(zone);
-    return{group:g,funnel,swirls,field,zone,life:9+Math.random()*4,x,z};
+    const zone={x,z,r:rTop*wm,depth};whirlZones.push(zone);
+    return{group:g,funnel,swirls,field,zone,life:9+Math.random()*4,x,z,scale:wm};
 }
 function spawnWhirlpool(){
     if(!duckModel)return;
@@ -918,34 +1525,44 @@ function spawnWhirlpool(){
 function updateWhirlpools(dt){
     for(let i=whirlpools.length-1;i>=0;i--){
         const w=whirlpools[i];w.life-=dt;
+        const ws=w.scale||1;       // 漩涡缩放倍数
+        const R=5*ws;               // 影响半径随大小缩放
+        const DR=1.6*ws;             // 吸入扣心阈值随大小缩放
         w.group.position.y=waveBase(w.x,w.z,gameClock);
         w.funnel.rotation.y+=dt*1.7;
         w.swirls.forEach((r,k)=>{r.rotation.z+=dt*(2.2+k)*(k%2?1:-1)});
         w.field.rotation.z+=dt*.5;
         if(gameActive&&duckModel){
             const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
-            if(d<5&&d>0.001){
-                const nx=dx/d,nz=dz/d,k=(1-d/5)*(1-d/5);
+            if(d<R&&d>0.001){
+                const nx=dx/d,nz=dz/d,k=(1-d/R)*(1-d/R);
                 duckVel.x+=nx*k*7*dt;duckVel.z+=nz*k*7*dt;               // 径向吸引
-                duckVel.x+=-nz*(1-d/5)*3*dt;duckVel.z+=nx*(1-d/5)*3*dt;  // 切向旋涡
-                if(d<1.6&&invincible<=0&&!streakActive){
-                    takeDamage(1);
-                    if(gameActive){duckModel.position.set(0,.05,0);duckVel.set(0,0,0);invincible=2;toast('<i class="fa-solid fa-water"></i> 被漩涡吸入！','m')}
+                duckVel.x+=-nz*(1-d/R)*3*dt;duckVel.z+=nx*(1-d/R)*3*dt;  // 切向旋涡
+                if(d<DR&&invincible<=0){
+                    // 漩涡扣心：只有无敌可以挡，护盾无法挡（直接扣血，不走 takeDamage 的护盾逻辑）
+                    hearts=Math.max(0,hearts-1);
+                    updateHeartsUI();
+                    screenFlash();playSFX('hit');
+                    if(gameActive){duckModel.position.set(0,.05,0);duckVel.set(0,0,0);invincible=2;toast('<i class="fa-solid fa-water"></i> 被漩涡吸入 -1 <i class="fa-solid fa-heart"></i>','m')}
+                    if(hearts<=0)gameOver();
                 }
             }
         }
         // 对周围道具产生吸引力
-        for(const it of items){if(it.coll)continue;const ax=w.x-it.mesh.position.x,az=w.z-it.mesh.position.z;const ad=Math.sqrt(ax*ax+az*az);if(ad<5&&ad>0.001){const f=(1-ad/5)*.9*dt;it.mesh.position.x+=ax/ad*f;it.mesh.position.z+=az/ad*f;}}
+        for(const it of items){if(it.coll)continue;const ax=w.x-it.mesh.position.x,az=w.z-it.mesh.position.z;const ad=Math.sqrt(ax*ax+az*az);if(ad<R&&ad>0.001){const f=(1-ad/R)*.9*dt;it.mesh.position.x+=ax/ad*f;it.mesh.position.z+=az/ad*f;}}
         if(w.life<=0){scene.remove(w.group);const zi=whirlZones.indexOf(w.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1)}
     }
 }
 
 // ---- 水下暗影（鲨鱼） ----
-let shark=null,sharkHitCd=0,sharkSpawnCount=0;
-const SHARK_MAX=2; // 整局最多出现2次
+let shark=null,sharkHitCd=0,sharkSpawnCount=0,sharkAttackCount=0,eventSharkSpawnCount=0;
+const EVENT_SHARK_MAX=2; // 当前事件生效时间内最多出现2次（非总计）
+const SHARK_ATTACK_MAX=2; // 每只鲨鱼最多攻击2次
 function spawnShark(){
-    if(shark||!duckModel||sharkSpawnCount>=SHARK_MAX)return;
+    if(shark||!duckModel||eventSharkSpawnCount>=EVENT_SHARK_MAX)return;
+    eventSharkSpawnCount++;
     sharkSpawnCount++;
+    sharkAttackCount=0; // 重置攻击计数
     const g=new THREE.Group();
     // 卡通鲨鱼俯视剪影：圆润饱满的身体 + 胸鳍 + 分叉尾鳍
     const s=new THREE.Shape();
@@ -996,12 +1613,31 @@ function updateShark(dt){
         p.y=waveHeight(p.x,p.z,gameClock)-.4;
         shark.g.rotation.y=Math.atan2(dx,dz);
         sharkHitCd-=dt;
-        if(d<2.2&&sharkHitCd<=0&&invincible<=0&&!streakActive){takeDamage(1);sharkHitCd=3;p.x-=dx/d*3;p.z-=dz/d*3}
+        if(d<2.2&&sharkHitCd<=0&&invincible<=0){
+            if(sharkAttackCount<SHARK_ATTACK_MAX){
+                takeDamage(1);
+                sharkAttackCount++;
+                sharkHitCd=3;
+                p.x-=dx/d*3;p.z-=dz/d*3
+            }else{
+                sharkHitCd=1;
+            }
+        }
+        // 超过2次攻击后，3秒后离开；若事件仍激活且未达上限，生成下一只
+        if(sharkAttackCount>=SHARK_ATTACK_MAX){
+            shark.leaveTimer=(shark.leaveTimer||0)+dt;
+            if(shark.leaveTimer>=3){
+                removeShark();
+                if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX){
+                    spawnShark();
+                }
+            }
+        }
     }
 }
 function removeShark(){if(shark){scene.remove(shark.g);shark=null}}
 
-// ---- 随机事件系统（每60秒全局触发） ----
+// ---- 随机事件系统（每30秒全局触发） ----
 const EVENTS={
     tailwind:{n:'顺风',ic:'fa-wind',d:15,fx:'移动加速',t:'good'},
     headwind:{n:'逆风',ic:'fa-tornado',d:15,fx:'移动减速',t:'bad'},
@@ -1017,13 +1653,23 @@ const EV_TINT={good:'rgba(24,150,74,.62)',bad:'rgba(196,46,46,.62)',neutral:'rgb
 const EV_BORDER={good:'rgba(90,230,150,.6)',bad:'rgba(255,120,120,.6)',neutral:'rgba(255,220,110,.6)'};
 const EV_W_NORMAL=[['tailwind',10],['headwind',10],['storm',15],['rainbow',15],['shadow',15],['bigwave',15],['itemrain',10],['calm',10]];
 const EV_W_MERCY=[['itemrain',40],['rainbow',30],['calm',20],['tailwind',10]];
-function pickEvent(){let w=hearts<=1?EV_W_MERCY:EV_W_NORMAL;if(sharkSpawnCount>=SHARK_MAX)w=w.filter(p=>p[0]!=='shadow');let tot=0;for(const p of w)tot+=p[1];let r=Math.random()*tot;for(const p of w){r-=p[1];if(r<=0)return p[0]}return w[0][0]}
-let globalEventTimer=60,activeEvent=null,activeEventTime=0,pendingEvent=null,warnedFor=null;
+function pickEvent(){let w=hearts<=1?EV_W_MERCY:EV_W_NORMAL;let tot=0;for(const p of w)tot+=p[1];let r=Math.random()*tot;for(const p of w){r-=p[1];if(r<=0)return p[0]}return w[0][0]}
+let globalEventTimer=30,activeEvent=null,activeEventTime=0,pendingEvent=null,warnedFor=null;
+let whirlSpawnTimer=0;
 let windActive=false;let windSpeedMul=1;
 let stormActive=false,rainbowActive=false;
 function showEventHud(e){const el=document.getElementById('event-hud');el.style.display='flex';el.style.background=EV_TINT[e.t]||'rgba(0,0,0,.5)';el.style.borderColor=EV_BORDER[e.t]||'rgba(255,255,255,.1)';el.querySelector('.ev-icon').innerHTML='<i class="fa-solid '+e.ic+'"></i>';el.querySelector('.ev-name').textContent=e.n;el.querySelector('.ev-fx').textContent=e.fx||'';el.querySelector('.ev-time').textContent=Math.ceil(activeEventTime)+'s'}
 function hideEventHud(){document.getElementById('event-hud').style.display='none'}
-function showWarn(e){const el=document.getElementById('event-warn');el.style.background=EV_TINT[e.t]||'rgba(200,40,40,.85)';el.querySelector('.warn-txt').innerHTML=' 即将来临：<i class="fa-solid '+e.ic+'"></i> '+e.n+' · '+(e.fx||'');el.classList.add('show')}
+function showWarn(e){
+    const el=document.getElementById('event-warn');
+    el.style.background=EV_TINT[e.t]||'rgba(200,40,40,.85)';
+    el.style.borderColor=EV_BORDER[e.t]||'rgba(255,255,255,.1)';
+    // 边框发光颜色与事件类型一致（通过 CSS 变量驱动 warnPulse 动画）
+    const glowMap={good:'rgba(90,230,150,1)',bad:'rgba(255,80,80,1)',neutral:'rgba(255,220,110,1)'};
+    el.style.setProperty('--warn-glow',glowMap[e.t]||'rgba(255,80,80,1)');
+    el.querySelector('.warn-txt').innerHTML=' 即将来临：<i class="fa-solid '+e.ic+'"></i> '+e.n+' · '+(e.fx||'');
+    el.classList.add('show');
+}
 function hideWarn(){document.getElementById('event-warn').classList.remove('show')}
 function startEvent(key){
     activeEvent=key;activeEventTime=EVENTS[key].d;showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');
@@ -1036,7 +1682,21 @@ function startEvent(key){
     else if(key==='rainbow'){rainbowActive=true;document.getElementById('rainbow-overlay').classList.add('show')}
     else if(key==='shadow'){spawnShark()}
     else if(key==='bigwave'){eventWaveTarget=1.9}
-    else if(key==='itemrain'){for(let i=0;i<3;i++)spawnHeart();for(let i=0;i<4;i++){const an=Math.random()*Math.PI*2,ds=6+Math.random()*12,ls=.3+Math.random()*.25;const m=mkLily(duckModel.position.x+Math.cos(an)*ds,duckModel.position.z+Math.sin(an)*ds,ls);scene.add(m);items.push({mesh:m,type:'lily',r:ls,coll:false})}}
+    else if(key==='itemrain'){
+        // 道具雨：从天上掉落，生成在空中并带 falling 标记，由主循环处理掉落动画
+        for(let i=0;i<3;i++){
+            const an=Math.random()*Math.PI*2,ds=6+Math.random()*12;
+            const x=duckModel.position.x+Math.cos(an)*ds,z=duckModel.position.z+Math.sin(an)*ds;
+            const mesh=mkHeart(x,z);mesh.position.y=10;scene.add(mesh);
+            items.push({mesh,type:'heart',r:.6,coll:false,falling:10,fallVy:0});
+        }
+        for(let i=0;i<4;i++){
+            const an=Math.random()*Math.PI*2,ds=6+Math.random()*12,ls=.3+Math.random()*.25;
+            const x=duckModel.position.x+Math.cos(an)*ds,z=duckModel.position.z+Math.sin(an)*ds;
+            const m=mkLily(x,z,ls);m.position.y=10;scene.add(m);
+            items.push({mesh:m,type:'lily',r:ls,coll:false,falling:10,fallVy:0});
+        }
+    }
     else if(key==='calm'){eventWaveTarget=.7}
 }
 function endEvent(){
@@ -1045,18 +1705,24 @@ function endEvent(){
     document.getElementById('rain-overlay').classList.remove('show');
     document.getElementById('rainbow-overlay').classList.remove('show');
     removeShark();
+    eventSharkSpawnCount=0; // 重置当前事件内鲨鱼计数（每次事件最多2只）
 }
 function updateGlobalEvent(dt){
     if(!gameActive)return;
+    // 漩涡独立 5 秒周期：30% 概率生成1-2个，暴风雨事件期间概率翻倍至 60%
+    whirlSpawnTimer=(whirlSpawnTimer||0)+dt;
+    if(whirlSpawnTimer>=5){
+        whirlSpawnTimer=0;
+        const prob=stormActive?0.6:0.3;
+        if(Math.random()<prob){const n=1+Math.floor(Math.random()*2);for(let i=0;i<n;i++)spawnWhirlpool()}
+    }
     if(!activeEvent){
         globalEventTimer-=dt;
         if(globalEventTimer<=3&&globalEventTimer>0){if(!pendingEvent)pendingEvent=pickEvent();if(warnedFor!==pendingEvent){warnedFor=pendingEvent;showWarn(EVENTS[pendingEvent])}}
         if(globalEventTimer<=0){
             const key=pendingEvent||pickEvent();pendingEvent=null;warnedFor=null;hideWarn();
-            // 40%概率同时刷新1-2个漩涡
-            if(Math.random()<0.4){const n=1+Math.floor(Math.random()*2);for(let i=0;i<n;i++)spawnWhirlpool()}
             startEvent(key);
-            globalEventTimer=60;
+            globalEventTimer=30;
         }
     }else{
         activeEventTime-=dt;
@@ -1066,6 +1732,9 @@ function updateGlobalEvent(dt){
 }
 
 updateHeartsUI();
+updateStreakUI();// 收集栏常驻显示
+// 启动时从后端加载 leaderboard.json（若失败则回退 localStorage）
+Leaderboard.load().then(d=>{console.log('排行榜已加载：',d.entries.length,'条记录')}).catch(e=>console.warn('排行榜加载失败：',e));
 
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
 (function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);gameClock+=dt;timeOfDay=(timeOfDay+dt*TIME_SPEED/60)%24;
@@ -1093,7 +1762,17 @@ if(++frameCount%2===0)waveGeo.computeVertexNormals();
 // 方向箭头贴合浪面起伏
 if(arrowPlane.material.opacity>.01){const ap=arrowPlane.geometry.attributes.position;for(let i=0;i<ap.count;i++){const lx=ap.getX(i),ly=ap.getY(i);ap.setZ(i,waveHeight(lx+arrowPlane.position.x,-ly+arrowPlane.position.z,gameClock)+.14)}ap.needsUpdate=true}
 // 花朵/海草/荷叶随海浪漂浮
-for(const it of items){if(it.coll)continue;const ix=it.mesh.position.x,iz=it.mesh.position.z;const floatY=waveHeight(ix,iz,gameClock);if(it.type==='lily'){it.mesh.position.y=floatY+.04;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06}else if(it.type==='flower'){it.mesh.position.y=floatY-.02;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05}else if(it.type==='grass'){it.mesh.position.y=floatY-.06;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}}
+for(const it of items){if(it.coll)continue;const ix=it.mesh.position.x,iz=it.mesh.position.z;const floatY=waveHeight(ix,iz,gameClock);
+// 掉落动画（道具雨）：重力加速下落 + 旋转，到达水面后恢复正常漂浮
+if(it.falling!==undefined&&it.falling>0){
+    it.fallVy=(it.fallVy||0)-12*dt; // 重力加速度
+    it.mesh.position.y+=it.fallVy*dt;
+    it.mesh.rotation.x+=dt*3;it.mesh.rotation.z+=dt*2.5; // 翻滚旋转
+    const targetY=it.type==='lily'?floatY+.04:it.type==='heart'?floatY+.4:floatY;
+    if(it.mesh.position.y<=targetY){it.mesh.position.y=targetY;it.mesh.rotation.x=0;it.mesh.rotation.z=0;it.falling=0}
+    continue;
+}
+if(it.type==='lily'){it.mesh.position.y=floatY+.04;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06}else if(it.type==='flower'){it.mesh.position.y=floatY-.02;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05}else if(it.type==='grass'){it.mesh.position.y=floatY-.06;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65;it.mesh.rotation.y=gameClock*1.2}}
 // 连胜边框柔和呼吸
 if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('combo-border').style.opacity=s}
 controls.update();renderer.render(scene,camera)})();
