@@ -58,7 +58,7 @@ canvas{display:block}
 </style>
 </head>
 <body>
-<div id="loader"><div class="icon"><i class="fa-solid fa-dove"></i></div><div class="bar"><div class="bar-inner" id="load-bar"></div></div><div class="txt">加载中...</div></div>
+<div id="loader"><div class="icon"><svg viewBox="0 0 100 100" width="76" height="76"><path d="M72 48 Q86 40 88 54 Q84 62 73 60 Z" fill="#ffd23e"/><ellipse cx="52" cy="62" rx="27" ry="20" fill="#ffd23e"/><path d="M44 60 Q62 52 66 62 Q62 72 48 70 Q42 66 44 60 Z" fill="#f2b705"/><circle cx="34" cy="36" r="18" fill="#ffd23e"/><ellipse cx="28" cy="26" rx="6" ry="3.5" fill="#ffe89a" opacity=".8"/><circle cx="26" cy="42" r="3.5" fill="#ffab2e" opacity=".7"/><circle cx="31" cy="33" r="3" fill="#2b2b2b"/><circle cx="32.2" cy="31.8" r="1.1" fill="#fff"/><path d="M19 34 Q6 36 8 42 Q14 47 22 44 Q21 38 19 34 Z" fill="#ff8c1a"/><path d="M10 41 Q16 43 21 42" stroke="#e06a00" stroke-width="1.5" fill="none"/><path d="M16 86 q6 -6 12 0 t12 0 t12 0 t12 0 t12 0" stroke="#5ec2ff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg></div><div class="bar"><div class="bar-inner" id="load-bar"></div></div><div class="txt">加载中...</div></div>
 <div id="rotate-hint"><div class="ri"><i class="fa-solid fa-mobile-screen-button"></i></div><div style="margin-top:16px">请横屏使用</div></div>
 <div id="err-popup"><div><i class="fa-solid fa-triangle-exclamation"></i> 加载失败</div><div class="msg" id="err-msg"></div><button onclick="location.reload()">重试</button></div>
 <div id="ui">
@@ -424,18 +424,22 @@ spawnAround(0,0);
 
 // 护盾
 const shieldMesh=new THREE.Mesh(new THREE.SphereGeometry(1.8,32,24),new THREE.MeshPhysicalMaterial({color:0x44ddff,transparent:true,opacity:0,roughness:0,metalness:.3,clearcoat:1,side:THREE.DoubleSide}));shieldMesh.visible=false;scene.add(shieldMesh);
-// 卡通王冠（程序化建模：金色圆环+尖锥+彩宝石，明亮卡通色，不依赖环境贴图）
+// 卡通王冠（程序化建模：圆润金环+胶囊尖柱+彩宝石；加载后挂为鸭子子节点，自动跟随头部位置与倾斜）
 const crownGroup=new THREE.Group();
-crownGroup.visible=false;scene.add(crownGroup);
+crownGroup.visible=false;
 {
 const crownInner=new THREE.Group();
-const goldMat=new THREE.MeshStandardMaterial({color:0xffc93c,roughness:.32,metalness:.08,emissive:0x7a4d00,emissiveIntensity:.35,flatShading:true,side:THREE.DoubleSide});
-const band=new THREE.Mesh(new THREE.CylinderGeometry(.42,.47,.22,10,1,true),goldMat);crownInner.add(band);
-const rim=new THREE.Mesh(new THREE.TorusGeometry(.47,.05,8,20),goldMat);rim.rotation.x=Math.PI/2;rim.position.y=-.11;crownInner.add(rim);
-for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const spike=new THREE.Mesh(new THREE.ConeGeometry(.12,.36,4),goldMat);spike.position.set(Math.cos(a)*.44,.28,Math.sin(a)*.44);spike.rotation.y=a;crownInner.add(spike);const tip=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6),goldMat);tip.position.set(Math.cos(a)*.44,.5,Math.sin(a)*.44);crownInner.add(tip)}
+const goldMat=new THREE.MeshStandardMaterial({color:0xffc93c,roughness:.28,metalness:.08,emissive:0x7a4d00,emissiveIntensity:.35,side:THREE.DoubleSide});
+// 圆润底环：光滑圆环 + 上下两条圆边
+const band=new THREE.Mesh(new THREE.CylinderGeometry(.40,.46,.26,32,1,true),goldMat);crownInner.add(band);
+const rimB=new THREE.Mesh(new THREE.TorusGeometry(.46,.06,12,32),goldMat);rimB.rotation.x=Math.PI/2;rimB.position.y=-.13;crownInner.add(rimB);
+const rimT=new THREE.Mesh(new THREE.TorusGeometry(.42,.05,12,32),goldMat);rimT.rotation.x=Math.PI/2;rimT.position.y=.13;crownInner.add(rimT);
+// 圆润尖柱：胶囊体半埋进圆环（无接缝过渡），微微外张，顶端带小球
+for(let i=0;i<5;i++){const a=i/5*Math.PI*2;const spike=new THREE.Mesh(new THREE.CapsuleGeometry(.115,.22,6,16),goldMat);spike.position.set(Math.cos(a)*.40,.16,Math.sin(a)*.40);spike.quaternion.setFromAxisAngle(new THREE.Vector3(-Math.sin(a),0,Math.cos(a)),-.16);const tip=new THREE.Mesh(new THREE.SphereGeometry(.085,12,10),goldMat);tip.position.y=.26;spike.add(tip);crownInner.add(spike)}
+// 彩宝石（圆球，半嵌在圆环上）
 const gemCols=[0xff4d6d,0x4dc9ff,0x6dff8a,0xff8c4d,0xc94dff];
-for(let i=0;i<5;i++){const a=(i+.5)/5*Math.PI*2;const gem=new THREE.Mesh(new THREE.IcosahedronGeometry(.07,0),new THREE.MeshStandardMaterial({color:gemCols[i],roughness:.2,metalness:0,emissive:gemCols[i],emissiveIntensity:.5}));gem.position.set(Math.cos(a)*.47,-.01,Math.sin(a)*.47);crownInner.add(gem)}
-crownInner.scale.setScalar(.75);
+for(let i=0;i<5;i++){const a=(i+.5)/5*Math.PI*2;const gem=new THREE.Mesh(new THREE.SphereGeometry(.075,12,10),new THREE.MeshStandardMaterial({color:gemCols[i],roughness:.15,metalness:0,emissive:gemCols[i],emissiveIntensity:.5}));gem.position.set(Math.cos(a)*.45,0,Math.sin(a)*.45);crownInner.add(gem)}
+crownInner.scale.setScalar(1.04); // 抵消父级(鸭子)的0.72缩放，世界尺寸≈0.75
 crownGroup.add(crownInner);
 }
 // 连胜特效光环（柔和发光球）
@@ -518,6 +522,8 @@ loader.parse(ab,'',
 g=>{duckModel=g.scene;duckModel.scale.setScalar(.72);duckModel.position.set(0,.05,0);duckModel.traverse(c=>{if(c.isMesh){c.castShadow=true;c.receiveShadow=true;
 // 材质升级：搪胶质感（低粗糙度+清漆高光层），保留原贴图
 const om=c.material;if(om)c.material=new THREE.MeshPhysicalMaterial({color:om.color?om.color.clone():new THREE.Color(0xffffff),map:om.map||null,roughness:.32,metalness:0,clearcoat:.9,clearcoatRoughness:.28})}});scene.add(duckModel);
+// 王冠挂为鸭子子节点：位置用模型本地坐标（头顶中心 0.339,1.640,-0.047 由GLB顶点数据精确算出），自动跟随鸭子移动/倾斜/缩放
+duckModel.add(crownGroup);crownGroup.position.set(0.339,1.754,-0.047);
 bar.style.width='100%';loadTxt.textContent='完成';hideLoader()},
 e=>{console.error('模型解析失败:',e);document.getElementById('err-msg').textContent=e.message||String(e);document.getElementById('err-popup').style.display='block';document.getElementById('loader').classList.add('done')}
 );
@@ -632,12 +638,8 @@ const sf=Math.min(duckVel.length()/DUCK_MAX_SPEED,1);duckModel.rotation.z=Math.s
 if(hasShield){shieldMesh.position.copy(duckModel.position);shieldMesh.position.y+=.3*duckScale;shieldMesh.scale.setScalar(duckScale);shieldMesh.material.opacity=.15+Math.sin(gameClock*3)*.08;shieldMesh.rotation.y=gameClock*.5;shieldTimer-=dt;if(shieldTimer<=0){hasShield=false;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;shieldMesh.scale.setScalar(1)}}
 // 连胜特效：光环+皇冠（仅连胜60s期间显示）
 if(streakActive&&duckModel){crownGroup.visible=true;
-// 头顶偏移：模型本地坐标(scale=1时)头顶中心约(0.333,1.640,-0.054)
-// duckModel.rotation.y = duckYaw-Math.PI/2，所以需要用同样的旋转
-const headLocal=new THREE.Vector3(0.333*duckScale,1.27*duckScale,0);
-headLocal.applyAxisAngle(new THREE.Vector3(0,1,0),duckYaw-Math.PI/2);
-crownGroup.position.copy(duckModel.position).add(headLocal);
-crownGroup.rotation.y=gameClock*2;const crownScale=duckModel.scale.x/.72;crownGroup.scale.setScalar(crownScale);crownGroup.children.forEach((c,i)=>{if(c.material)c.material.opacity=.7+Math.sin(gameClock*6+i)*.3});auraMesh.visible=true;auraMesh.position.copy(duckModel.position);auraMesh.position.y+=.5;auraMesh.material.opacity=.04+Math.sin(gameClock*3)*.02;auraMesh.rotation.y=gameClock*.5;const auraScale=duckModel.scale.x*1.5+Math.sin(gameClock*2)*.2;auraMesh.scale.setScalar(auraScale)}else{crownGroup.visible=false;auraMesh.visible=false}
+// 王冠是鸭子子节点，位置/倾斜/缩放自动跟随，只需原地旋转
+crownGroup.rotation.y=gameClock*2;crownGroup.children.forEach((c,i)=>{if(c.material)c.material.opacity=.7+Math.sin(gameClock*6+i)*.3});auraMesh.visible=true;auraMesh.position.copy(duckModel.position);auraMesh.position.y+=.5;auraMesh.material.opacity=.04+Math.sin(gameClock*3)*.02;auraMesh.rotation.y=gameClock*.5;const auraScale=duckModel.scale.x*1.5+Math.sin(gameClock*2)*.2;auraMesh.scale.setScalar(auraScale)}else{crownGroup.visible=false;auraMesh.visible=false}
 updateStreak(dt);
 if(invincible>0&&!streakActive)invincible-=dt;
 if(streakActive)invincible=999;
