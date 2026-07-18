@@ -1873,12 +1873,26 @@ const Leaderboard={
                 if(inputHash!==conflictEntry.pwdHash){
                     return{data:d,entry:null,nameConflict:true,conflictedName:inputName,pwdWrong:true};
                 }
-                // 密码正确 → 删除旧记录，用当前用户信息创建新记录
-                d.entries=d.entries.filter(e=>e!==conflictEntry);
-                // 继续执行后续逻辑，会创建新记录
+                // 密码正确 → 绑定到该记录（更新userId为当前用户）
+                conflictEntry.userId=userId;
+                localStorage.setItem(this.USER_ID_KEY,userId);
+                // 绑定后判断是否更新分数（高分覆盖）
+                if(sc>conflictEntry.score){conflictEntry.score=sc;conflictEntry.playTime=pt;conflictEntry.ts=Date.now()}
+                if(pwd)conflictEntry.pwdHash=await this._hashPwd(pwd);
+                d.entries.sort((a,b)=>{const sa=a.score||0,sb=b.score||0;if(sb!==sa)return sb-sa;return (a.playTime||0)-(b.playTime||0)});
+                d.entries=d.entries.slice(0,50);
+                await this.save(d);
+                return{data:d,entry:conflictEntry,nameConflict:false,pwdWrong:false};
             }else{
-                // 无密码保护 → 直接冲突
-                return{data:d,entry:null,nameConflict:true,conflictedName:inputName,pwdWrong:false};
+                // 无密码保护 → 直接绑定到该记录
+                conflictEntry.userId=userId;
+                localStorage.setItem(this.USER_ID_KEY,userId);
+                // 绑定后判断是否更新分数（高分覆盖）
+                if(sc>conflictEntry.score){conflictEntry.score=sc;conflictEntry.playTime=pt;conflictEntry.ts=Date.now()}
+                d.entries.sort((a,b)=>{const sa=a.score||0,sb=b.score||0;if(sb!==sa)return sb-sa;return (a.playTime||0)-(b.playTime||0)});
+                d.entries=d.entries.slice(0,50);
+                await this.save(d);
+                return{data:d,entry:conflictEntry,nameConflict:false,pwdWrong:false};
             }
         }
         // 用 userId 匹配当前用户的记录
@@ -2027,27 +2041,31 @@ window.confirmPwdModal=async function(){
         if(pwd!==input2.value){err.textContent='两次密码不一致';err.style.display='block';return}
         if(pwd.length<4){err.textContent='密码至少4位';err.style.display='block';return}
     }
-    closePwdModal();
     if(_pwdModalMode==='verify'){
-        // 用输入的密码重新提交
+        // 校验密码：不清空输入框，保持弹窗，让用户修改后重新提交
         const r=await Leaderboard.submit(pendingScore,pendingPlayTime,_pwdModalName,pwd);
         if(r.nameConflict){
-            toast('密码错误','m');
-            openPwdModal('verify',_pwdModalName);
-        }else{
-            Leaderboard.setCachedName(_pwdModalName);
-            lastEntry=r.entry;
-            renderLeaderboard(r.data);
-            document.getElementById('go-best').textContent='我的最高分：'+Leaderboard.myBest();
-            const nameRow=document.querySelector('#go-name-wrap .go-name-row');
-            const nameWrap=document.getElementById('go-name-wrap');
-            if(nameRow)nameRow.style.display='none';
-            const pwdName=escapeHtml(_pwdModalName);
-            if(nameWrap)nameWrap.querySelector('.greeting').innerHTML=`欢迎回来，${pwdName}！ <button onclick="openPwdModal('set','${pwdName}')" style="margin-left:8px;padding:2px 10px;border-radius:6px;border:1px solid rgba(143,224,255,.4);background:rgba(143,224,255,.1);color:#8fe0ff;font-size:11px;cursor:pointer"><i class="fa-solid fa-lock"></i> 设置密码</button>`;
-            toast('<i class="fa-solid fa-check"></i> 密码验证成功','p');
+            err.textContent='密码错误，请重新输入';
+            err.style.display='block';
+            input1.value='';
+            input1.focus();
+            return;
         }
+        // 校验成功
+        closePwdModal();
+        Leaderboard.setCachedName(_pwdModalName);
+        lastEntry=r.entry;
+        renderLeaderboard(r.data);
+        document.getElementById('go-best').textContent='我的最高分：'+Leaderboard.myBest();
+        const nameRow=document.querySelector('#go-name-wrap .go-name-row');
+        const nameWrap=document.getElementById('go-name-wrap');
+        if(nameRow)nameRow.style.display='none';
+        const pwdName=escapeHtml(_pwdModalName);
+        if(nameWrap)nameWrap.querySelector('.greeting').innerHTML=`欢迎回来，${pwdName}！ <button onclick="openPwdModal('set','${pwdName}')" style="margin-left:8px;padding:2px 10px;border-radius:6px;border:1px solid rgba(143,224,255,.4);background:rgba(143,224,255,.1);color:#8fe0ff;font-size:11px;cursor:pointer"><i class="fa-solid fa-lock"></i> 设置密码</button>`;
+        toast('<i class="fa-solid fa-check"></i> 密码验证成功','p');
     }else{
-        // 设置密码：用当前昵称+密码重新提交
+        // 设置密码
+        closePwdModal();
         const cachedName=Leaderboard.getCachedName();
         if(!cachedName){toast('请先确定昵称','m');return}
         const r=await Leaderboard.submit(pendingScore,pendingPlayTime,cachedName,pwd);
@@ -2067,7 +2085,7 @@ window.confirmName=async function(){
         const nameInput=document.getElementById('go-name');
         const nameWrap=document.getElementById('go-name-wrap');
         if(r.pwdWrong){
-            // 有密码保护 → 打开密码验证弹窗
+            // 有密码保护 → 打开密码验证弹窗（可多次尝试）
             toast('"'+v+'"有密码保护','m');
             if(nameWrap)nameWrap.querySelector('.greeting').innerHTML='<i class="fa-solid fa-lock" style="color:#ffaa00"></i> 昵称"'+escapeHtml(v)+'"有密码保护';
             openPwdModal('verify',v);
@@ -2097,19 +2115,20 @@ async function gameOver(){
     const pt=Math.floor((Date.now()-playStartTime)/1000);
     pendingScore=score;pendingPlayTime=pt;
     try{await Leaderboard.load()}catch(e){console.warn('等待排行榜加载失败',e)}
-    let r;
-    let isFirstTime=false;
     let cachedName=Leaderboard.getCachedName();
-    try{
-        // 首次游戏：生成默认名提交但不缓存，showGameOver 根据 isFirstTime 判断显示输入框
-        if(!cachedName){cachedName=genDefaultName();isFirstTime=true}
-        r=await Leaderboard.submit(pendingScore,pendingPlayTime,cachedName);
-        lastEntry=r.entry;
-    }catch(e){
-        console.warn('Leaderboard.submit 异常，使用空数据兜底',e);
-        r={data:Leaderboard.get(),entry:null,nameConflict:false,pwdWrong:false};
+    if(cachedName){
+        // 老用户：直接提交分数
+        try{
+            const r=await Leaderboard.submit(pendingScore,pendingPlayTime,cachedName);
+            lastEntry=r.entry;
+            showGameOver(r.data, r.nameConflict, r.conflictedName, r.pwdWrong, false, cachedName);
+        }catch(e){
+            showGameOver(Leaderboard.get(), false, null, false, false, cachedName);
+        }
+    }else{
+        // 首次用户：不提交，等确认昵称
+        showGameOver(Leaderboard.get(), false, null, false, true, genDefaultName());
     }
-    showGameOver(r.data, r.nameConflict, r.conflictedName, r.pwdWrong, isFirstTime, cachedName);
 }
 window.restartGame=function(){
     // 如果用户在输入框改了名（与缓存不同），先更新缓存和记录
