@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="env" content="MODE=dev">
 <title>小黄鸭漂流记</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cg transform='scale(-1,1) translate(-512,0)'%3E%3Cpath fill='%23FFDE76' d='M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z'/%3E%3Cpath fill='%23FFB641' d='M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z'/%3E%3Cpath fill='%23FFB641' d='M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z'/%3E%3Cpath fill='%23FFB641' d='M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z'/%3E%3Cpath fill='%2338484A' d='M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
@@ -51,12 +52,55 @@ canvas{display:block}
 @keyframes comboVignette{0%,100%{box-shadow:inset 0 0 60px rgba(255,215,0,.2),inset 0 0 160px rgba(255,140,0,.08)}50%{box-shadow:inset 0 0 100px rgba(255,215,0,.35),inset 0 0 240px rgba(255,140,0,.15)}}
 #multi-text{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,200,0,.8),0 0 40px rgba(255,100,0,.5);pointer-events:none;z-index:115;opacity:0;transition:all .5s cubic-bezier(.175,.885,.32,1.275)}
 #multi-text.show{opacity:1;transform:translate(-50%,-50%) scale(1.2)}
-#clock{position:absolute;top:40px;right:54px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
+#clock{position:absolute;top:40px;right:54px;height:34px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:0 14px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
 .btn{position:absolute;width:34px;height:34px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;pointer-events:auto;z-index:110}
 .btn:active{transform:scale(.88)}
 #fs-btn{top:40px;left:12px}#music-btn{top:40px;left:52px}
 #lb-btn-top{top:40px;right:12px}
 #help-btn{bottom:16px;right:16px;width:34px;height:34px;border-radius:50%;font-size:15px}
+#dbg-btn{bottom:16px;right:56px;width:34px;height:34px;border-radius:50%;font-size:14px;background:rgba(80,40,120,.7);border:1px solid rgba(180,120,255,.4);color:#ddb6ff}
+#dbg-btn:hover{background:rgba(100,60,150,.85)}
+#dbg-panel{position:absolute;bottom:60px;right:16px;background:rgba(20,8,40,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:18px 16px;border-radius:14px;width:240px;display:none;border:1px solid rgba(180,120,255,.3);box-shadow:0 8px 32px rgba(80,40,120,.5);z-index:120;font-size:12px;max-height:80vh;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
+#dbg-panel::-webkit-scrollbar{display:none;width:0;height:0}
+#dbg-panel.show{display:block}
+#dbg-panel h3{font-size:13px;margin-bottom:10px;color:#cc99ff;display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(180,120,255,.2);padding-bottom:6px}
+#dbg-panel .dbg-sec-title{color:#bb99dd;margin-bottom:5px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+#dbg-panel .dbg-divider{height:0;border-bottom:1px solid rgba(180,120,255,.2);margin:10px 0}
+#dbg-panel .dbg-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#dbg-panel select{width:100%;padding:8px 12px;background:linear-gradient(135deg,rgba(60,30,90,.7),rgba(40,20,70,.7));color:#fff;border:1px solid rgba(180,120,255,.4);border-radius:6px;font-size:12px;margin-bottom:6px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='%23cc99ff'><path d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:9px;padding-right:28px;transition:border-color .15s,box-shadow .15s}
+#dbg-panel select:hover{border-color:rgba(220,170,255,.8);box-shadow:0 2px 8px rgba(180,120,255,.15)}
+#dbg-panel select:focus{outline:none;border-color:rgba(220,170,255,1);box-shadow:0 0 0 3px rgba(180,120,255,.2)}
+/* 自定义下拉（绕过 <option> 原生渲染限制） */
+#dbg-panel .dbg-csel{position:relative;margin-bottom:6px}
+#dbg-panel .dbg-csel-btn{width:100%;padding:5px 10px;background:linear-gradient(135deg,rgba(60,30,90,.7),rgba(40,20,70,.7));color:#fff;border:1px solid rgba(180,120,255,.4);border-radius:6px;font-size:11px;cursor:pointer;text-align:left;position:relative;padding-right:24px;transition:border-color .15s,box-shadow .15s;list-style:none}
+#dbg-panel .dbg-csel-btn::after{content:"";position:absolute;right:10px;top:50%;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #cc99ff;transform:translateY(-25%);pointer-events:none}
+#dbg-panel .dbg-csel-btn:hover{border-color:rgba(220,170,255,.8);box-shadow:0 2px 8px rgba(180,120,255,.15)}
+#dbg-panel .dbg-csel.open .dbg-csel-btn{border-color:rgba(220,170,255,1);box-shadow:0 0 0 3px rgba(180,120,255,.2)}
+#dbg-panel .dbg-csel-list{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow-y:auto;background:#2a1850;border:1px solid rgba(180,120,255,.4);border-radius:6px;padding:3px;z-index:9999;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);-ms-overflow-style:none;scrollbar-width:none}
+#dbg-panel .dbg-csel-list::-webkit-scrollbar{display:none;width:0;height:0}
+#dbg-panel .dbg-csel.open .dbg-csel-list{display:block}
+#dbg-panel .dbg-csel-opt{padding:5px 10px;border-radius:5px;border:1px solid rgba(180,120,255,.15);color:#fff;font-size:11px;cursor:pointer;margin-bottom:2px;background:#2a1850;transition:background .12s,border-color .12s}
+#dbg-panel .dbg-csel-opt:last-child{margin-bottom:0}
+#dbg-panel .dbg-csel-opt:hover{background:#3a2070;border-color:rgba(220,170,255,.5)}
+#dbg-panel .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,#7733cc);border-color:rgba(220,170,255,.7)}
+#dbg-panel .dbg-sec{margin-bottom:14px}
+#dbg-panel .dbg-sec:last-child{margin-bottom:0}
+#dbg-apply{margin-top:14px}
+#dbg-panel button{width:100%;padding:7px;background:linear-gradient(135deg,#aa66ff,#7733cc);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:transform .12s,background .15s}
+#dbg-panel button:hover{background:linear-gradient(135deg,#bb77ff,#8844dd);transform:translateY(-1px)}
+#dbg-panel button:active{transform:translateY(0)}
+#dbg-panel .dbg-btn-sm{padding:5px 8px;font-size:11px;background:linear-gradient(135deg,rgba(80,40,140,.7),rgba(50,25,90,.7));border:1px solid rgba(180,120,255,.3)}
+#dbg-panel .dbg-btn-sm:hover{background:linear-gradient(135deg,rgba(110,55,170,.85),rgba(70,35,120,.85))}
+#dbg-panel .dbg-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:#bb99dd}
+#dbg-panel .dbg-row span:last-child{color:#ffd700;font-weight:600}
+#dbg-panel input[type=number]{width:50px;padding:4px 6px;background:rgba(0,0,0,.4);color:#ffd700;border:1px solid rgba(180,120,255,.3);border-radius:5px;font-size:11px;text-align:center}
+#dbg-panel input[type=number]:focus{outline:none;border-color:rgba(220,170,255,.8)}
+#dbg-panel input[type=text]{width:80px;padding:4px 6px;background:rgba(0,0,0,.4);color:#ffd700;border:1px solid rgba(180,120,255,.3);border-radius:5px;font-size:11px;text-align:center}
+#dbg-panel input[type=text]:focus{outline:none;border-color:rgba(220,170,255,.8)}
+#dbg-panel .dbg-stepper{display:flex;align-items:center;gap:6px}
+#dbg-panel .dbg-step{width:24px;height:24px;padding:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(80,40,140,.7),rgba(50,25,90,.7));border:1px solid rgba(180,120,255,.3);border-radius:6px;color:#cc99ff;font-size:14px;font-weight:700;cursor:pointer}
+#dbg-panel .dbg-step:hover{background:linear-gradient(135deg,rgba(110,55,170,.85),rgba(70,35,120,.85))}
+#dbg-panel #dbg-set-hearts{min-width:18px;text-align:center;color:#ffd700;font-weight:600;font-size:13px}
 #help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.88);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:28px 32px;border-radius:20px;max-width:320px;text-align:center;font-size:14px;line-height:2.2;display:none;border:1px solid rgba(255,255,255,.08)}
 #help.show{display:block}
 #help h2{font-size:20px;margin-bottom:8px;color:#ffd700;display:inline-flex;align-items:center;justify-content:center}
@@ -215,6 +259,57 @@ canvas{display:block}
     <div class="btn" id="fs-btn"><i class="fa-solid fa-expand"></i></div>
     <div class="btn" id="music-btn"><i class="fa-solid fa-volume-high"></i></div>
     <div class="btn" id="help-btn"><i class="fa-solid fa-question"></i></div>
+    <div class="btn" id="dbg-btn" title="调试模式"><i class="fa-solid fa-bug"></i></div>
+    <div id="dbg-panel">
+        <h3><i class="fa-solid fa-flask"></i> 调试模式</h3>
+        <div class="dbg-sec">
+            <div class="dbg-sec-title">事件系统</div>
+            <div class="dbg-csel" id="dbg-event-csel" data-value="">
+                <div class="dbg-csel-btn" tabindex="0">（自动随机）</div>
+                <div class="dbg-csel-list">
+                    <div class="dbg-csel-opt sel" data-value="">（自动随机）</div>
+                    <div class="dbg-csel-opt" data-value="tailwind">顺风</div>
+                    <div class="dbg-csel-opt" data-value="headwind">逆风</div>
+                    <div class="dbg-csel-opt" data-value="storm">暴风雨</div>
+                    <div class="dbg-csel-opt" data-value="rainbow">彩虹祝福</div>
+                    <div class="dbg-csel-opt" data-value="shadow">水下暗影</div>
+                    <div class="dbg-csel-opt" data-value="bigwave">海浪汹涌</div>
+                    <div class="dbg-csel-opt" data-value="itemrain">道具雨</div>
+                    <div class="dbg-csel-opt" data-value="calm">平静时刻</div>
+                </div>
+            </div>
+            <button id="dbg-trigger"><i class="fa-solid fa-bolt"></i> 立即触发</button>
+            <div class="dbg-row"><span>当前事件：</span><span id="dbg-cur">无</span></div>
+            <div class="dbg-row"><span>下次倒计时：</span><span id="dbg-timer">30s</span></div>
+        </div>
+        <div class="dbg-divider"></div>
+        <div class="dbg-sec">
+            <div class="dbg-sec-title">在附近生成物品</div>
+            <div class="dbg-csel" id="dbg-spawn-csel" data-value="flower">
+                <div class="dbg-csel-btn" tabindex="0">花 (+2分)</div>
+                <div class="dbg-csel-list">
+                    <div class="dbg-csel-opt sel" data-value="flower">花 (+2分)</div>
+                    <div class="dbg-csel-opt" data-value="grass">水草 (+1分)</div>
+                    <div class="dbg-csel-opt" data-value="lily">荷叶 (护盾)</div>
+                    <div class="dbg-csel-opt" data-value="rock">石头 (危险)</div>
+                    <div class="dbg-csel-opt" data-value="heart">血瓶 (+1生命)</div>
+                    <div class="dbg-csel-opt" data-value="magnet">磁铁 (磁吸)</div>
+                    <div class="dbg-csel-opt" data-value="whirlpool">漩涡 (危险)</div>
+                </div>
+            </div>
+            <div class="dbg-grid">
+                <button class="dbg-btn-sm" id="dbg-spawn-1"><i class="fa-solid fa-plus"></i> 生成1个</button>
+                <button class="dbg-btn-sm" id="dbg-spawn-5"><i class="fa-solid fa-plus"></i> 生成5个</button>
+            </div>
+        </div>
+        <div class="dbg-divider"></div>
+        <div class="dbg-sec">
+            <div class="dbg-sec-title">游戏数据修改</div>
+            <div class="dbg-row"><span>生命：</span><span class="dbg-stepper"><button class="dbg-step" id="dbg-hearts-minus">−</button><span id="dbg-set-hearts">3</span><button class="dbg-step" id="dbg-hearts-plus">+</button></span></div>
+            <div class="dbg-row"><span>分数：</span><span><input type="text" id="dbg-set-score" inputmode="numeric" value="0"></span></div>
+            <button id="dbg-apply"><i class="fa-solid fa-check"></i> 应用修改</button>
+        </div>
+    </div>
     <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
     <div class="toast" id="toast"><div class="toast-inner" id="toast-text"></div></div>
     <div id="help">
@@ -259,6 +354,110 @@ document.addEventListener('keydown',autoStartMusic,{once:true});
 document.getElementById('music-btn').onclick=()=>{initAudio();musicOn=!musicOn;document.querySelector('#music-btn i').className=musicOn?'fa-solid fa-volume-high':'fa-solid fa-volume-xmark';if(musicOn){audioCtx.resume();startBGM()}else{stopBGM()}};
 function playSFX(t){if(!audioCtx)initAudio();if(!audioCtx)return;const o=audioCtx.createOscillator(),e=audioCtx.createGain(),n=audioCtx.currentTime;if(t==='collect'){o.frequency.setValueAtTime(523,n);o.frequency.linearRampToValueAtTime(784,n+.08);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.15);o.type='sine'}else if(t==='hit'){o.frequency.setValueAtTime(180,n);o.frequency.linearRampToValueAtTime(60,n+.25);e.gain.setValueAtTime(.3,n);e.gain.linearRampToValueAtTime(0,n+.3);o.type='sawtooth'}else{o.frequency.setValueAtTime(400,n);o.frequency.linearRampToValueAtTime(900,n+.15);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.35);o.type='triangle'}o.connect(e);e.connect(audioCtx.destination);o.start();o.stop(n+.5)}
 document.getElementById('help-btn').onclick=()=>document.getElementById('help').classList.toggle('show');
+// 调试模式：开关面板 + 立即触发指定事件 + 在附近生成物品 + 修改生命分数
+// 通过 <meta name="env" content="MODE=dev"> 决定是否显示调试按钮，避免外部 fetch
+let dbgNextEvent=null; // 指定下一事件（null=自动随机）
+(function(){
+    const meta=document.querySelector('meta[name="env"]');
+    const txt=meta?meta.getAttribute('content')||'':'';
+    const env={};
+    txt.split(/[;&]/).forEach(kv=>{const i=kv.indexOf('=');if(i>0)env[kv.slice(0,i).trim().toUpperCase()]=kv.slice(i+1).trim()});
+    window.__ENV=env;
+    if((env.MODE||'prod').toLowerCase()!=='dev'){
+        const btn=document.getElementById('dbg-btn');
+        if(btn)btn.style.display='none';
+    }
+})();
+document.getElementById('dbg-btn').onclick=()=>{
+    const p=document.getElementById('dbg-panel');
+    p.classList.toggle('show');
+    if(p.classList.contains('show')){
+        // 面板打开时用当前游戏值初始化显示
+        const hh=document.getElementById('dbg-set-hearts');if(hh)hh.textContent=hearts;
+        const is=document.getElementById('dbg-set-score');if(is)is.value=score;
+    }
+};
+// 生命 +/− 按钮（本地显示值，应用修改时才写入 hearts）
+function _dbgH(){const el=document.getElementById('dbg-set-hearts');return el?parseInt(el.textContent)||0:0}
+function _dbgSetH(v){const el=document.getElementById('dbg-set-hearts');if(el)el.textContent=Math.max(0,Math.min(MAX_HEARTS,v))}
+document.getElementById('dbg-hearts-plus').onclick=()=>_dbgSetH(_dbgH()+1);
+document.getElementById('dbg-hearts-minus').onclick=()=>_dbgSetH(_dbgH()-1);
+// 通用自定义下拉绑定
+function bindCsel(id,onChange){
+    const csel=document.getElementById(id);
+    if(!csel)return;
+    const btn=csel.querySelector('.dbg-csel-btn');
+    const list=csel.querySelector('.dbg-csel-list');
+    const opts=[...list.querySelectorAll('.dbg-csel-opt')];
+    const panel=document.getElementById('dbg-panel');
+    btn.onclick=e=>{e.stopPropagation();document.querySelectorAll('.dbg-csel.open').forEach(c=>{if(c!==csel)c.classList.remove('open')});const willOpen=!csel.classList.contains('open');csel.classList.toggle('open');if(panel)panel.style.overflowY=willOpen?'visible':'auto'};
+    btn.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();btn.click()}};
+    opts.forEach(o=>o.onclick=()=>{
+        const v=o.dataset.value;
+        csel.dataset.value=v;
+        btn.textContent=o.textContent;
+        opts.forEach(x=>x.classList.remove('sel'));
+        o.classList.add('sel');
+        csel.classList.remove('open');
+        if(panel)panel.style.overflowY='auto';
+        if(onChange)onChange(v);
+    });
+}
+// 点击外部关闭
+document.addEventListener('click',e=>{if(!e.target.closest('.dbg-csel')){const panel=document.getElementById('dbg-panel');document.querySelectorAll('.dbg-csel.open').forEach(c=>c.classList.remove('open'));if(panel)panel.style.overflowY='auto'}});
+bindCsel('dbg-event-csel',v=>{dbgNextEvent=v||null;
+    if(dbgNextEvent){pendingEvent=dbgNextEvent;warnedFor=null}else{pendingEvent=null;warnedFor=null}
+});
+bindCsel('dbg-spawn-csel',null);
+document.getElementById('dbg-trigger').onclick=()=>{
+    const csel=document.getElementById('dbg-event-csel');
+    const sel=csel?csel.dataset.value:'';
+    // 立即触发：若有事件进行中，先结束
+    if(activeEvent)endEvent();
+    const key=sel||pickEvent();
+    startEvent(key);
+    globalEventTimer=30;
+    toast('<i class="fa-solid fa-bug"></i> 已触发：'+EVENTS[key].n,'s');
+};
+// 在鸭子附近生成指定物品（包括漩涡）
+function dbgSpawnItem(type,count=1){
+    if(!duckModel){toast('<i class="fa-solid fa-bug"></i> 鸭子未加载','m');return}
+    const dp=duckModel.position;
+    for(let i=0;i<count;i++){
+        const ang=Math.random()*Math.PI*2,dist=3+Math.random()*8;
+        const x=dp.x+Math.cos(ang)*dist,z=dp.z+Math.sin(ang)*dist;
+        if(type==='whirlpool'){
+            whirlpools.push(mkWhirlpool(x,z));
+        }else{
+            let mesh,radius;
+            switch(type){
+                case'rock':{const rs=.3+Math.random()*.5;const rm=1+Math.floor(Math.random()*5)*.5;mesh=mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);radius=rs*1.2*rm;break}
+                case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;break}
+                case'grass':{const gm=1+Math.floor(Math.random()*3)*.5;mesh=mkGrass(x,z,5+Math.floor(Math.random()*4));mesh.scale.multiplyScalar(gm);radius=.4*gm;break}
+                case'lily':{const ls=.3+Math.random()*.25;const lm=1+Math.floor(Math.random()*3)*.5;mesh=mkLily(x,z,ls);mesh.scale.multiplyScalar(lm);radius=ls*lm;break}
+                case'magnet':{const mm=1+Math.floor(Math.random()*3)*.5;mesh=mkMagnet(x,z);mesh.scale.multiplyScalar(mm);radius=.35*mm;break}
+                case'heart':{mesh=mkHeart(x,z);radius=.6;break}
+                default:continue;
+            }
+            if(mesh){scene.add(mesh);items.push({mesh,type,r:radius,coll:false})}
+        }
+    }
+    const lbl={flower:'花',grass:'水草',lily:'荷叶',rock:'石头',heart:'血瓶',magnet:'磁铁',whirlpool:'漩涡'}[type]||type;
+    toast('<i class="fa-solid fa-bug"></i> 已生成 '+count+' 个'+lbl,'s');
+}
+document.getElementById('dbg-spawn-1').onclick=()=>{const csel=document.getElementById('dbg-spawn-csel');dbgSpawnItem(csel?csel.dataset.value:'flower',1)};
+document.getElementById('dbg-spawn-5').onclick=()=>{const csel=document.getElementById('dbg-spawn-csel');dbgSpawnItem(csel?csel.dataset.value:'flower',5)};
+// 修改生命和分数
+document.getElementById('dbg-apply').onclick=()=>{
+    const h=_dbgH();
+    const s=parseInt(document.getElementById('dbg-set-score').value)||0;
+    hearts=Math.max(0,Math.min(MAX_HEARTS,h));
+    score=Math.max(0,s);
+    updateHeartsUI();
+    document.getElementById('score').textContent=score;
+    if(hearts<=0)gameOver();
+    toast('<i class="fa-solid fa-bug"></i> 已修改：'+hearts+'心 / '+score+'分','s');
+};
 
 // ===== 渲染器 =====
 const canvas=document.getElementById('c');
@@ -361,9 +560,9 @@ const clouds=[];
         const rad=70+(i%3)*90+Math.random()*70;
         s.position.set(Math.cos(ang)*rad,28+Math.random()*65,Math.sin(ang)*rad);
         cloudGroup.add(s);
-        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:.3+Math.random()*.5});
+        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:1.2+Math.random()*1.2});
     }
-    // 统一风向缓慢漂移
+    // 统一风向缓慢漂移（速度提高，让缓慢移动更明显）
     const wa=Math.random()*Math.PI*2;
     for(const c of clouds){c.vx=Math.cos(wa)*c.spd;c.vz=Math.sin(wa)*c.spd}
 }
@@ -412,10 +611,24 @@ const moonDisc=new THREE.Mesh(
 scene.add(moonDisc);
 
 // 星星
+// 星星：圆形发光点贴图 + 加色混合，避免方块覆盖整个画布
+function mkStarTex(){
+    const c=document.createElement('canvas');c.width=c.height=64;
+    const ctx=c.getContext('2d');
+    const g=ctx.createRadialGradient(32,32,0,32,32,32);
+    g.addColorStop(0,'rgba(255,255,255,1)');
+    g.addColorStop(.25,'rgba(255,255,255,.85)');
+    g.addColorStop(.5,'rgba(220,230,255,.4)');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+    const t=new THREE.CanvasTexture(c);t.needsUpdate=true;return t;
+}
+const starTex=mkStarTex();
 const starGeo=new THREE.BufferGeometry();const starPos=new Float32Array(800*3);
 for(let i=0;i<800;i++){const th=Math.random()*Math.PI*2,ph=Math.acos(Math.random()*2-1),r=300+Math.random()*200;starPos[i*3]=r*Math.sin(ph)*Math.cos(th);starPos[i*3+1]=Math.abs(r*Math.cos(ph))+30;starPos[i*3+2]=r*Math.sin(ph)*Math.sin(th)}
 starGeo.setAttribute('position',new THREE.BufferAttribute(starPos,3));
-const starMat=new THREE.PointsMaterial({color:0xffffff,size:8,sizeAttenuation:true,transparent:true,opacity:0,fog:false});scene.add(new THREE.Points(starGeo,starMat));
+const starMat=new THREE.PointsMaterial({map:starTex,color:0xffffff,size:6,sizeAttenuation:true,transparent:true,opacity:0,fog:false,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending});
+const starPoints=new THREE.Points(starGeo,starMat);starPoints.renderOrder=-1;scene.add(starPoints);
 
 // 灯光
 const ambLight=new THREE.AmbientLight(0xffeedd,.6);scene.add(ambLight);
@@ -747,22 +960,26 @@ const pm=new THREE.MeshStandardMaterial({color:0xffd93c,roughness:.45,emissive:0
 const core=new THREE.Mesh(new THREE.SphereGeometry(.055,12,10),new THREE.MeshStandardMaterial({color:0xff8c1a,roughness:.4,emissive:0x552200,emissiveIntensity:.35}));core.position.y=.52;core.scale.y=.7;g.add(core);g.position.set(x,-.02,z);return g}
 // 卡通横向 U 形马蹄铁磁铁（一体化：TubeGeometry 沿 U 形曲线生成单根管子，groups 多材质分段着色）
 function mkMagnet(x,z){
-    const poleLen=.5,poleR=.12,gap=.22;
+    const poleLen=.5,poleR=.13,gap=.22;
     // 横放 U 形马蹄铁路径（XZ 平面，y=0；开口朝 -X 方向，两极水平指向左）：
-    // 红极尖（左）→ 红极根（右）→ 银色半圆弧（向 +X 凸出）→ 蓝极根（右）→ 蓝极尖（左）
+    // 红极尖（左）→ 弯角过渡 → 红极根（右）→ 银色半圆弧（向 +X 凸出）→ 蓝极根 → 弯角过渡 → 蓝极尖
     const pts=[
-        new THREE.Vector3(-poleLen,0,-gap),   // 红极尖（-X 方向，z=-gap）
-        new THREE.Vector3(0,0,-gap),          // 红极根（弧起点）
+        new THREE.Vector3(-poleLen,0,-gap),
+        new THREE.Vector3(-poleLen*.55,0,-gap),      // 过渡点（让直杆平滑接入弧）
+        new THREE.Vector3(-poleLen*.15,0,-gap*0.96), // 微微内收，让弯角更圆润
+        new THREE.Vector3(0,0,-gap),
     ];
     // 银弧：x = gap*sin(a) 从 0 经 +gap 到 0；z = -gap*cos(a) 从 -gap 经 0 到 +gap
-    for(let i=1;i<16;i++){
-        const a=Math.PI*(i/16);
+    for(let i=1;i<24;i++){
+        const a=Math.PI*(i/24);
         pts.push(new THREE.Vector3(gap*Math.sin(a),0,-gap*Math.cos(a)));
     }
-    pts.push(new THREE.Vector3(0,0,gap));           // 蓝极根（弧终点）
-    pts.push(new THREE.Vector3(-poleLen,0,gap));     // 蓝极尖（-X 方向，z=+gap）
+    pts.push(new THREE.Vector3(0,0,gap));
+    pts.push(new THREE.Vector3(-poleLen*.15,0,gap*0.96)); // 弯角过渡
+    pts.push(new THREE.Vector3(-poleLen*.55,0,gap));
+    pts.push(new THREE.Vector3(-poleLen,0,gap));
     const curve=new THREE.CatmullRomCurve3(pts,false,'catmullrom',.5);
-    const tubularSeg=80,radialSeg=14;
+    const tubularSeg=120,radialSeg=24;   // 更高段数 + 圆周细分 → 更圆润
     const tubeGeo=new THREE.TubeGeometry(curve,tubularSeg,poleR,radialSeg,false);
     // 按 tubularSeg 比例划分 groups：红极 0-25%，银弧 25-75%，蓝极 75-100%
     const totalIdx=tubeGeo.index?tubeGeo.index.count:tubeGeo.attributes.position.count;
@@ -796,16 +1013,20 @@ function mkMagnet(x,z){
     g.position.set(x,0,z);return g}
 
 // 动态刷新
-const SPAWN_R=60,DESPAWN_R=90,MAX_I=520;
+// SPAWN_R 由 32 扩大到 64，覆盖区域为原来的 4 倍（π·r²）
+// 同时大幅提高目标数量，让刷新更密集（鸭子周围一圈始终有充足道具）
+const SPAWN_R=64,DESPAWN_R=100,MAX_I=1200;
 const MAGNET_RANGE=16,MAGNET_DURATION=12;// 磁铁吸引范围16单位（减半），持续12秒
 let magnetTimer=0,magnetActive=false;
 function spawnAround(cx,cz){
     const cnt={rock:0,flower:0,grass:0,lily:0,magnet:0};items.forEach(i=>{if(!i.coll)cnt[i.type]++});
-    const tgt={rock:12+eventRockBoost,flower:26,grass:22,lily:12,magnet:1};
+    // 目标数量按面积比例扩大（4 倍），并额外提升密度
+    const tgt={rock:30+eventRockBoost,flower:90,grass:80,lily:42,magnet:2};  // 4x 区域 + 密集
     for(const[type,target]of Object.entries(tgt)){while(cnt[type]<target&&items.length<MAX_I){
     // 磁铁刷新概率 50%（稀有道具）
     if(type==='magnet'&&Math.random()>.5)break;
-    const ang=Math.random()*Math.PI*2,dist=8+Math.random()*(SPAWN_R-8);const x=cx+Math.cos(ang)*dist,z=cz+Math.sin(ang)*dist;let mesh,radius;
+    // 用 sqrt 分布让物品在圆盘上均匀分布（不偏向外圈），鸭子周围一圈也有
+    const ang=Math.random()*Math.PI*2,dist=3+Math.sqrt(Math.random())*(SPAWN_R-3);const x=cx+Math.cos(ang)*dist,z=cz+Math.sin(ang)*dist;let mesh,radius;
     switch(type){case'rock':{const rs=.3+Math.random()*.5;const rm=1+Math.floor(Math.random()*5)*.5;mesh=mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);radius=rs*1.2*rm;break}case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;break}case'grass':{const gm=1+Math.floor(Math.random()*3)*.5;mesh=mkGrass(x,z,5+Math.floor(Math.random()*4));mesh.scale.multiplyScalar(gm);radius=.4*gm;break}case'lily':{const ls=.3+Math.random()*.25;const lm=1+Math.floor(Math.random()*3)*.5;mesh=mkLily(x,z,ls);mesh.scale.multiplyScalar(lm);radius=ls*lm;break}case'magnet':{const mm=1+Math.floor(Math.random()*3)*.5;mesh=mkMagnet(x,z);mesh.scale.multiplyScalar(mm);radius=.35*mm;break}}
     if(mesh){scene.add(mesh);items.push({mesh,type,r:radius,coll:false});cnt[type]++}}}
     for(let i=items.length-1;i>=0;i--){const it=items[i];const dx=it.mesh.position.x-cx,dz=it.mesh.position.z-cz;if(Math.sqrt(dx*dx+dz*dz)>DESPAWN_R||it.coll){scene.remove(it.mesh);items.splice(i,1)}}
@@ -1299,10 +1520,9 @@ function updateTransientFx(dt){
     }
 }
 
-// ---- 排行榜（File System Access API 直接读写 JSON 文件；不支持的浏览器回退 localStorage） ----
+// ---- 排行榜（仅从 leaderboard.json 文件读写，无 localStorage 回退） ----
 const Leaderboard={
     FILE_NAME:'leaderboard.json',
-    LS_KEY:'duck_leaderboard_v2',  // 回退方案
     NAME_KEY:'duck_name',
     DIR_KEY:'duck_dir_handle',     // 存目录句柄的标识
     cache:{entries:[]},
@@ -1312,7 +1532,7 @@ const Leaderboard={
     // IndexedDB 持久化句柄
     idbGet(k){return new Promise(r=>{const req=indexedDB.open('duckdb',1);req.onupgradeneeded=e=>{e.target.result.createObjectStore('kv')};req.onsuccess=e=>{const db=e.target.result;const tx=db.transaction('kv','readonly').objectStore('kv').get(k);tx.onsuccess=()=>r(tx.result);tx.onerror=()=>r(null)};req.onerror=()=>r(null)})},
     idbSet(k,v){return new Promise(r=>{const req=indexedDB.open('duckdb',1);req.onupgradeneeded=e=>{e.target.result.createObjectStore('kv')};req.onsuccess=e=>{const db=e.target.result;const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>r(true);tx.onerror=()=>r(false)};req.onerror=()=>r(false)})},
-    // 加载：优先从已授权的文件句柄读取
+    // 加载：优先从已授权的文件句柄读取，否则 fetch 静态文件（无 localStorage 回退）
     async load(){
         if(this.loaded)return this.cache;
         if(this.supported){
@@ -1327,9 +1547,8 @@ const Leaderboard={
             }catch(e){console.warn('文件句柄恢复失败',e)}
         }
         if(!this.loaded){
-            // 回退：fetch 静态文件 + localStorage
-            try{const r=await fetch('./'+this.FILE_NAME);if(r.ok){this.cache=await r.json();this.loaded=true}}catch(e){}
-            if(!this.loaded){try{this.cache=JSON.parse(localStorage.getItem(this.LS_KEY)||'{"entries":[]}')}catch(e){this.cache={entries:[]}};this.loaded=true}
+            // fetch 静态文件 leaderboard.json
+            try{const r=await fetch('./'+this.FILE_NAME);if(r.ok){this.cache=await r.json();this.loaded=true}}catch(e){console.warn('读取 leaderboard.json 失败',e)}
         }
         return this.cache;
     },
@@ -1343,7 +1562,7 @@ const Leaderboard={
     },
     // 同步读取（内存缓存）
     get(){return this.cache||{entries:[]}},
-    // 保存到 JSON 文件
+    // 保存到 JSON 文件（仅文件，无 localStorage）
     async save(d){
         this.cache=d;
         if(this.fileHandle){
@@ -1352,15 +1571,15 @@ const Leaderboard={
                 await w.write(JSON.stringify(d,null,2));
                 await w.close();
                 return true;
-            }catch(e){console.warn('写入 JSON 文件失败',e)}
+            }catch(e){console.warn('写入 JSON 文件失败',e);return false}
         }
-        // 回退 localStorage
-        try{localStorage.setItem(this.LS_KEY,JSON.stringify(d))}catch(_){}
+        // 未绑定文件：提示用户绑定 leaderboard.json 文件
+        toast('<i class="fa-solid fa-triangle-exclamation"></i> 请先绑定 leaderboard.json 文件','m');
         return false;
     },
     // 选择/创建 JSON 文件（用户授权一次后，句柄存 IndexedDB 持久化）
     async pickFile(){
-        if(!this.supported){toast('浏览器不支持文件读写，已用本地存储','m');return false}
+        if(!this.supported){toast('浏览器不支持文件读写','m');return false}
         try{
             const [h]=await window.showSaveFilePicker({
                 suggestedName:this.FILE_NAME,
@@ -1756,17 +1975,18 @@ function mkFunnelGeo(rTop,depth,radialSegs,thetaSegs,yOff){
 function mkWhirlpool(x,z){
     const g=new THREE.Group();
     const rTop=3.0,depth=2.4;
-    // 螺旋水流体（抛物线凹陷 + 螺旋流纹贴图）
-    const funnel=new THREE.Mesh(mkFunnelGeo(rTop,depth,18,72,.03),
-        new THREE.MeshStandardMaterial({map:whirlWaterTex,transparent:true,opacity:.96,roughness:.35,metalness:0,side:THREE.DoubleSide,emissive:0x04202f,emissiveIntensity:.5}));
-    g.add(funnel);
-    // 白色泡沫螺旋（反向旋转，向心流动）
-    const foam=new THREE.Mesh(mkFunnelGeo(rTop*.96,depth,14,64,.09),
-        new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false,fog:false}));
-    g.add(foam);
-    // 中心暗洞
-    const core=new THREE.Mesh(new THREE.CircleGeometry(.8,24),new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,depthWrite:false,fog:false}));
-    core.rotation.x=-Math.PI/2;core.position.y=-depth+.12;g.add(core);
+    // 漏斗与 waveMesh 同处 y=0 平面：用 polygonOffset 把漏斗在深度缓冲里前推，
+    // 这样漏斗边缘能赢过波峰（y≈0.3）的深度测试，不会被水面遮挡，
+    // 同时漏斗实际仍在 y=0，不会"浮空"——像箭头一样紧贴水面
+    const LIFT=0;
+    const funnel=new THREE.Mesh(mkFunnelGeo(rTop,depth,18,72,LIFT),
+        new THREE.MeshStandardMaterial({map:whirlWaterTex,transparent:true,opacity:.96,roughness:.35,metalness:0,side:THREE.DoubleSide,emissive:0x04202f,emissiveIntensity:.5,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+    funnel.renderOrder=5;g.add(funnel);
+    const foam=new THREE.Mesh(mkFunnelGeo(rTop*.96,depth,14,64,LIFT+.02),
+        new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+    foam.renderOrder=6;g.add(foam);
+    const core=new THREE.Mesh(new THREE.CircleGeometry(.8,24),new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+    core.renderOrder=7;core.rotation.x=-Math.PI/2;core.position.y=-depth+LIFT+.12;g.add(core);
     // 随机大小：1/1.5/2/2.5/3 倍（0.5 档位）
     const wm=1+Math.floor(Math.random()*5)*.5;
     g.scale.setScalar(wm);
@@ -1787,8 +2007,8 @@ function updateWhirlpools(dt){
     for(let i=whirlpools.length-1;i>=0;i--){
         const w=whirlpools[i];w.life-=dt;
         const ws=w.scale||1;       // 漩涡缩放倍数
-        const R=5*ws;               // 影响半径随大小缩放
-        const DR=1.6*ws;             // 吸入扣心阈值随大小缩放
+        const R=12*ws;              // 影响半径（大幅扩大，让鸭子更易进入吸力范围）
+        const SINK_R=1.0*ws;       // 进入中心阈值：到达此处触发沉没动画
         w.group.position.y=waveBase(w.x,w.z,waveClock);
         w.funnel.rotation.y+=dt*1.4;
         w.foam.rotation.y-=dt*2.6;
@@ -1797,25 +2017,65 @@ function updateWhirlpools(dt){
         w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.12);
         w.rim.material.opacity=.55+Math.sin(gameClock*5+i)*.25;
         w.field.material.opacity=.16+Math.sin(gameClock*3+i)*.1;
-        if(gameActive&&duckModel){
+        if(gameActive&&duckModel&&duckSink.state==='none'){
             const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
             if(d<R&&d>0.001){
-                const nx=dx/d,nz=dz/d,k=(1-d/R)*(1-d/R);
-                duckVel.x+=nx*k*7*dt;duckVel.z+=nz*k*7*dt;               // 径向吸引
-                duckVel.x+=-nz*(1-d/R)*3*dt;duckVel.z+=nx*(1-d/R)*3*dt;  // 切向旋涡
-                if(d<DR&&invincible<=0){
-                    // 漩涡扣心：只有无敌可以挡，护盾无法挡（直接扣血，不走 takeDamage 的护盾逻辑）
-                    hearts=Math.max(0,hearts-1);
-                    updateHeartsUI();
-                    screenFlash();playSFX('hit');
-                    if(gameActive){duckModel.position.set(0,.05,0);duckVel.set(0,0,0);invincible=2;toast('<i class="fa-solid fa-water"></i> 被漩涡吸入 -1 <i class="fa-solid fa-heart"></i>','m')}
-                    if(hearts<=0)gameOver();
+                const nx=dx/d,nz=dz/d;
+                // 动态引力：越靠近中心越强（指数曲线 ratio^5），远处温和可感知，近处暴增
+                const ratio=1-d/R;          // 0=远，1=中心
+                const pull=Math.pow(ratio,5)*60+ratio*3;  // 边缘~3，中段~5，近处~63（暴增）
+                duckVel.x+=nx*pull*dt;duckVel.z+=nz*pull*dt;
+                // 切向旋涡（随距离指数增强）
+                const tan=Math.pow(ratio,4)*15+ratio*2;
+                duckVel.x+=-nz*tan*dt;duckVel.z+=nx*tan*dt;
+                // 到达中心 → 触发沉没动画（无敌可挡）
+                if(d<SINK_R&&invincible<=0){
+                    duckSink.state='sinking';duckSink.t=0;duckSink.whirl=w;
+                    duckSink.startY=duckModel.position.y;duckSink.startX=duckModel.position.x;duckSink.startZ=duckModel.position.z;
+                    duckVel.set(0,0,0);
                 }
             }
         }
-        // 对周围道具产生吸引力
-        for(const it of items){if(it.coll)continue;const ax=w.x-it.mesh.position.x,az=w.z-it.mesh.position.z;const ad=Math.sqrt(ax*ax+az*az);if(ad<R&&ad>0.001){const f=(1-ad/R)*.9*dt;it.mesh.position.x+=ax/ad*f;it.mesh.position.z+=az/ad*f;}}
+        // 对周围道具产生动态吸引力（越近越强），到达中心则销毁
+        for(const it of items){if(it.coll)continue;const ax=w.x-it.mesh.position.x,az=w.z-it.mesh.position.z;const ad=Math.sqrt(ax*ax+az*az);
+            if(ad<R&&ad>0.001){
+                const r2=1-ad/R;
+                // 指数曲线：近处吸力骤增（ratio^6），远处温和
+                const f=(Math.pow(r2,6)*18+r2*2.5)*dt;
+                it.mesh.position.x+=ax/ad*f;it.mesh.position.z+=az/ad*f;
+                if(ad<SINK_R){it.coll=true;scene.remove(it.mesh)} // 进入中心 → 销毁
+            }
+        }
         if(w.life<=0){scene.remove(w.group);scene.remove(w.rim);scene.remove(w.field);const zi=whirlZones.indexOf(w.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1)}
+    }
+}
+// 鸭子被漩涡吸入沉没动画：下沉→旋转→消失→扣心→重生
+const duckSink={state:'none',t:0,whirl:null,startY:0,startX:0,startZ:0};
+function updateDuckSink(dt){
+    if(duckSink.state==='none')return;
+    duckSink.t+=dt;
+    const D=duckSink,DUR=1.2;
+    if(D.state==='sinking'){
+        const k=Math.min(1,D.t/DUR);
+        // 跟随漩涡中心轻微旋转 + 沉入水下
+        const ang=k*Math.PI*2.5;
+        const sinkR=.5*(1-k);
+        duckModel.position.x=D.whirl.x+Math.cos(ang)*sinkR;
+        duckModel.position.z=D.whirl.z+Math.sin(ang)*sinkR;
+        duckModel.position.y=D.startY-k*2.4;       // 沉到水面下
+        duckModel.rotation.y+=dt*8;               // 高速旋转
+        duckModel.scale.setScalar(.72*(1-k*.4));   // 微缩
+        if(k>=1){
+            // 完成沉没：扣心 + 重生
+            hearts=Math.max(0,hearts-1);updateHeartsUI();screenFlash();playSFX('hit');
+            if(hearts<=0){D.state='none';gameOver();return}
+            // 重生到安全位置（原点附近）
+            duckModel.position.set(0,.05,0);duckVel.set(0,0,0);
+            duckModel.scale.setScalar(.72);duckModel.rotation.y=0;
+            invincible=2;
+            toast('<i class="fa-solid fa-water"></i> 被漩涡吸入 -1 <i class="fa-solid fa-heart"></i>','m');
+            D.state='none';D.whirl=null;
+        }
     }
 }
 
@@ -1866,15 +2126,25 @@ function spawnShark(){
     shadowGeo.rotateX(Math.PI/2); // 贴图鼻尖(+y) 朝向本地 +z
     const shadow=new THREE.Mesh(shadowGeo,new THREE.MeshBasicMaterial({map:sharkShadowTex,transparent:true,opacity:.6,depthWrite:false,fog:false,side:THREE.DoubleSide}));
     g.add(shadow);
-    // 背鳍（经典鲨鱼鳍：前缘平滑升起、鳍尖后掠、后缘圆滑收回，始终露出水面）
+    // 背鳍（经典鲨鱼鳍：用三次贝塞尔曲线 + 极大 bevel，让整体饱满圆润无尖角）
     const fs=new THREE.Shape();
-    fs.moveTo(-.62,0);
-    fs.quadraticCurveTo(-.18,.08,.18,.98);   // 前缘 → 鳍尖
-    fs.quadraticCurveTo(.42,.6,.62,0);        // 后缘收回
-    fs.lineTo(-.62,0);
-    const finGeo=new THREE.ExtrudeGeometry(fs,{depth:.12,bevelEnabled:true,bevelThickness:.05,bevelSize:.05,bevelSegments:3,curveSegments:20});
-    finGeo.translate(0,0,-.06);
-    const fin=new THREE.Mesh(finGeo,new THREE.MeshStandardMaterial({color:0x24506e,roughness:.55,metalness:.05,emissive:0x0a2033,emissiveIntensity:.35}));
+    fs.moveTo(-.55,.02);
+    fs.bezierCurveTo(-.35,.15,-.15,.45,0,.7);       // 前缘：缓弧上升
+    fs.bezierCurveTo(.12,.82,.28,.78,.4,.55);       // 鳍尖：圆润过渡（去尖刺）
+    fs.bezierCurveTo(.5,.35,.58,.18,.55,.02);       // 后缘：圆滑收回
+    fs.bezierCurveTo(.3,-.04,-.3,-.04,-.55,.02);    // 底部：弧形收口
+    // 适度 bevel：仅边缘微圆，保留鳍的整体造型
+    const finGeo=new THREE.ExtrudeGeometry(fs,{
+        depth:.1,
+        bevelEnabled:true,
+        bevelThickness:.05,    // 厚度方向微圆
+        bevelSize:.05,          // 轮廓方向微圆
+        bevelSegments:8,        // 圆滑细分
+        curveSegments:48        // 曲线细分
+    });
+    finGeo.translate(0,0,-.05);
+    finGeo.computeVertexNormals();
+    const fin=new THREE.Mesh(finGeo,new THREE.MeshStandardMaterial({color:0x24506e,roughness:.38,metalness:.08,emissive:0x0a2033,emissiveIntensity:.4}));
     fin.rotation.y=Math.PI/2;fin.position.set(0,-.3,.1);
     g.add(fin);
     // 鳍根浪花环（贴合浪面，增强"鳍划开水面"感）
@@ -1916,25 +2186,22 @@ function updateShark(dt){
         shark.wake.material.opacity=.35+Math.sin(gameClock*6)*.2+lunge*.25;
         sharkHitCd-=dt;
         if(d<2.2&&sharkHitCd<=0&&invincible<=0){
-            if(sharkAttackCount<SHARK_ATTACK_MAX){
-                takeDamage(1);
-                sharkAttackCount++;
-                sharkHitCd=3;
-                p.x-=dx/d*3;p.z-=dz/d*3;
-                spawnSplash(duckModel.position.clone());
-            }else{
-                sharkHitCd=1;
+            takeDamage(1);
+            sharkHitCd=3;
+            p.x-=dx/d*3;p.z-=dz/d*3;
+            spawnSplash(duckModel.position.clone());
+            // 碰撞后鲨鱼销毁（不再多次攻击）
+            removeShark();
+            // 若事件仍激活且未达上限，3秒后生成下一只
+            if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX){
+                setTimeout(()=>{if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX)spawnShark()},3000);
             }
         }
-        // 超过2次攻击后，3秒后离开；若事件仍激活且未达上限，生成下一只
-        if(sharkAttackCount>=SHARK_ATTACK_MAX){
-            shark.leaveTimer=(shark.leaveTimer||0)+dt;
-            if(shark.leaveTimer>=3){
-                removeShark();
-                if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX){
-                    spawnShark();
-                }
-            }
+        // 长时间未撞击：超过 12 秒后强制离开并尝试生成下一只（防止卡住）
+        shark.leaveTimer=(shark.leaveTimer||0)+dt;
+        if(shark.leaveTimer>=12){
+            removeShark();
+            if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX)spawnShark();
         }
     }
 }
@@ -2047,7 +2314,15 @@ waveSpeed+=(waveSpeedTarget-waveSpeed)*Math.min(1,dt*1.4);waveClock+=dt*waveSpee
 stormFactor+=((stormActive?1:0)-stormFactor)*Math.min(1,dt*.9);
 lightningFlash=Math.max(0,lightningFlash-dt*2.6);
 sunRays.material.rotation+=dt*.04;
-setCartoonSky(timeOfDay);updateDuck(dt);updateCam(dt);updateGlobalEvent(dt);updateWhirlpools(dt);updateShark(dt);trySpawnHeart(dt);updateTransientFx(dt);updateClouds(dt);updateStormFx(dt);
+setCartoonSky(timeOfDay);if(duckSink.state==='none')updateDuck(dt);updateDuckSink(dt);updateCam(dt);updateGlobalEvent(dt);updateWhirlpools(dt);updateShark(dt);trySpawnHeart(dt);updateTransientFx(dt);updateClouds(dt);updateStormFx(dt);
+// 调试面板实时状态更新（每 6 帧刷新一次降低开销）
+if(frameCount%6===0){
+    const dbgCur=document.getElementById('dbg-cur');
+    if(dbgCur)dbgCur.textContent=activeEvent?EVENTS[activeEvent].n:'无';
+    const dbgT=document.getElementById('dbg-timer');
+    if(dbgT)dbgT.textContent=activeEvent?Math.ceil(activeEventTime)+'s':Math.ceil(Math.max(0,globalEventTimer))+'s';
+    // 注：hearts/score 输入显示在面板打开时初始化一次，避免每帧覆盖用户输入导致应用修改无效
+}
 if(duckModel){waterMesh.position.x=duckModel.position.x;waterMesh.position.z=duckModel.position.z;waveMesh.position.x=duckModel.position.x;waveMesh.position.z=duckModel.position.z;arrowPlane.position.x=duckModel.position.x;arrowPlane.position.z=duckModel.position.z}
 // 波浪动画（顶点按世界坐标采样 waveHeight，与鸭子/道具完全同步）
 const wp=waveGeo.attributes.position,wcA=waveGeo.attributes.color;
