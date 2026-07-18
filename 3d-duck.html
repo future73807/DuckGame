@@ -94,6 +94,7 @@ canvas{display:block}
 @keyframes rainMove{from{background-position:0 0}to{background-position:-30px 120px}}
 #rainbow-overlay{position:fixed;inset:0;pointer-events:none;z-index:103;opacity:0;transition:opacity 1s;background:linear-gradient(120deg,rgba(255,0,0,.07),rgba(255,165,0,.07),rgba(255,255,0,.07),rgba(0,200,0,.07),rgba(0,120,255,.07),rgba(140,0,255,.07))}
 #rainbow-overlay.show{opacity:1}
+#storm-fx{position:fixed;inset:0;pointer-events:none;z-index:104;opacity:0}
 #gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
 #gameover.show{display:flex}
 #gameover h1{font-size:34px;color:#ff6b6b;margin-bottom:4px;text-shadow:0 0 20px rgba(255,80,80,.5)}
@@ -174,6 +175,7 @@ canvas{display:block}
     <div id="rain-overlay"></div>
     <div id="rainbow-overlay"></div>
     <div id="red-flash"></div>
+    <canvas id="storm-fx"></canvas>
     <div id="event-hud"><span class="ev-icon"></span><span class="ev-name"></span><span class="ev-fx"></span><span class="ev-time"></span></div>
     <div id="event-warn"><i class="fa-solid fa-triangle-exclamation"></i><span class="warn-txt"></span></div>
     <div id="gameover">
@@ -318,11 +320,7 @@ const skyMat=new THREE.ShaderMaterial({
             } else {
                 col=horizonColor;
             }
-            // 太阳光晕
-            float sunDot=max(dot(dir,normalize(sunPos)),0.0);
-            float sunGlow=pow(sunDot,32.0)*0.6;
-            float sunHalo=pow(sunDot,4.0)*0.15;
-            col+=sunColor*sunGlow+sunColor*sunHalo;
+            // 注意：太阳实体由精灵太阳渲染（sunGroup），着色器不再绘制第二个太阳
             gl_FragColor=vec4(col,1.0);
         }
     `,
@@ -331,47 +329,80 @@ const skyMat=new THREE.ShaderMaterial({
 });
 scene.add(new THREE.Mesh(skyGeo,skyMat));
 
-// 卡通云朵（白色椭圆组合）
-const cloudGroup=new THREE.Group();
-function mkCloud(x,y,z,s){
-    const g=new THREE.Group();
-    const cm=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.95,fog:false});
-    const parts=[[0,0,0,1.5],[1,.15,0,1.1],[-.8,.1,0,1],[.5,.3,0,.8],[-.4,.25,0,.85],[.2,.4,0,.6]];
-    for(const[px,py,pz,ss]of parts){
-        const m=new THREE.Mesh(new THREE.SphereGeometry(ss,12,8),cm);
-        m.position.set(px*1.5,py*1.5,pz);
-        m.scale.set(1,.45,.75);
-        g.add(m);
-    }
-    g.position.set(x,y,z);
-    g.scale.setScalar(s);
-    return g;
-}
-// 云朵数据：均匀分布在天空各个方向，高度35-65，距离40-160
-const cloudData=[
-    [-60,45,-80,1.3],[40,50,90,1.1],[-25,40,-70,.9],[80,48,-90,1.2],
-    [-50,55,100,1],[60,35,60,.8],[-80,52,120,1.4],[15,60,-130,1],
-    [-40,30,55,.7],[70,58,140,1.1],[25,42,85,.9],[-65,48,95,1],
-    [90,42,20,1.0],[-90,50,-30,1.2],[50,38,-50,0.8],[-70,46,70,1.1],
-    [0,55,-160,1.2],[-30,40,150,1.0],[100,60,0,1.3],[-100,45,50,0.9],
-    [120,50,-60,1.1],[-120,48,80,1.0],[0,42,-40,0.8],[0,50,40,1.0],
-    [45,65,0,0.9],[-45,35,0,0.7],[80,55,-120,1.2],[-80,45,130,1.1],
-    [30,40,-110,0.9],[-30,52,110,1.0],[140,48,60,1.3],[-140,50,-80,1.0],
-];
-for(const[x,y,z,s]of cloudData) cloudGroup.add(mkCloud(x,y,z,s));
-scene.add(cloudGroup);
+// ===== Canvas 贴图工具 =====
+function mkTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);return new THREE.CanvasTexture(c)}
 
-// 卡通太阳（黄色圆盘 + 光晕）
-const sunDisc=new THREE.Mesh(
-    new THREE.CircleGeometry(20,32),
-    new THREE.MeshBasicMaterial({color:0xffee55,side:THREE.DoubleSide,transparent:true,opacity:.95,fog:false})
-);
-scene.add(sunDisc);
-const sunHalo=new THREE.Mesh(
-    new THREE.CircleGeometry(35,32),
-    new THREE.MeshBasicMaterial({color:0xffee55,side:THREE.DoubleSide,transparent:true,opacity:.12,fog:false})
-);
-scene.add(sunHalo);
+// ===== 卡通云朵（动漫积云精灵，环绕玩家均匀分布 + 随机漂移回收） =====
+function mkCloudTexture(v){
+    return mkTex(256,160,(x)=>{
+        // 积云隆起组合：底部扁平、顶部蓬松（三种形态变体）
+        const bumps=v===0?[[54,102,34],[104,82,44],[158,88,40],[204,106,30],[128,106,36]]
+            :v===1?[[48,106,28],[92,90,36],[140,76,46],[188,94,36],[220,110,24]]
+            :[[42,108,26],[82,94,34],[126,82,42],[172,88,36],[212,106,28],[120,108,34]];
+        const shape=(off)=>{x.beginPath();
+            for(const[bx,by,br]of bumps){x.moveTo(bx+br,by+off);x.arc(bx,by+off,br,0,Math.PI*2)}
+            x.rect(30,110+off,196,26);x.fill()};
+        x.fillStyle='#a9cdea';shape(7);   // 云底蓝灰阴影（动漫分层感）
+        x.fillStyle='#ffffff';shape(0);   // 白云主体
+    });
+}
+const cloudGroup=new THREE.Group();
+const cloudTexs=[mkCloudTexture(0),mkCloudTexture(1),mkCloudTexture(2)];
+const clouds=[];
+{
+    const N=26;
+    for(let i=0;i<N;i++){
+        const mat=new THREE.SpriteMaterial({map:cloudTexs[i%3],transparent:true,opacity:.92,fog:false,depthWrite:false});
+        const s=new THREE.Sprite(mat);
+        const w=18+Math.random()*26;
+        s.scale.set(w,w*.62,1);
+        // 分层均匀：26 朵云按角度均分 + 三个距离带（近/中/远）+ 随机抖动
+        const ang=i/N*Math.PI*2+(Math.random()-.5)*.5;
+        const rad=70+(i%3)*90+Math.random()*70;
+        s.position.set(Math.cos(ang)*rad,28+Math.random()*65,Math.sin(ang)*rad);
+        cloudGroup.add(s);
+        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:.3+Math.random()*.5});
+    }
+    // 统一风向缓慢漂移
+    const wa=Math.random()*Math.PI*2;
+    for(const c of clouds){c.vx=Math.cos(wa)*c.spd;c.vz=Math.sin(wa)*c.spd}
+}
+scene.add(cloudGroup);
+function updateClouds(dt){
+    const cx=duckModel?duckModel.position.x:0,cz=duckModel?duckModel.position.z:0;
+    for(const c of clouds){
+        const p=c.s.position;
+        p.x+=c.vx*dt;p.z+=c.vz*dt;
+        p.y+=Math.sin(gameClock*.4+c.bob)*dt*.6;
+        const dx=p.x-cx,dz=p.z-cz;
+        if(dx*dx+dz*dz>430*430){
+            // 漂远的云回收到玩家另一侧，保持环绕分布均匀
+            const base=Math.atan2(dz,dx)+Math.PI+(Math.random()-.5)*1.1;
+            const rad=210+Math.random()*160;
+            p.x=cx+Math.cos(base)*rad;p.z=cz+Math.sin(base)*rad;
+            p.y=28+Math.random()*65;
+        }
+    }
+}
+
+// ===== 卡通太阳（唯一太阳：核心光盘 + 柔和光晕 + 旋转光芒） =====
+const sunCoreTex=mkTex(256,256,(x)=>{const g=x.createRadialGradient(128,128,10,128,128,128);
+    g.addColorStop(0,'rgba(255,252,230,1)');g.addColorStop(.55,'rgba(255,236,150,1)');g.addColorStop(.8,'rgba(255,210,90,1)');g.addColorStop(.92,'rgba(255,196,80,.9)');g.addColorStop(1,'rgba(255,190,70,0)');
+    x.fillStyle=g;x.fillRect(0,0,256,256)});
+const sunHaloTex=mkTex(256,256,(x)=>{const g=x.createRadialGradient(128,128,20,128,128,128);
+    g.addColorStop(0,'rgba(255,240,180,.55)');g.addColorStop(.4,'rgba(255,225,140,.22)');g.addColorStop(1,'rgba(255,215,110,0)');
+    x.fillStyle=g;x.fillRect(0,0,256,256)});
+const sunRaysTex=mkTex(512,512,(x)=>{x.translate(256,256);
+    for(let i=0;i<12;i++){x.rotate(Math.PI/6);
+        const g=x.createLinearGradient(0,-40,0,-240);g.addColorStop(0,'rgba(255,235,160,.85)');g.addColorStop(1,'rgba(255,225,130,0)');
+        x.fillStyle=g;x.beginPath();x.moveTo(-14,-52);x.lineTo(14,-52);x.lineTo(4,-235);x.lineTo(-4,-235);x.closePath();x.fill()}});
+const sunGroup=new THREE.Group();
+function mkSunSprite(tex,size,opacity,additive){const m=new THREE.SpriteMaterial({map:tex,transparent:true,opacity,fog:false,depthWrite:false});if(additive)m.blending=THREE.AdditiveBlending;const s=new THREE.Sprite(m);s.scale.set(size,size,1);return s}
+const sunHalo=mkSunSprite(sunHaloTex,230,.35,true);
+const sunRays=mkSunSprite(sunRaysTex,300,.3,true);
+const sunDisc=mkSunSprite(sunCoreTex,112,.98);
+sunGroup.add(sunHalo,sunRays,sunDisc);
+scene.add(sunGroup);
 
 // 月亮
 const moonDisc=new THREE.Mesh(
@@ -398,6 +429,7 @@ const duckSpot=new THREE.SpotLight(0xffeecc,0,60,Math.PI*.45,.2,1);duckSpot.cast
 // ===== 卡通水面 =====
 // 统一波浪高度函数：水面网格、鸭子、道具全部共用（世界坐标采样），保证鸭子严丝合缝地浮在浪上
 let waveBoost=1; // 海浪事件期间的振幅倍率（平滑过渡）
+let waveClock=0,waveSpeed=1; // 波浪相位时间（独立于 gameClock，可变速：暴风雨加快、平静减慢）
 const whirlZones=[]; // 活跃漩涡对水体的凹陷 {x,z,r,depth}
 function waveBase(x,z,t){
     // 主涌浪：三组不同方向/波长的低频大浪叠加，更像真实海面
@@ -446,6 +478,142 @@ const waveMesh=new THREE.Mesh(waveGeo,waveMat);
 waveMesh.receiveShadow=true;
 scene.add(waveMesh);
 
+// ===== 昼夜/天气共用颜色 =====
+const _cloudNight=new THREE.Color(0x334466),_cloudStorm=new THREE.Color(0x5f7182);
+const _stormSky=new THREE.Color(0x2e3d4f),_stormHor=new THREE.Color(0x55677a),_stormWater=new THREE.Color(0x22303e);
+
+// ===== 贴浪面圆环（顶点逐帧贴合 waveHeight，不会被海浪遮挡） =====
+// 用于：漩涡边缘浪花/引力圈、鲨鱼鳍根浪花、磁铁范围圈/脉冲环
+function mkWaveRing(radialSegs,thetaSegs,material,uvRepeat=1){
+    const verts=(radialSegs+1)*(thetaSegs+1);
+    const pos=new Float32Array(verts*3),uv=new Float32Array(verts*2),idx=[];
+    for(let r=0;r<=radialSegs;r++)for(let t=0;t<=thetaSegs;t++){const i=r*(thetaSegs+1)+t;uv[i*2]=t/thetaSegs*uvRepeat;uv[i*2+1]=r/radialSegs}
+    for(let r=0;r<radialSegs;r++)for(let t=0;t<thetaSegs;t++){const a=r*(thetaSegs+1)+t,b=a+1,c=a+thetaSegs+1,d=c+1;idx.push(a,c,b,b,c,d)}
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+    geo.setIndex(idx);
+    const mesh=new THREE.Mesh(geo,material);
+    mesh.frustumCulled=false;
+    // 每帧更新：圆环绕 (cx,cz)，内外半径 r0~r1，顶点贴合浪面 + yOff
+    mesh.userData.update=function(cx,cz,r0,r1,yOff){
+        const p=geo.attributes.position;
+        for(let r=0;r<=radialSegs;r++){
+            const rr=r0+(r1-r0)*(r/radialSegs);
+            for(let t=0;t<=thetaSegs;t++){
+                const i=r*(thetaSegs+1)+t,a=t/thetaSegs*Math.PI*2;
+                const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr;
+                p.setXYZ(i,x,waveHeight(x,z,waveClock)+yOff,z);
+            }
+        }
+        p.needsUpdate=true;
+    };
+    return mesh;
+}
+
+// ===== 共享贴图：光点/辉光/浪花 =====
+const sparkTex=mkTex(32,32,(x)=>{const g=x.createRadialGradient(16,16,0,16,16,16);
+    g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.3,'rgba(160,220,255,.9)');g.addColorStop(1,'rgba(80,180,255,0)');
+    x.fillStyle=g;x.fillRect(0,0,32,32);
+    x.strokeStyle='rgba(220,245,255,.9)';x.lineWidth=1.6;x.beginPath();x.moveTo(16,0);x.lineTo(16,32);x.moveTo(0,16);x.lineTo(32,16);x.stroke()});
+const glowTex=mkTex(128,128,(x)=>{const g=x.createRadialGradient(64,64,0,64,64,64);
+    g.addColorStop(0,'rgba(255,255,255,.9)');g.addColorStop(.4,'rgba(180,230,255,.35)');g.addColorStop(1,'rgba(120,200,255,0)');
+    x.fillStyle=g;x.fillRect(0,0,128,128)});
+const wakeTex=mkTex(512,64,(x)=>{ // 横向排列的泡沫团（沿圆环重复）
+    for(let i=0;i<22;i++){const bx=i*24+Math.random()*10,by=22+Math.random()*20,br=5+Math.random()*9;
+        const g=x.createRadialGradient(bx,by,0,bx,by,br);
+        g.addColorStop(0,'rgba(235,250,255,.95)');g.addColorStop(1,'rgba(235,250,255,0)');
+        x.fillStyle=g;x.beginPath();x.arc(bx,by,br,0,Math.PI*2);x.fill()}});
+wakeTex.wrapS=THREE.RepeatWrapping;
+
+// ===== 暴风雨特效（雨幕/水雾/闪电，画布覆盖层） =====
+let stormFactor=0,lightningFlash=0,camShake=0;
+const stormCv=document.getElementById('storm-fx');
+const stormCtx=stormCv.getContext('2d');
+let stormW=0,stormH=0;
+function sizeStormCv(){const dpr=Math.min(devicePixelRatio,2);stormW=innerWidth;stormH=innerHeight;stormCv.width=stormW*dpr;stormCv.height=stormH*dpr;stormCtx.setTransform(dpr,0,0,dpr,0,0)}
+sizeStormCv();addEventListener('resize',sizeStormCv);
+const rainDrops=[];for(let i=0;i<190;i++)rainDrops.push({x:Math.random(),y:Math.random(),v:.7+Math.random()*.6,l:.02+Math.random()*.03,a:.15+Math.random()*.3});
+const mistBlobs=[];for(let i=0;i<8;i++)mistBlobs.push({x:Math.random(),y:.55+Math.random()*.5,r:.18+Math.random()*.22,vx:(Math.random()-.5)*.02,ph:Math.random()*6});
+let boltTimer=2,boltLife=0,boltPts=[],boltBranches=[];
+function genBolt(){
+    boltPts=[];boltBranches=[];
+    let bx=.15+Math.random()*.7;
+    boltPts.push([bx,-.02]);
+    const segs=9+Math.floor(Math.random()*5);
+    for(let i=1;i<=segs;i++){
+        const ny=i/segs*(.5+Math.random()*.25);
+        bx+=(Math.random()-.5)*.09;
+        boltPts.push([bx,ny]);
+        if(Math.random()<.35){ // 分叉
+            const br=[[bx,ny]];let cx2=bx,cy2=ny;const dir=Math.random()<.5?-1:1;
+            for(let k=0;k<3;k++){cx2+=dir*(.02+Math.random()*.05);cy2+=.03+Math.random()*.04;br.push([cx2,cy2])}
+            boltBranches.push(br);
+        }
+    }
+}
+function playThunder(delay){
+    if(!audioCtx||!musicOn)return;
+    try{
+        const dur=1.2+Math.random()*.8;
+        const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*dur,audioCtx.sampleRate);
+        const ch=buf.getChannelData(0);let last=0;
+        for(let i=0;i<ch.length;i++){const w=Math.random()*2-1;last=(last+.03*w)/1.03;const t=i/ch.length;ch[i]=last*4*Math.pow(1-t,1.5)*Math.min(1,t*20)}
+        const src=audioCtx.createBufferSource();src.buffer=buf;
+        const f=audioCtx.createBiquadFilter();f.type='lowpass';f.frequency.value=320;
+        const g=audioCtx.createGain();g.gain.value=.5;
+        src.connect(f);f.connect(g);g.connect(audioCtx.destination);
+        src.start(audioCtx.currentTime+delay);
+    }catch(e){}
+}
+function updateStormFx(dt){
+    const sf=stormFactor,x=stormCtx,W=stormW,H=stormH;
+    stormCv.style.opacity=Math.min(1,sf*1.4+(boltLife>0?1:0));
+    if(sf<=0.01&&boltLife<=0){x.clearRect(0,0,W,H);return}
+    x.clearRect(0,0,W,H);
+    if(sf>0.01){
+        // 屏幕水雾（边缘漂移的薄雾团 + 底部雨雾带）
+        for(const b of mistBlobs){
+            b.x+=b.vx*dt;b.ph+=dt*.3;
+            if(b.x<-.2)b.x=1.2;if(b.x>1.2)b.x=-.2;
+            const bx=b.x*W,by=(b.y+Math.sin(b.ph)*.03)*H,br=b.r*Math.max(W,H);
+            const g=x.createRadialGradient(bx,by,0,bx,by,br);
+            g.addColorStop(0,'rgba(205,220,238,'+(.1*sf)+')');g.addColorStop(1,'rgba(205,220,238,0)');
+            x.fillStyle=g;x.fillRect(bx-br,by-br,br*2,br*2);
+        }
+        const g2=x.createLinearGradient(0,H*.6,0,H);
+        g2.addColorStop(0,'rgba(190,205,228,0)');g2.addColorStop(1,'rgba(190,205,228,'+(.16*sf)+')');
+        x.fillStyle=g2;x.fillRect(0,H*.6,W,H*.4);
+        // 雨幕（带风斜的随机雨丝）
+        x.lineCap='round';
+        const n=Math.floor(rainDrops.length*sf),slant=.16+Math.sin(gameClock*.7)*.05;
+        for(let i=0;i<n;i++){const d=rainDrops[i];
+            d.y+=d.v*dt*1.4;d.x+=d.v*dt*slant*.5;
+            if(d.y>1.05){d.y=-.05;d.x=Math.random()}
+            if(d.x>1.05)d.x-=1.1;
+            const px=d.x*W,py=d.y*H,len=d.l*H;
+            x.strokeStyle='rgba(190,215,245,'+(d.a*sf)+')';x.lineWidth=1.4;
+            x.beginPath();x.moveTo(px,py);x.lineTo(px-len*slant,py-len);x.stroke();
+        }
+        // 闪电计时（仅暴风雨充分展开后）
+        boltTimer-=dt;
+        if(boltTimer<=0&&sf>.4){genBolt();boltLife=.28;boltTimer=2.2+Math.random()*4.5;lightningFlash=1;camShake=.6;playThunder(.2+Math.random()*.7)}
+    }
+    // 闪电绘制（全屏闪光 + 分叉闪电链）
+    if(boltLife>0){
+        boltLife-=dt;
+        const bl=Math.max(0,boltLife/.28);
+        x.fillStyle='rgba(210,225,255,'+(bl*.35)+')';x.fillRect(0,0,W,H);
+        x.save();
+        x.shadowColor='rgba(180,220,255,.9)';x.shadowBlur=18;
+        x.strokeStyle='rgba(255,255,255,'+(.95*bl)+')';x.lineWidth=3;x.lineJoin='round';
+        x.beginPath();boltPts.forEach((p,i)=>i?x.lineTo(p[0]*W,p[1]*H):x.moveTo(p[0]*W,p[1]*H));x.stroke();
+        x.lineWidth=1.6;
+        for(const br of boltBranches){x.beginPath();br.forEach((p,i)=>i?x.lineTo(p[0]*W,p[1]*H):x.moveTo(p[0]*W,p[1]*H));x.stroke()}
+        x.restore();
+    }
+}
+
 // 随机海浪事件系统
 const arrowCanvas=document.createElement('canvas');
 arrowCanvas.width=1024;arrowCanvas.height=1024;
@@ -493,8 +661,7 @@ let timeOfDay=12;const TIME_SPEED=0.5;
 function setCartoonSky(time){
     const angle=(time/24)*Math.PI*2-Math.PI/2;
     const sy=Math.sin(angle),sx=Math.cos(angle);
-    sunDisc.position.set(sx*250,sy*250,-50);
-    sunHalo.position.copy(sunDisc.position);
+    sunGroup.position.set(sx*700,sy*700,0);
     moonDisc.position.set(-sx*250,-sy*250,-50);
     sunLight.position.set(sx*12,Math.max(sy*12,.5),5);
     const dayF=Math.max(0,Math.min(1,sy*2.5+.3));
@@ -517,13 +684,15 @@ function setCartoonSky(time){
     moonLight.position.set(-sx*12,Math.max(-sy*12,.5),-5);
     starMat.opacity=nightF*.9;
     // 太阳/月亮可见性
-    sunDisc.visible=sy>-.1;sunHalo.visible=sy>-.1;
-    sunDisc.material.color.setHex(sunsetF>.3?0xff6633:0xffee55);
-    sunDisc.material.opacity=dayF*.95+sunsetF*.7;
-    sunHalo.material.opacity=dayF*.12+sunsetF*.2;
+    sunGroup.visible=sy>-.1;
+    sunDisc.material.color.setHex(sunsetF>.3?0xff7744:0xfff2b0);
+    sunDisc.material.opacity=dayF*.98+sunsetF*.85;
+    sunHalo.material.opacity=dayF*.35+sunsetF*.45;
+    sunRays.material.opacity=dayF*.3+sunsetF*.4;
     moonDisc.visible=-sy>-.1;moonDisc.material.opacity=nightF*.9;
-    // 云朵颜色
-    cloudGroup.children.forEach(c=>{c.children.forEach(p=>{p.material.color.lerpColors(new THREE.Color(0xffffff),new THREE.Color(0x334466),nightF);p.material.opacity=.85-nightF*.3})});
+    // 云朵颜色（夜晚变暗，暴风雨变灰）
+    _wc.set(0xffffff).lerp(_cloudNight,nightF).lerp(_cloudStorm,stormFactor*.7);
+    cloudGroup.children.forEach(s=>{s.material.color.copy(_wc);s.material.opacity=.92-nightF*.35});
     // 水面颜色
     const waterDay=new THREE.Color(0x1a6aa8),waterNight=new THREE.Color(0x081628),waterSunset=new THREE.Color(0x8a3a30);
     waterMat.color.copy(waterDay).lerp(waterNight,nightF);
@@ -535,6 +704,19 @@ function setCartoonSky(time){
     // 雾色与地平线颜色一致，远处水面自然融入天空
     scene.fog.color.copy(skyMat.uniforms.horizonColor.value);
     renderer.toneMappingExposure=.6+dayF*.4+sunsetF*.15;
+    // 暴风雨：天空压暗、雾气拉近、水面变灰、能见度降低
+    if(stormFactor>0.001){
+        const sf=stormFactor;
+        skyMat.uniforms.topColor.value.lerp(_stormSky,sf*.65);
+        skyMat.uniforms.horizonColor.value.lerp(_stormHor,sf*.6);
+        scene.fog.color.copy(skyMat.uniforms.horizonColor.value);
+        scene.fog.near=60-34*sf;scene.fog.far=190-100*sf;
+        waterColDeep.lerp(_stormWater,sf*.5);waterColLight.lerp(_stormWater,sf*.45);
+        renderer.toneMappingExposure*=1-sf*.25;
+    }else{scene.fog.near=60;scene.fog.far=190}
+    // 闪电瞬间照亮场景
+    renderer.toneMappingExposure+=lightningFlash*.9;
+    ambLight.intensity+=lightningFlash*2;
     if(duckModel){
         duckSpot.intensity=nightF*15+3;
         duckSpot.position.copy(duckModel.position);duckSpot.position.y+=2;
@@ -550,7 +732,7 @@ window.cycleTime=()=>{const ts=[6,9,12,15,18,20,22,0];let idx=0;for(let i=0;i<ts
 
 
 // ===== 物品 =====
-const items=[];const MAP=14;let eventRockBoost=0,eventWaveTarget=1;
+const items=[];const MAP=14;let eventRockBoost=0,eventWaveTarget=1,waveSpeedTarget=1;
 function mkRock(p,s){const g=new THREE.DodecahedronGeometry(1,1);const a=g.attributes.position;for(let i=0;i<a.count;i++){let x=a.getX(i),y=a.getY(i),z=a.getZ(i);const n=Math.sin(x*3.7)*Math.cos(y*2.3)*Math.sin(z*4.1)*.15;x+=n;y+=n*.5;z+=n;y*=.55;a.setXYZ(i,x,y,z)}g.computeVertexNormals();const tint=.92+Math.random()*.16;const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:new THREE.Color(0x8d8177).multiplyScalar(tint),roughness:.85,flatShading:true}));m.position.copy(p);m.scale.setScalar(s);m.rotation.set(Math.random(),Math.random(),0);m.castShadow=true;m.receiveShadow=true;return m}
 function mkGrass(x,z,n){const g=new THREE.Group();const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide});const cRoot=new THREE.Color(0x1d5c22),cTip=new THREE.Color(0x8fdd55),cc=new THREE.Color();for(let i=0;i<n;i++){const h=.4+Math.random()*.35,w=.05+Math.random()*.035;const geo=new THREE.PlaneGeometry(w,h,1,6);const a=geo.attributes.position;const cols=new Float32Array(a.count*3);const bend=(Math.random()-.5)*.4;for(let j=0;j<a.count;j++){let px=a.getX(j),py=a.getY(j);const t=py/h+.5;px*=1-t*.85;px+=t*t*bend;a.setX(j,px);cc.copy(cRoot).lerp(cTip,t);cols[j*3]=cc.r;cols[j*3+1]=cc.g;cols[j*3+2]=cc.b}geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();const b=new THREE.Mesh(geo,mat);b.position.set((Math.random()-.5)*.6,h*.5,(Math.random()-.5)*.6);b.rotation.y=Math.random()*Math.PI;b.castShadow=true;g.add(b)}g.position.set(x,0,z);return g}
 function mkLily(x,z,s){const g=new THREE.Group();const pg=new THREE.CircleGeometry(s,24,0,Math.PI*1.85);const pa=pg.attributes.position;const pcols=new Float32Array(pa.count*3);const cIn=new THREE.Color(0x46a857),cOut=new THREE.Color(0x1e6b31),cc=new THREE.Color();for(let i=0;i<pa.count;i++){const px=pa.getX(i),py=pa.getY(i);const r=Math.min(Math.sqrt(px*px+py*py)/s,1);pa.setZ(i,r*r*.14*s);cc.copy(cIn).lerp(cOut,r);pcols[i*3]=cc.r;pcols[i*3+1]=cc.g;pcols[i*3+2]=cc.b}pg.setAttribute('color',new THREE.BufferAttribute(pcols,3));pg.computeVertexNormals();const pad=new THREE.Mesh(pg,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.55,side:THREE.DoubleSide}));pad.rotation.x=-Math.PI/2;pad.receiveShadow=true;g.add(pad);
@@ -653,14 +835,31 @@ crownGroup.add(crownInner);
 // 连胜特效光环（柔和发光球）
 const auraMat=new THREE.MeshBasicMaterial({color:0xffd700,transparent:true,opacity:0,side:THREE.DoubleSide});
 const auraMesh=new THREE.Mesh(new THREE.SphereGeometry(2.5,24,16),auraMat);auraMesh.visible=false;scene.add(auraMesh);
-// 磁吸激活时的范围圈（单层淡蓝色环，表明吸引边界）
-const magnetRangeRing=new THREE.Mesh(new THREE.RingGeometry(MAGNET_RANGE-1.5,MAGNET_RANGE,80),
-    new THREE.MeshBasicMaterial({color:0x66bbff,transparent:true,opacity:0,fog:false}));
-magnetRangeRing.rotation.x=-Math.PI/2;magnetRangeRing.visible=false;scene.add(magnetRangeRing);
-// 磁场蓝色粒子特效（环绕鸭子螺旋向内的发光粒子，激活时可见）
-const MAG_PARTICLES=120;
+// 磁吸激活时的范围圈（贴浪面的能量虚线环，不再被海浪盖住一半）
+const magnetDashTex=mkTex(256,32,(x)=>{
+    x.clearRect(0,0,256,32);x.lineCap='round';
+    for(let i=0;i<8;i++){const x0=i*32+6;
+        const g=x.createLinearGradient(x0,0,x0+20,0);
+        g.addColorStop(0,'rgba(140,215,255,.15)');g.addColorStop(.5,'rgba(220,245,255,1)');g.addColorStop(1,'rgba(140,215,255,.15)');
+        x.strokeStyle=g;x.lineWidth=6;
+        x.beginPath();x.moveTo(x0,16);x.lineTo(x0+20,16);x.stroke()}
+});
+magnetDashTex.wrapS=THREE.RepeatWrapping;
+const magnetRangeRing=mkWaveRing(2,96,new THREE.MeshBasicMaterial({map:magnetDashTex,transparent:true,opacity:0,color:0x86d4ff,depthWrite:false,fog:false,side:THREE.DoubleSide}),6);
+magnetRangeRing.visible=false;scene.add(magnetRangeRing);
+// 内收脉冲环（两圈交替从外向内收缩，表现"吸入"）
+const magnetPulse=[];
+for(let i=0;i<2;i++){
+    const t=mkTex(64,8,(x)=>{const g=x.createLinearGradient(0,0,64,0);g.addColorStop(0,'rgba(150,220,255,0)');g.addColorStop(.5,'rgba(200,240,255,.9)');g.addColorStop(1,'rgba(150,220,255,0)');x.fillStyle=g;x.fillRect(0,0,64,8)});
+    t.wrapS=THREE.RepeatWrapping;
+    const r=mkWaveRing(1,72,new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:0,color:0x9fe0ff,depthWrite:false,fog:false,side:THREE.DoubleSide}),8);
+    r.visible=false;scene.add(r);magnetPulse.push(r);
+}
+// 磁场粒子（星芒贴图 + 顶点渐变色，螺旋向鸭子汇聚）
+const MAG_PARTICLES=140;
 const magParticleGeo=new THREE.BufferGeometry();
 const magParticlePos=new Float32Array(MAG_PARTICLES*3);
+const magParticleCol=new Float32Array(MAG_PARTICLES*3);
 const magParticleData=[]; // 每个粒子的 {angle,radius,yOff,speed}
 for(let i=0;i<MAG_PARTICLES;i++){
     const angle=Math.random()*Math.PI*2;
@@ -668,17 +867,16 @@ for(let i=0;i<MAG_PARTICLES;i++){
     magParticleData.push({angle,radius,yOff:(Math.random()-.5)*1.2,speed:.6+Math.random()*.9});
 }
 magParticleGeo.setAttribute('position',new THREE.BufferAttribute(magParticlePos,3));
+magParticleGeo.setAttribute('color',new THREE.BufferAttribute(magParticleCol,3));
 const magParticleMat=new THREE.PointsMaterial({
-    color:0x66bbff,size:.25,transparent:true,opacity:0,
-    blending:THREE.AdditiveBlending,depthWrite:false,fog:false,
-    map:(()=>{const c=document.createElement('canvas');c.width=c.height=32;
-        const ctx=c.getContext('2d');const g=ctx.createRadialGradient(16,16,0,16,16,16);
-        g.addColorStop(0,'rgba(180,220,255,1)');g.addColorStop(.4,'rgba(102,187,255,.6)');
-        g.addColorStop(1,'rgba(102,187,255,0)');ctx.fillStyle=g;ctx.fillRect(0,0,32,32);
-        const t=new THREE.CanvasTexture(c);return t;})()
+    size:.32,transparent:true,opacity:0,vertexColors:true,
+    blending:THREE.AdditiveBlending,depthWrite:false,fog:false,map:sparkTex
 });
 const magParticles=new THREE.Points(magParticleGeo,magParticleMat);
 magParticles.frustumCulled=false;magParticles.visible=false;scene.add(magParticles);
+// 鸭子周身磁场辉光
+const magGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,opacity:0,color:0x7fd4ff,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+magGlow.scale.set(2.6,2.6,1);magGlow.visible=false;scene.add(magGlow);
 // 磁铁 HUD（激活时显示倒计时）
 const magnetHud=document.createElement('div');magnetHud.id='magnet-hud';
 magnetHud.style.cssText='background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#66bbff;padding:5px 14px;border-radius:10px;font-size:14px;display:none;align-items:center;gap:6px;border:1px solid rgba(102,187,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(102,187,255,.3)';
@@ -738,7 +936,9 @@ function activateShield(){hasShield=true;shieldTimer=15;document.getElementById(
 function activateMagnet(){
     magnetActive=true;magnetTimer=MAGNET_DURATION;
     magnetRangeRing.visible=true;
+    magnetPulse.forEach(r=>r.visible=true);
     magParticles.visible=true;
+    magGlow.visible=true;
     magnetHud.style.display='flex';
     playSFX('shield');
     toast('<i class="fa-solid fa-magnet"></i> 磁吸激活','s');
@@ -747,14 +947,19 @@ function updateMagnet(dt){
     if(!magnetActive)return;
     magnetTimer-=dt;
     const dp=duckModel.position;
-    // 范围圈跟随鸭子，缓慢旋转 + 呼吸闪烁
-    magnetRangeRing.position.set(dp.x,dp.y+.05,dp.z);
-    magnetRangeRing.rotation.z+=dt*.3;
     const breathe=.5+Math.sin(gameClock*4)*.25;
-    magnetRangeRing.material.opacity=.18*breathe;
-    // 蓝色磁场粒子：环绕鸭子螺旋向内流动，到达近端后重置到外圈
-    magParticles.position.set(0,0,0);
-    const pos=magParticleGeo.attributes.position;
+    // 范围圈：贴合浪面跟随鸭子，虚线流动 + 呼吸闪烁
+    magnetRangeRing.userData.update(dp.x,dp.z,MAGNET_RANGE-1.2,MAGNET_RANGE,.15);
+    magnetRangeRing.material.opacity=.55+Math.sin(gameClock*4)*.2;
+    magnetDashTex.offset.x-=dt*.8;
+    // 内收脉冲环：两圈交替从外缘收缩到鸭子
+    for(let i=0;i<2;i++){
+        const ph=(gameClock*.45+i*.5)%1,r=1+ph*(MAGNET_RANGE-1);
+        magnetPulse[i].userData.update(dp.x,dp.z,Math.max(r-.5,.2),r,.12);
+        magnetPulse[i].material.opacity=(1-ph)*.4;
+    }
+    // 磁场粒子：螺旋向内 + 抬升汇聚到鸭子，颜色由青渐白
+    const pos=magParticleGeo.attributes.position,col=magParticleGeo.attributes.color;
     for(let i=0;i<MAG_PARTICLES;i++){
         const p=magParticleData[i];
         p.angle+=dt*p.speed*1.5;            // 角速度（环绕）
@@ -764,13 +969,19 @@ function updateMagnet(dt){
             p.angle=Math.random()*Math.PI*2;
             p.yOff=(Math.random()-.5)*1.2;
         }
-        const y=dp.y+p.yOff+Math.sin(gameClock*3+p.angle*2)*.15;
+        const t=1-p.radius/MAGNET_RANGE;    // 0=外圈，1=近身
+        const y=dp.y+.3+p.yOff*(1-t)+Math.sin(gameClock*3+p.angle*2)*.15+t*.6;
         pos.setXYZ(i,dp.x+Math.cos(p.angle)*p.radius,y,dp.z+Math.sin(p.angle)*p.radius);
+        col.setXYZ(i,.35+t*.65,.75+t*.25,1);
     }
-    pos.needsUpdate=true;
+    pos.needsUpdate=true;col.needsUpdate=true;
     magParticleMat.opacity=.85*breathe;
+    // 鸭子周身辉光
+    magGlow.position.set(dp.x,dp.y+.7,dp.z);
+    magGlow.material.opacity=.3+Math.sin(gameClock*5)*.15;
+    const gs=2.4+Math.sin(gameClock*5)*.3;magGlow.scale.set(gs,gs,1);
     document.getElementById('mag-time').textContent=Math.ceil(Math.max(0,magnetTimer));
-    if(magnetTimer<=0){magnetActive=false;magnetRangeRing.visible=false;magnetRangeRing.material.opacity=0;magParticles.visible=false;magParticleMat.opacity=0;magnetHud.style.display='none'}
+    if(magnetTimer<=0){magnetActive=false;magnetRangeRing.visible=false;magnetRangeRing.material.opacity=0;magnetPulse.forEach(r=>{r.visible=false;r.material.opacity=0});magParticles.visible=false;magParticleMat.opacity=0;magGlow.visible=false;magGlow.material.opacity=0;magnetHud.style.display='none'}
 }
 
 // 随机海浪事件
@@ -843,6 +1054,8 @@ if(manualCamTimer<=0){
 }
 controls.target.lerp(duckModel.position.clone().add(new THREE.Vector3(0,1,0)),.05);
 if(stormActive){const d=camera.position.distanceTo(controls.target);if(d>9)camera.position.lerp(controls.target,dt*.4);}
+// 雷击震动
+if(camShake>0){camShake-=dt;const s=camShake*.5;camera.position.x+=(Math.random()-.5)*s;camera.position.y+=(Math.random()-.5)*s*.6;camera.position.z+=(Math.random()-.5)*s}
 }
 
 // 碰撞
@@ -928,11 +1141,11 @@ if(hVel.length()>0.15){
 // 鸭子始终浮在海浪之上：与水面网格共用同一个 waveHeight 公式（世界坐标采样），保证贴合
 const px=duckModel.position.x,pz=duckModel.position.z;
 const duckScale=duckModel.scale.x/.72;
-const hC=waveHeight(px,pz,gameClock);
+const hC=waveHeight(px,pz,waveClock);
 // 数值求浪面坡度，让鸭子随浪面倾斜（更真实的漂浮感）
 const ws=.9;
-const slopeX=(waveHeight(px+ws,pz,gameClock)-waveHeight(px-ws,pz,gameClock))/(2*ws);
-const slopeZ=(waveHeight(px,pz+ws,gameClock)-waveHeight(px,pz-ws,gameClock))/(2*ws);
+const slopeX=(waveHeight(px+ws,pz,waveClock)-waveHeight(px-ws,pz,waveClock))/(2*ws);
+const slopeZ=(waveHeight(px,pz+ws,waveClock)-waveHeight(px,pz-ws,waveClock))/(2*ws);
 const bobY=Math.sin(gameClock*1.8)*.04;
 // 模型底部相对原点约 0.072*duckScale，让底部略没入水中（waveHeight 对时空均光滑，直接赋值无抖动）
 duckModel.position.y=hC-0.11*duckScale+bobY;
@@ -965,10 +1178,11 @@ if(invincible>0){
 }
 // 磁铁激活：吸引附近所有可收集道具（花/草/荷叶/血瓶/磁铁）向鸭子靠近，石头不吸引
 if(magnetActive&&duckModel){const dp=duckModel.position;for(const it of items){if(it.coll||it.type==='rock')continue;const dx=dp.x-it.mesh.position.x,dz=dp.z-it.mesh.position.z;const d=Math.sqrt(dx*dx+dz*dz);if(d<MAGNET_RANGE&&d>0.1){
-// 吸引动画：越近吸力越强（指数加速）；不旋转物品、不改动 y，保持物品原有漂浮姿态
+// 吸引动画：越近吸力越强（指数加速）；道具轻微浮起+旋转，表现被磁场牵引
 const t=1-d/MAGNET_RANGE; // 0=远，1=近
 const f=(0.5+t*t*8)*dt; // 近距离加速
 it.mesh.position.x+=dx/d*f;it.mesh.position.z+=dz/d*f;
+it.magT=Math.min(1,(it.magT||0)+dt*3);
 }}}
 updateMagnet(dt);
 spawnAround(duckModel.position.x,duckModel.position.z);checkHit()}
@@ -1495,27 +1709,74 @@ function trySpawnHeart(dt){
 
 // ---- 漩涡系统 ----
 const whirlpools=[];
+// 漩涡水流贴图（对角流纹 → 包在漏斗上呈螺旋状）
+const whirlWaterTex=mkTex(512,256,(x)=>{
+    x.fillStyle='#0c4a72';x.fillRect(0,0,512,256);
+    for(let i=0;i<16;i++){const x0=i*32;
+        x.strokeStyle='rgba(90,170,215,'+(.12+(i%3)*.05)+')';x.lineWidth=6+(i%4)*3;
+        for(const ox of[-512,0,512]){x.beginPath();x.moveTo(x0+ox,0);x.bezierCurveTo(x0+ox+30,80,x0+ox-20,160,x0+ox+24,256);x.stroke()}}
+});
+whirlWaterTex.wrapS=whirlWaterTex.wrapT=THREE.RepeatWrapping;
+// 漩涡泡沫螺旋贴图（斜向泡沫弧 → 螺旋手臂）
+const whirlFoamTex=mkTex(512,256,(x)=>{
+    x.clearRect(0,0,512,256);
+    x.lineCap='round';
+    for(let k=0;k<10;k++){const x0=k*56;
+        for(const oy of[-256,0,256]){
+            const g=x.createLinearGradient(x0,256+oy,x0+120,oy);
+            g.addColorStop(0,'rgba(240,252,255,0)');g.addColorStop(.4,'rgba(240,252,255,.95)');g.addColorStop(1,'rgba(240,252,255,0)');
+            x.strokeStyle=g;x.lineWidth=8+(k%3)*4;
+            x.beginPath();x.moveTo(x0,256+oy);x.quadraticCurveTo(x0+80,128+oy,x0+120,oy);x.stroke();
+        }
+    }
+    // 同心泡沫环碎片
+    x.strokeStyle='rgba(230,248,255,.5)';x.lineWidth=5;
+    for(let r=0;r<5;r++){const y=20+r*52;for(let s=0;s<6;s++){const x0=s*90+(r%2)*40;
+        x.beginPath();x.moveTo(x0,y);x.lineTo(x0+34,y);x.stroke()}}
+});
+whirlFoamTex.wrapS=whirlFoamTex.wrapT=THREE.RepeatWrapping;
+// 中心暗洞贴图
+const whirlCoreTex=mkTex(128,128,(x)=>{const g=x.createRadialGradient(64,64,4,64,64,64);
+    g.addColorStop(0,'rgba(1,8,16,1)');g.addColorStop(.7,'rgba(3,18,30,.95)');g.addColorStop(1,'rgba(4,24,38,0)');
+    x.fillStyle=g;x.fillRect(0,0,128,128)});
+// 抛物线漏斗面（极坐标 UV：u=半径，v=角度，斜纹即螺旋）
+function mkFunnelGeo(rTop,depth,radialSegs,thetaSegs,yOff){
+    const pos=[],uv=[],idx=[];
+    for(let r=0;r<=radialSegs;r++){
+        const t=r/radialSegs,rr=Math.max(.12,rTop*t),y=-depth*(1-t)*(1-t)+yOff;
+        for(let j=0;j<=thetaSegs;j++){const a=j/thetaSegs*Math.PI*2;pos.push(Math.cos(a)*rr,y,Math.sin(a)*rr);uv.push(t,j/thetaSegs*6)}
+    }
+    for(let r=0;r<radialSegs;r++)for(let j=0;j<thetaSegs;j++){const a=r*(thetaSegs+1)+j,b=a+1,c=a+thetaSegs+1,d=c+1;idx.push(a,b,c,b,d,c)}
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+    geo.setIndex(idx);geo.computeVertexNormals();
+    return geo;
+}
 function mkWhirlpool(x,z){
     const g=new THREE.Group();
     const rTop=3.0,depth=2.4;
-    // 漏斗形水体（LatheGeometry 抛物线剖面，真正的下凹水体）
-    const pts=[];const N=22;
-    for(let i=0;i<=N;i++){const t=i/N;const r=rTop*Math.pow(t,.82);const y=-depth*(1-t)*(1-t);pts.push(new THREE.Vector2(Math.max(r,.03),y));}
-    const funnel=new THREE.Mesh(new THREE.LatheGeometry(pts,52),new THREE.MeshStandardMaterial({color:0x0c4c74,roughness:.22,metalness:0,side:THREE.DoubleSide,transparent:true,opacity:.94,emissive:0x05202f,emissiveIntensity:.45}));
+    // 螺旋水流体（抛物线凹陷 + 螺旋流纹贴图）
+    const funnel=new THREE.Mesh(mkFunnelGeo(rTop,depth,18,72,.03),
+        new THREE.MeshStandardMaterial({map:whirlWaterTex,transparent:true,opacity:.96,roughness:.35,metalness:0,side:THREE.DoubleSide,emissive:0x04202f,emissiveIntensity:.5}));
     g.add(funnel);
-    // 旋涡水流泡沫环（贴着漏斗壁）
-    const swirls=[];
-    for(let i=0;i<3;i++){const rr=.9+i*.85;const t=Math.pow(rr/rTop,1/.82);const yy=-depth*(1-t)*(1-t);const ring=new THREE.Mesh(new THREE.TorusGeometry(rr,.055,8,44),new THREE.MeshBasicMaterial({color:0xbfe8ff,transparent:true,opacity:.5-i*.11,fog:false}));ring.rotation.x=-Math.PI/2;ring.position.y=yy+.03;swirls.push(ring);g.add(ring);}
+    // 白色泡沫螺旋（反向旋转，向心流动）
+    const foam=new THREE.Mesh(mkFunnelGeo(rTop*.96,depth,14,64,.09),
+        new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false,fog:false}));
+    g.add(foam);
     // 中心暗洞
-    const core=new THREE.Mesh(new THREE.CircleGeometry(.45,24),new THREE.MeshBasicMaterial({color:0x02121e,transparent:true,opacity:.92,side:THREE.DoubleSide,depthWrite:false}));core.rotation.x=-Math.PI/2;core.position.y=-depth+.06;g.add(core);
-    // 外缘影响圈
-    const field=new THREE.Mesh(new THREE.RingGeometry(4.7,5,48),new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false,fog:false}));field.rotation.x=-Math.PI/2;field.position.y=.07;g.add(field);
+    const core=new THREE.Mesh(new THREE.CircleGeometry(.8,24),new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,depthWrite:false,fog:false}));
+    core.rotation.x=-Math.PI/2;core.position.y=-depth+.12;g.add(core);
     // 随机大小：1/1.5/2/2.5/3 倍（0.5 档位）
     const wm=1+Math.floor(Math.random()*5)*.5;
     g.scale.setScalar(wm);
     g.position.set(x,0,z);scene.add(g);
+    // 边缘浪花环 + 引力提示圈（贴浪面网格，不会被海浪盖住）
+    const rim=mkWaveRing(2,72,new THREE.MeshBasicMaterial({map:wakeTex,transparent:true,opacity:.85,depthWrite:false,fog:false,side:THREE.DoubleSide}),3);
+    const field=mkWaveRing(1,72,new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.25,depthWrite:false,fog:false,side:THREE.DoubleSide}),1);
+    scene.add(rim,field);
     const zone={x,z,r:rTop*wm,depth};whirlZones.push(zone);
-    return{group:g,funnel,swirls,field,zone,life:9+Math.random()*4,x,z,scale:wm};
+    return{group:g,funnel,foam,rim,field,zone,life:9+Math.random()*4,x,z,scale:wm};
 }
 function spawnWhirlpool(){
     if(!duckModel)return;
@@ -1528,10 +1789,14 @@ function updateWhirlpools(dt){
         const ws=w.scale||1;       // 漩涡缩放倍数
         const R=5*ws;               // 影响半径随大小缩放
         const DR=1.6*ws;             // 吸入扣心阈值随大小缩放
-        w.group.position.y=waveBase(w.x,w.z,gameClock);
-        w.funnel.rotation.y+=dt*1.7;
-        w.swirls.forEach((r,k)=>{r.rotation.z+=dt*(2.2+k)*(k%2?1:-1)});
-        w.field.rotation.z+=dt*.5;
+        w.group.position.y=waveBase(w.x,w.z,waveClock);
+        w.funnel.rotation.y+=dt*1.4;
+        w.foam.rotation.y-=dt*2.6;
+        // 浪花环/引力圈逐帧贴合浪面（世界坐标采样，不再被海浪盖住一半）
+        w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.08);
+        w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.12);
+        w.rim.material.opacity=.55+Math.sin(gameClock*5+i)*.25;
+        w.field.material.opacity=.16+Math.sin(gameClock*3+i)*.1;
         if(gameActive&&duckModel){
             const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
             if(d<R&&d>0.001){
@@ -1550,7 +1815,7 @@ function updateWhirlpools(dt){
         }
         // 对周围道具产生吸引力
         for(const it of items){if(it.coll)continue;const ax=w.x-it.mesh.position.x,az=w.z-it.mesh.position.z;const ad=Math.sqrt(ax*ax+az*az);if(ad<R&&ad>0.001){const f=(1-ad/R)*.9*dt;it.mesh.position.x+=ax/ad*f;it.mesh.position.z+=az/ad*f;}}
-        if(w.life<=0){scene.remove(w.group);const zi=whirlZones.indexOf(w.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1)}
+        if(w.life<=0){scene.remove(w.group);scene.remove(w.rim);scene.remove(w.field);const zi=whirlZones.indexOf(w.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1)}
     }
 }
 
@@ -1558,67 +1823,105 @@ function updateWhirlpools(dt){
 let shark=null,sharkHitCd=0,sharkSpawnCount=0,sharkAttackCount=0,eventSharkSpawnCount=0;
 const EVENT_SHARK_MAX=2; // 当前事件生效时间内最多出现2次（非总计）
 const SHARK_ATTACK_MAX=2; // 每只鲨鱼最多攻击2次
+// 鲨鱼水下剪影贴图（俯视：尖吻、双胸鳍、分叉尾，柔边模拟水下模糊感）
+const sharkShadowTex=mkTex(256,256,(x)=>{
+    x.translate(128,128);
+    x.filter='blur(6px)';
+    x.fillStyle='rgba(8,32,52,.98)';
+    x.beginPath();
+    x.moveTo(0,-96);
+    x.bezierCurveTo(18,-84,28,-52,28,-20);   // 右侧头/躯干
+    x.bezierCurveTo(28,-8,46,2,62,10);       // 右胸鳍
+    x.bezierCurveTo(44,12,32,8,26,6);
+    x.bezierCurveTo(22,36,16,60,10,74);      // 收窄向尾
+    x.lineTo(28,100);                        // 右尾叉
+    x.lineTo(6,82);
+    x.lineTo(0,90);
+    x.lineTo(-6,82);
+    x.lineTo(-28,100);                       // 左尾叉
+    x.lineTo(-10,74);
+    x.bezierCurveTo(-16,60,-22,36,-26,6);
+    x.bezierCurveTo(-32,8,-44,12,-62,10);    // 左胸鳍
+    x.bezierCurveTo(-46,2,-28,-8,-28,-20);
+    x.bezierCurveTo(-28,-52,-18,-84,0,-96);
+    x.fill();
+});
+// 攻击水花特效
+function spawnSplash(pos){
+    for(let i=0;i<12;i++){
+        const m=new THREE.Mesh(new THREE.SphereGeometry(.06,6,6),new THREE.MeshBasicMaterial({color:0xdff2ff,transparent:true,opacity:.95,fog:false}));
+        m.position.copy(pos);m.position.y+=.2;scene.add(m);
+        const a=Math.random()*Math.PI*2,sp=1.5+Math.random()*2;
+        transientFx.push({m,vx:Math.cos(a)*sp,vy:2+Math.random()*1.5,vz:Math.sin(a)*sp,life:.7,max:.7,gravity:6});
+    }
+}
 function spawnShark(){
     if(shark||!duckModel||eventSharkSpawnCount>=EVENT_SHARK_MAX)return;
     eventSharkSpawnCount++;
     sharkSpawnCount++;
     sharkAttackCount=0; // 重置攻击计数
     const g=new THREE.Group();
-    // 卡通鲨鱼俯视剪影：圆润饱满的身体 + 胸鳍 + 分叉尾鳍
-    const s=new THREE.Shape();
-    s.moveTo(0,-1.85);
-    s.bezierCurveTo(0.85,-1.78,1.06,-0.55,0.86,0.15);   // 右侧身体鼓起
-    s.bezierCurveTo(0.92,0.3,1.55,0.52,1.62,0.95);      // 右胸鳍
-    s.bezierCurveTo(1.22,0.74,0.95,0.62,0.7,0.56);
-    s.bezierCurveTo(0.6,0.98,0.5,1.32,0.46,1.56);       // 收窄向尾
-    s.lineTo(1.0,2.18);                                 // 右尾叉
-    s.lineTo(0.16,1.7);
-    s.lineTo(0,1.82);
-    s.lineTo(-0.16,1.7);
-    s.lineTo(-1.0,2.18);                                // 左尾叉
-    s.lineTo(-0.46,1.56);
-    s.bezierCurveTo(-0.5,1.32,-0.6,0.98,-0.7,0.56);
-    s.bezierCurveTo(-0.95,0.62,-1.22,0.74,-1.62,0.95);  // 左胸鳍
-    s.bezierCurveTo(-1.55,0.52,-0.92,0.3,-0.86,0.15);
-    s.bezierCurveTo(-1.06,-0.55,-0.85,-1.78,0,-1.85);
-    const body=new THREE.Mesh(new THREE.ShapeGeometry(s,40),new THREE.MeshBasicMaterial({color:0x03131f,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false,fog:false}));
-    body.rotation.x=-Math.PI/2;g.add(body);
-    // 内层浅色肚皮（增加层次/精致感）
-    const belly=new THREE.Mesh(new THREE.ShapeGeometry(s,40),new THREE.MeshBasicMaterial({color:0x0d3a58,transparent:true,opacity:.4,side:THREE.DoubleSide,depthWrite:false,fog:false}));
-    belly.rotation.x=-Math.PI/2;belly.position.y=.02;belly.scale.set(.62,.62,.62);g.add(belly);
-    // 卡通眼睛（靠近鼻尖）
-    const eyeMat=new THREE.MeshBasicMaterial({color:0x9fd8f0,transparent:true,opacity:.55,fog:false});
-    for(const ex of[0.34,-0.34]){const eye=new THREE.Mesh(new THREE.CircleGeometry(.12,16),eyeMat);eye.rotation.x=-Math.PI/2;eye.position.set(ex,.03,1.15);g.add(eye);}
-    // 弯曲背鳍（露出水面，卡通圆润）
+    // 水下暗影（细分平面逐帧贴合浪面，永远不会被海浪盖住）
+    const shadowGeo=new THREE.PlaneGeometry(6.5,6.5,10,10);
+    shadowGeo.rotateX(Math.PI/2); // 贴图鼻尖(+y) 朝向本地 +z
+    const shadow=new THREE.Mesh(shadowGeo,new THREE.MeshBasicMaterial({map:sharkShadowTex,transparent:true,opacity:.6,depthWrite:false,fog:false,side:THREE.DoubleSide}));
+    g.add(shadow);
+    // 背鳍（经典鲨鱼鳍：前缘平滑升起、鳍尖后掠、后缘圆滑收回，始终露出水面）
     const fs=new THREE.Shape();
-    fs.moveTo(-0.55,0);
-    fs.quadraticCurveTo(0.15,0.12,0.55,0.98);
-    fs.quadraticCurveTo(0.08,0.6,-0.55,0.4);
-    fs.lineTo(-0.55,0);
-    const finGeo=new THREE.ExtrudeGeometry(fs,{depth:0.1,bevelEnabled:true,bevelThickness:0.04,bevelSize:0.04,bevelSegments:3,curveSegments:16});
-    finGeo.center();
-    const fin=new THREE.Mesh(finGeo,new THREE.MeshBasicMaterial({color:0x0a2233,transparent:true,opacity:.92,fog:false}));
-    fin.rotation.y=Math.PI/2;fin.position.set(0,.55,-.05);g.add(fin);
-    g.scale.setScalar(1.15);
+    fs.moveTo(-.62,0);
+    fs.quadraticCurveTo(-.18,.08,.18,.98);   // 前缘 → 鳍尖
+    fs.quadraticCurveTo(.42,.6,.62,0);        // 后缘收回
+    fs.lineTo(-.62,0);
+    const finGeo=new THREE.ExtrudeGeometry(fs,{depth:.12,bevelEnabled:true,bevelThickness:.05,bevelSize:.05,bevelSegments:3,curveSegments:20});
+    finGeo.translate(0,0,-.06);
+    const fin=new THREE.Mesh(finGeo,new THREE.MeshStandardMaterial({color:0x24506e,roughness:.55,metalness:.05,emissive:0x0a2033,emissiveIntensity:.35}));
+    fin.rotation.y=Math.PI/2;fin.position.set(0,-.3,.1);
+    g.add(fin);
+    // 鳍根浪花环（贴合浪面，增强"鳍划开水面"感）
+    const wake=mkWaveRing(1,40,new THREE.MeshBasicMaterial({map:wakeTex,transparent:true,opacity:.55,depthWrite:false,fog:false,side:THREE.DoubleSide}),2);
+    scene.add(wake);
+    g.scale.setScalar(1.25);
     const a=Math.random()*Math.PI*2;
-    g.position.set(duckModel.position.x+Math.cos(a)*14,-.4,duckModel.position.z+Math.sin(a)*14);
-    scene.add(g);shark={g,fin};
+    g.position.set(duckModel.position.x+Math.cos(a)*14,0,duckModel.position.z+Math.sin(a)*14);
+    scene.add(g);shark={g,fin,shadow,wake};
 }
 function updateShark(dt){
     if(!shark)return;
     const p=shark.g.position;
+    // 鲨鱼整体贴着浪面：无论浪多大，暗影浮在水面、鱼鳍保持在水面之上
+    const gy=waveHeight(p.x,p.z,waveClock);
+    p.y=gy;
     if(gameActive&&duckModel){
         const dx=duckModel.position.x-p.x,dz=duckModel.position.z-p.z;const d=Math.sqrt(dx*dx+dz*dz)||1;
-        const spd=3.2;p.x+=dx/d*spd*dt;p.z+=dz/d*spd*dt;
-        p.y=waveHeight(p.x,p.z,gameClock)-.4;
+        // 逼近冲刺：4 单位内加速（压迫感）
+        const lunge=Math.max(0,Math.min(1,(4-d)/2));
+        const spd=sharkAttackCount<SHARK_ATTACK_MAX?2.6+lunge*2:2.6;
+        p.x+=dx/d*spd*dt;p.z+=dz/d*spd*dt;
         shark.g.rotation.y=Math.atan2(dx,dz);
+        // 游动动画：身体扭动 + 背鳍摇摆/逼近时抬高
+        shark.g.rotation.z=Math.sin(gameClock*3.2)*.05;
+        shark.fin.rotation.x=Math.sin(gameClock*4.1)*.12;
+        shark.fin.position.y=-.3+Math.sin(gameClock*2.3)*.05+lunge*.15;
+        shark.shadow.material.opacity=.55+lunge*.2;
+        // 水下暗影顶点贴合浪面（含身体朝向旋转）
+        const sp=shark.shadow.geometry.attributes.position;
+        const ry=shark.g.rotation.y,c=Math.cos(ry),s=Math.sin(ry);
+        for(let i=0;i<sp.count;i++){
+            const lx=sp.getX(i),lz=sp.getZ(i);
+            sp.setY(i,waveHeight(p.x+lx*c+lz*s,p.z-lx*s+lz*c,waveClock)-gy+.06);
+        }
+        sp.needsUpdate=true;
+        // 鳍根浪花环
+        shark.wake.userData.update(p.x,p.z,.5,.95,.05);
+        shark.wake.material.opacity=.35+Math.sin(gameClock*6)*.2+lunge*.25;
         sharkHitCd-=dt;
         if(d<2.2&&sharkHitCd<=0&&invincible<=0){
             if(sharkAttackCount<SHARK_ATTACK_MAX){
                 takeDamage(1);
                 sharkAttackCount++;
                 sharkHitCd=3;
-                p.x-=dx/d*3;p.z-=dz/d*3
+                p.x-=dx/d*3;p.z-=dz/d*3;
+                spawnSplash(duckModel.position.clone());
             }else{
                 sharkHitCd=1;
             }
@@ -1635,13 +1938,13 @@ function updateShark(dt){
         }
     }
 }
-function removeShark(){if(shark){scene.remove(shark.g);shark=null}}
+function removeShark(){if(shark){scene.remove(shark.g);scene.remove(shark.wake);shark=null}}
 
 // ---- 随机事件系统（每30秒全局触发） ----
 const EVENTS={
     tailwind:{n:'顺风',ic:'fa-wind',d:15,fx:'移动加速',t:'good'},
     headwind:{n:'逆风',ic:'fa-tornado',d:15,fx:'移动减速',t:'bad'},
-    storm:{n:'暴风雨',ic:'fa-cloud-showers-heavy',d:20,fx:'落石增多·浪高',t:'bad'},
+    storm:{n:'暴风雨',ic:'fa-cloud-showers-heavy',d:20,fx:'巨浪雷电·落石多',t:'bad'},
     rainbow:{n:'彩虹祝福',ic:'fa-rainbow',d:15,fx:'花草额外+5分',t:'good'},
     shadow:{n:'水下暗影',ic:'fa-fish',d:20,fx:'暗影追踪·撞击扣心',t:'bad'},
     bigwave:{n:'海浪汹涌',ic:'fa-water',d:15,fx:'巨浪起伏',t:'neutral'},
@@ -1673,15 +1976,15 @@ function showWarn(e){
 function hideWarn(){document.getElementById('event-warn').classList.remove('show')}
 function startEvent(key){
     activeEvent=key;activeEventTime=EVENTS[key].d;showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');
-    windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;
+    windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;waveSpeedTarget=1;
     document.getElementById('rain-overlay').classList.remove('show');
     document.getElementById('rainbow-overlay').classList.remove('show');
     if(key==='tailwind'){windActive=true;windSpeedMul=1.7}       // 顺风：加速
     else if(key==='headwind'){windActive=true;windSpeedMul=0.5}  // 逆风：减速
-    else if(key==='storm'){stormActive=true;eventRockBoost=6;eventWaveTarget=1.5;document.getElementById('rain-overlay').classList.add('show')}
+    else if(key==='storm'){stormActive=true;eventRockBoost=6;eventWaveTarget=2.2;waveSpeedTarget=1.7}
     else if(key==='rainbow'){rainbowActive=true;document.getElementById('rainbow-overlay').classList.add('show')}
     else if(key==='shadow'){spawnShark()}
-    else if(key==='bigwave'){eventWaveTarget=1.9}
+    else if(key==='bigwave'){eventWaveTarget=2.0;waveSpeedTarget=1.4}
     else if(key==='itemrain'){
         // 道具雨：从天上掉落，生成在空中并带 falling 标记，由主循环处理掉落动画
         for(let i=0;i<3;i++){
@@ -1697,11 +2000,11 @@ function startEvent(key){
             items.push({mesh:m,type:'lily',r:ls,coll:false,falling:10,fallVy:0});
         }
     }
-    else if(key==='calm'){eventWaveTarget=.7}
+    else if(key==='calm'){eventWaveTarget=.7;waveSpeedTarget=.8}
 }
 function endEvent(){
     activeEvent=null;hideEventHud();
-    windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;
+    windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;waveSpeedTarget=1;
     document.getElementById('rain-overlay').classList.remove('show');
     document.getElementById('rainbow-overlay').classList.remove('show');
     removeShark();
@@ -1738,14 +2041,20 @@ Leaderboard.load().then(d=>{console.log('排行榜已加载：',d.entries.length
 
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
 (function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);gameClock+=dt;timeOfDay=(timeOfDay+dt*TIME_SPEED/60)%24;
-setCartoonSky(timeOfDay);updateDuck(dt);updateCam(dt);updateGlobalEvent(dt);updateWhirlpools(dt);updateShark(dt);trySpawnHeart(dt);updateTransientFx(dt);
+// 波浪相位独立推进：暴风雨/海浪事件加速，平静时刻减速（平滑过渡）
+waveSpeed+=(waveSpeedTarget-waveSpeed)*Math.min(1,dt*1.4);waveClock+=dt*waveSpeed;
+// 暴风雨强度 / 闪电余晖 平滑过渡
+stormFactor+=((stormActive?1:0)-stormFactor)*Math.min(1,dt*.9);
+lightningFlash=Math.max(0,lightningFlash-dt*2.6);
+sunRays.material.rotation+=dt*.04;
+setCartoonSky(timeOfDay);updateDuck(dt);updateCam(dt);updateGlobalEvent(dt);updateWhirlpools(dt);updateShark(dt);trySpawnHeart(dt);updateTransientFx(dt);updateClouds(dt);updateStormFx(dt);
 if(duckModel){waterMesh.position.x=duckModel.position.x;waterMesh.position.z=duckModel.position.z;waveMesh.position.x=duckModel.position.x;waveMesh.position.z=duckModel.position.z;arrowPlane.position.x=duckModel.position.x;arrowPlane.position.z=duckModel.position.z}
 // 波浪动画（顶点按世界坐标采样 waveHeight，与鸭子/道具完全同步）
 const wp=waveGeo.attributes.position,wcA=waveGeo.attributes.color;
 const wmx=waveMesh.position.x,wmz=waveMesh.position.z;
 for(let i=0;i<wp.count;i++){
 const wx=wp.getX(i)+wmx,wz=wp.getZ(i)+wmz;
-const h=waveHeight(wx,wz,gameClock);
+const h=waveHeight(wx,wz,waveClock);
 wp.setY(i,h);
 // 顶点色：深水→浅水渐变
 let hn=(h+2)*.25;hn=hn<0?0:hn>1?1:hn;
@@ -1760,9 +2069,9 @@ wcA.setXYZ(i,_wc.r,_wc.g,_wc.b)}
 wp.needsUpdate=true;wcA.needsUpdate=true;
 if(++frameCount%2===0)waveGeo.computeVertexNormals();
 // 方向箭头贴合浪面起伏
-if(arrowPlane.material.opacity>.01){const ap=arrowPlane.geometry.attributes.position;for(let i=0;i<ap.count;i++){const lx=ap.getX(i),ly=ap.getY(i);ap.setZ(i,waveHeight(lx+arrowPlane.position.x,-ly+arrowPlane.position.z,gameClock)+.14)}ap.needsUpdate=true}
+if(arrowPlane.material.opacity>.01){const ap=arrowPlane.geometry.attributes.position;for(let i=0;i<ap.count;i++){const lx=ap.getX(i),ly=ap.getY(i);ap.setZ(i,waveHeight(lx+arrowPlane.position.x,-ly+arrowPlane.position.z,waveClock)+.14)}ap.needsUpdate=true}
 // 花朵/海草/荷叶随海浪漂浮
-for(const it of items){if(it.coll)continue;const ix=it.mesh.position.x,iz=it.mesh.position.z;const floatY=waveHeight(ix,iz,gameClock);
+for(const it of items){if(it.coll)continue;const ix=it.mesh.position.x,iz=it.mesh.position.z;const floatY=waveHeight(ix,iz,waveClock);
 // 掉落动画（道具雨）：重力加速下落 + 旋转，到达水面后恢复正常漂浮
 if(it.falling!==undefined&&it.falling>0){
     it.fallVy=(it.fallVy||0)-12*dt; // 重力加速度
@@ -1772,7 +2081,9 @@ if(it.falling!==undefined&&it.falling>0){
     if(it.mesh.position.y<=targetY){it.mesh.position.y=targetY;it.mesh.rotation.x=0;it.mesh.rotation.z=0;it.falling=0}
     continue;
 }
-if(it.type==='lily'){it.mesh.position.y=floatY+.04;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06}else if(it.type==='flower'){it.mesh.position.y=floatY-.02;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05}else if(it.type==='grass'){it.mesh.position.y=floatY-.06;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65;it.mesh.rotation.y=gameClock*1.2}}
+// 磁吸牵引：道具轻微浮起 + 自旋（magT 在磁铁吸引时充能，平时衰减）
+it.magT=Math.max(0,(it.magT||0)-dt*1.5);const mLift=it.magT*it.magT*.55,itSpin=it.magT*dt*5;
+if(it.type==='lily'){it.mesh.position.y=floatY+.04+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='flower'){it.mesh.position.y=floatY-.02+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05;it.mesh.rotation.y+=itSpin}else if(it.type==='grass'){it.mesh.position.y=floatY-.06+mLift;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+mLift+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65+mLift;it.mesh.rotation.y=gameClock*1.2+it.magT*2}}
 // 连胜边框柔和呼吸
 if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('combo-border').style.opacity=s}
 controls.update();renderer.render(scene,camera)})();
