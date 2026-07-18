@@ -1,12 +1,13 @@
 {
   "entries": [
     {
-      "id": "a1b2c3d4-1234-4abc-8def-1234567890ab",
-      "userId": "a1b2c3d4-1234-4abc-8def-1234567890ab",
       "name": "未来",
-      "score": 666,
-      "playTime": 120,
-      "ts": 1752800000000
+      "score": 888,
+      "playTime": 666,
+      "ts": 1784385797556,
+      "userId": "1652ae41-30a0-4273-a8e5-26342656ced9",
+      "id": "74cdd7b5-6a53-4473-95ed-46f46933c55c",
+      "pwdHash": "6f4afa078c7fd58f7ae2572e50c00e5f8558eda3694c03bcf43f5eb00de02bfc"
     }
   ]
 }

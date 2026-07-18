@@ -1,0 +1,14 @@
+{
+  "name": "duckgame",
+  "version": "2.6.0",
+  "description": "小黄鸭漂流记 - Web3D 休闲收集游戏",
+  "main": "server.node.js",
+  "scripts": {
+    "start": "node server.node.js",
+    "server": "node server.node.js",
+    "client": "npx serve . -l 5500"
+  },
+  "keywords": ["game", "web3d", "three.js", "duck"],
+  "author": "future73807",
+  "license": "MIT"
+}
