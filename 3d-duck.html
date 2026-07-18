@@ -39,12 +39,12 @@ canvas{display:block}
 @keyframes rp{0%,100%{transform:rotate(0)}50%{transform:rotate(90deg)}}
 #ui{position:fixed;inset:0;z-index:100;pointer-events:none}
 #ui>*{pointer-events:auto}
-#hud{position:absolute;top:40px;left:50%;transform:translateX(-50%);display:flex;gap:10px;pointer-events:none}
-.hi{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:14px;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
-.hi.sc i{color:#ffd700}.hi.sc span{color:#ffd700;font-weight:bold;font-size:16px}
+#hud{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none}
+.hi{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:3px 10px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.06)}
+.hi.sc i{color:#ffd700}.hi.sc span{color:#ffd700;font-weight:bold;font-size:13px}
 .hi.sh{color:#44ddff;display:none}
-#streak-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:13px;display:none;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06)}
-#streak-hud .si{font-size:16px;opacity:.3;transition:all .3s}
+#streak-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:3px 10px;border-radius:8px;font-size:11px;display:none;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.06)}
+#streak-hud .si{font-size:13px;opacity:.3;transition:all .3s}
 #streak-hud .si.active{opacity:1;transform:scale(1.3)}
 
 #combo-border{position:fixed;inset:0;pointer-events:none;z-index:105;opacity:0;transition:opacity .8s;box-shadow:inset 0 0 80px rgba(255,215,0,.25),inset 0 0 200px rgba(255,140,0,.1);border:0 solid transparent}
@@ -52,13 +52,13 @@ canvas{display:block}
 @keyframes comboVignette{0%,100%{box-shadow:inset 0 0 60px rgba(255,215,0,.2),inset 0 0 160px rgba(255,140,0,.08)}50%{box-shadow:inset 0 0 100px rgba(255,215,0,.35),inset 0 0 240px rgba(255,140,0,.15)}}
 #multi-text{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,200,0,.8),0 0 40px rgba(255,100,0,.5);pointer-events:none;z-index:115;opacity:0;transition:all .5s cubic-bezier(.175,.885,.32,1.275)}
 #multi-text.show{opacity:1;transform:translate(-50%,-50%) scale(1.2)}
-#clock{position:absolute;top:40px;right:54px;height:34px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:0 14px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
-.btn{position:absolute;width:34px;height:34px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;pointer-events:auto;z-index:110}
+#clock{position:absolute;top:12px;right:48px;height:28px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:0 10px;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
+.btn{position:absolute;width:30px;height:30px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;pointer-events:auto;z-index:110}
 .btn:active{transform:scale(.88)}
-#fs-btn{top:40px;left:12px}#music-btn{top:40px;left:52px}
-#lb-btn-top{top:40px;right:12px}
-#help-btn{bottom:16px;right:16px;width:34px;height:34px;border-radius:50%;font-size:15px}
-#dbg-btn{bottom:16px;right:56px;width:34px;height:34px;border-radius:50%;font-size:14px;background:rgba(80,40,120,.7);border:1px solid rgba(180,120,255,.4);color:#ddb6ff}
+#fs-btn{top:12px;left:12px}#music-btn{top:12px;left:48px}
+#lb-btn-top{top:12px;right:12px}
+#help-btn{bottom:16px;right:16px;width:30px;height:30px;border-radius:50%;font-size:13px}
+#dbg-btn{bottom:16px;right:52px;width:30px;height:30px;border-radius:50%;font-size:12px;background:rgba(80,40,120,.7);border:1px solid rgba(180,120,255,.4);color:#ddb6ff}
 #dbg-btn:hover{background:rgba(100,60,150,.85)}
 #dbg-panel{position:absolute;bottom:60px;right:16px;background:rgba(20,8,40,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:18px 16px;border-radius:14px;width:240px;display:none;border:1px solid rgba(180,120,255,.3);box-shadow:0 8px 32px rgba(80,40,120,.5);z-index:120;font-size:12px;max-height:80vh;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
 #dbg-panel::-webkit-scrollbar{display:none;width:0;height:0}
@@ -101,13 +101,14 @@ canvas{display:block}
 #dbg-panel .dbg-step{width:24px;height:24px;padding:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(80,40,140,.7),rgba(50,25,90,.7));border:1px solid rgba(180,120,255,.3);border-radius:6px;color:#cc99ff;font-size:14px;font-weight:700;cursor:pointer}
 #dbg-panel .dbg-step:hover{background:linear-gradient(135deg,rgba(110,55,170,.85),rgba(70,35,120,.85))}
 #dbg-panel #dbg-set-hearts{min-width:18px;text-align:center;color:#ffd700;font-weight:600;font-size:13px}
-#help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.88);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:28px 32px;border-radius:20px;max-width:320px;text-align:center;font-size:14px;line-height:2.2;display:none;border:1px solid rgba(255,255,255,.08)}
+#help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:18px 20px;border-radius:16px;max-width:280px;width:calc(100vw - 40px);max-height:calc(100vh - 80px);overflow-y:auto;text-align:center;font-size:12px;line-height:1.7;display:none;border:1px solid rgba(255,255,255,.08);-ms-overflow-style:none;scrollbar-width:none}
+#help::-webkit-scrollbar{display:none;width:0;height:0}
 #help.show{display:block}
-#help h2{font-size:20px;margin-bottom:8px;color:#ffd700;display:inline-flex;align-items:center;justify-content:center}
-#help .cb{margin-top:18px;padding:10px 32px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
-.toast{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%) scale(.5);opacity:0;transition:all .3s cubic-bezier(.175,.885,.32,1.275);pointer-events:none}
+#help h2{font-size:16px;margin-bottom:6px;color:#ffd700;display:inline-flex;align-items:center;justify-content:center}
+#help .cb{margin-top:12px;padding:7px 22px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.toast{position:absolute;top:24%;left:50%;transform:translate(-50%,-50%) scale(.5);opacity:0;transition:all .3s cubic-bezier(.175,.885,.32,1.275);pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-.toast-inner{padding:8px 22px;border-radius:14px;font-size:20px;font-weight:bold;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:8px}
+.toast-inner{padding:5px 12px;border-radius:10px;font-size:13px;font-weight:600;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:6px;max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .toast.p .toast-inner{background:rgba(0,180,80,.7);color:#fff}
 .toast.m .toast-inner{background:rgba(220,40,40,.7);color:#fff}
 .toast.s .toast-inner{background:rgba(40,160,220,.7);color:#fff}
@@ -118,17 +119,17 @@ canvas{display:block}
 #err-popup .msg{font-size:12px;font-family:monospace;word-break:break-all;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;margin-top:10px}
 #err-popup button{margin-top:16px;padding:8px 24px;background:#fff;color:#c00;border:none;border-radius:8px;font-size:14px;cursor:pointer}
 /* ===== v2.0 生命/事件/漩涡/血瓶/排行榜 ===== */
-#hearts-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:5px 12px;border-radius:10px;display:flex;align-items:center;gap:3px;border:1px solid rgba(255,255,255,.06)}
-#hearts-hud .hp{font-size:16px;line-height:1;color:#ff4d6d;transition:transform .3s,filter .3s,opacity .3s}
+#hearts-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:3px 9px;border-radius:8px;display:flex;align-items:center;gap:2px;border:1px solid rgba(255,255,255,.06)}
+#hearts-hud .hp{font-size:13px;line-height:1;color:#ff4d6d;transition:transform .3s,filter .3s,opacity .3s}
 #hearts-hud .hp.empty{color:#5a6472;opacity:.45}
 #hearts-hud .hp.beat{animation:hpBeat .45s}
 @keyframes hpBeat{0%,100%{transform:scale(1)}45%{transform:scale(1.6)}}
-#event-hud{position:absolute;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:6px 16px;border-radius:12px;font-size:14px;display:none;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.1);pointer-events:none;z-index:106}
-#event-hud .ev-icon{font-size:18px;display:inline-flex}
+#event-hud{position:absolute;top:46px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:4px 12px;border-radius:10px;font-size:12px;display:none;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.1);pointer-events:none;z-index:106}
+#event-hud .ev-icon{font-size:14px;display:inline-flex}
 #event-hud .ev-name{font-weight:600}
-#event-hud .ev-fx{color:#8fe0ff;font-size:12px;opacity:.9;padding-left:6px;margin-left:2px;border-left:1px solid rgba(255,255,255,.18)}
-#event-hud .ev-time{color:#ffd700;font-weight:bold;min-width:26px;text-align:right}
-#event-warn{position:absolute;top:130px;left:50%;transform:translateX(-50%) scale(.85);background:rgba(200,40,40,.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:8px 20px;border-radius:14px;font-size:15px;font-weight:bold;display:none;align-items:center;gap:8px;z-index:107;opacity:0;transition:all .3s;pointer-events:none;--warn-glow:rgba(255,80,80,1)}
+#event-hud .ev-fx{color:#8fe0ff;font-size:11px;opacity:.9;padding-left:5px;margin-left:2px;border-left:1px solid rgba(255,255,255,.18)}
+#event-hud .ev-time{color:#ffd700;font-weight:bold;min-width:22px;text-align:right}
+#event-warn{position:absolute;top:78px;left:50%;transform:translateX(-50%) scale(.85);background:rgba(200,40,40,.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:5px 14px;border-radius:10px;font-size:12px;font-weight:bold;display:none;align-items:center;gap:6px;z-index:107;opacity:0;transition:all .3s;pointer-events:none;--warn-glow:rgba(255,80,80,1)}
 #event-warn.show{display:flex;opacity:1;transform:translateX(-50%) scale(1);animation:warnPulse 1s ease-in-out infinite}
 @keyframes warnPulse{0%,100%{box-shadow:0 0 0 var(--warn-glow)}50%{box-shadow:0 0 26px var(--warn-glow)}}
 #red-flash{position:fixed;inset:0;pointer-events:none;z-index:108;box-shadow:inset 0 0 130px rgba(255,0,0,.65);opacity:0;transition:opacity .35s}
@@ -139,35 +140,35 @@ canvas{display:block}
 #rainbow-overlay{position:fixed;inset:0;pointer-events:none;z-index:103;opacity:0;transition:opacity 1s;background:linear-gradient(120deg,rgba(255,0,0,.07),rgba(255,165,0,.07),rgba(255,255,0,.07),rgba(0,200,0,.07),rgba(0,120,255,.07),rgba(140,0,255,.07))}
 #rainbow-overlay.show{opacity:1}
 #storm-fx{position:fixed;inset:0;pointer-events:none;z-index:104;opacity:0}
-#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
+#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:16px}
 #gameover.show{display:flex}
-#gameover h1{font-size:34px;color:#ff6b6b;margin-bottom:4px;text-shadow:0 0 20px rgba(255,80,80,.5)}
-#gameover .go-score{font-size:19px;margin:4px 0}
-#gameover .go-score b{color:#ffd700;font-size:28px}
-#gameover .go-best{font-size:13px;color:#aaa;margin-bottom:12px}
-#gameover .go-name{padding:9px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:15px;text-align:center;width:210px;outline:none}
+#gameover h1{font-size:24px;color:#ff6b6b;margin-bottom:3px;text-shadow:0 0 20px rgba(255,80,80,.5)}
+#gameover .go-score{font-size:15px;margin:3px 0}
+#gameover .go-score b{color:#ffd700;font-size:20px}
+#gameover .go-best{font-size:11px;color:#aaa;margin-bottom:8px}
+#gameover .go-name{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;text-align:center;width:170px;outline:none}
 #gameover .go-name:focus{border-color:#ffd700}
-#gameover .go-name-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px}
-#gameover .go-name-wrap .greeting{font-size:14px;color:#8fe0ff;margin-bottom:6px}
-#gameover .go-name-row{display:flex;gap:8px;align-items:center}
-#gameover .go-name-ok{padding:9px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;font-weight:700;cursor:pointer;font-size:14px}
+#gameover .go-name-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
+#gameover .go-name-wrap .greeting{font-size:11px;color:#8fe0ff;margin-bottom:4px}
+#gameover .go-name-row{display:flex;gap:6px;align-items:center}
+#gameover .go-name-ok{padding:6px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;font-weight:700;cursor:pointer;font-size:12px}
 #gameover .go-name-ok:active{transform:scale(.95)}
-#gameover .go-btn{padding:10px 40px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
+#gameover .go-btn{padding:7px 28px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px}
 #gameover .go-btn:active{transform:scale(.95)}
-.lb{width:330px;max-width:90vw;background:rgba(0,0,0,.3);border-radius:14px;padding:12px 14px;border:1px solid rgba(255,255,255,.08)}
-.lb h3{font-size:15px;color:#ffd700;text-align:center;margin-bottom:8px}
-.lb-list{max-height:32vh;overflow-y:auto;padding-bottom:10px}
-.lb-item{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;font-size:13px}
+.lb{width:280px;max-width:90vw;background:rgba(0,0,0,.3);border-radius:12px;padding:8px 10px;border:1px solid rgba(255,255,255,.08)}
+.lb h3{font-size:13px;color:#ffd700;text-align:center;margin-bottom:6px}
+.lb-list{max-height:30vh;overflow-y:auto;padding-bottom:6px}
+.lb-item{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:6px;font-size:11px}
 .lb-item:nth-child(odd){background:rgba(255,255,255,.04)}
 .lb-item.me{background:rgba(255,215,0,.18);border:1px solid rgba(255,215,0,.4)}
-.lb-item .rk{width:24px;color:#fff;font-weight:bold;text-align:center;opacity:.7}
+.lb-item .rk{width:20px;color:#fff;font-weight:bold;text-align:center;opacity:.7}
 .lb-item.top1 .rk{color:#ffd700;opacity:1}.lb-item.top2 .rk{color:#dfe6ee;opacity:1}.lb-item.top3 .rk{color:#e0a066;opacity:1}
 .lb-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lb-item .sc{color:#ffd700;font-weight:bold}
-.lb-empty{text-align:center;color:#888;font-size:13px;padding:14px}
+.lb-empty{text-align:center;color:#888;font-size:11px;padding:10px}
 /* 无敌显示 - 与护盾同位置 */
-#invincible-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#44ddff;padding:5px 14px;border-radius:10px;font-size:14px;display:none;align-items:center;gap:6px;border:1px solid rgba(68,221,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(68,221,255,.3)}
-#invincible-hud .inv-time{color:#ffd700;font-weight:bold;font-size:16px}
+#invincible-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#44ddff;padding:3px 10px;border-radius:8px;font-size:11px;display:none;align-items:center;gap:5px;border:1px solid rgba(68,221,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(68,221,255,.3)}
+#invincible-hud .inv-time{color:#ffd700;font-weight:bold;font-size:13px}
 /* 详情弹窗 */
 #detail-modal,#share-modal{position:fixed;inset:0;background:rgba(5,10,25,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
 /* 关闭叉号（弹窗右上角） */
@@ -205,6 +206,46 @@ canvas{display:block}
 .lb-btns{display:flex;gap:6px;justify-content:center;margin-top:8px}
 .lb-btn{padding:6px 14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:12px;cursor:pointer}
 .lb-btn:hover{background:rgba(255,255,255,.2)}
+/* 桌面端（宽屏）放大字号、按钮、间距，还原舒适观感 */
+@media(min-width:1024px){
+    #hud{top:32px;gap:10px}
+    .hi{padding:6px 16px;font-size:14px;gap:8px}
+    .hi.sc span{font-size:16px}
+    #streak-hud{padding:5px 14px;font-size:13px;gap:8px}
+    #streak-hud .si{font-size:16px}
+    #hearts-hud{padding:5px 12px;gap:4px}
+    #hearts-hud .hp{font-size:16px}
+    #event-hud{top:78px;padding:6px 16px;font-size:14px;gap:8px}
+    #event-hud .ev-icon{font-size:18px}
+    #event-hud .ev-fx{font-size:12px}
+    #event-warn{top:130px;padding:8px 20px;font-size:15px;gap:8px}
+    #invincible-hud{padding:5px 14px;font-size:14px;gap:6px}
+    #invincible-hud .inv-time{font-size:16px}
+    .btn{width:38px;height:38px;font-size:15px}
+    #fs-btn{top:32px;left:16px}#music-btn{top:32px;left:60px}
+    #lb-btn-top{top:32px;right:16px}
+    #help-btn{bottom:20px;right:20px;width:38px;height:38px;font-size:15px}
+    #dbg-btn{bottom:20px;right:64px;width:38px;height:38px;font-size:14px}
+    #clock{top:32px;right:60px;height:36px;padding:0 14px;font-size:14px;gap:6px}
+    #gameover h1{font-size:34px;margin-bottom:6px}
+    #gameover .go-score{font-size:19px;margin:6px 0}
+    #gameover .go-score b{font-size:28px}
+    #gameover .go-best{font-size:13px;margin-bottom:12px}
+    #gameover .go-name{padding:9px 14px;font-size:15px;width:210px}
+    #gameover .go-name-wrap .greeting{font-size:14px;margin-bottom:6px}
+    #gameover .go-name-ok{padding:9px 16px;font-size:14px}
+    #gameover .go-btn{padding:10px 40px;font-size:16px;margin-top:10px}
+    .lb{width:330px;padding:12px 14px}
+    .lb h3{font-size:15px;margin-bottom:8px}
+    .lb-list{max-height:32vh}
+    .lb-item{padding:5px 8px;gap:10px;font-size:13px}
+    .lb-item .rk{width:24px}
+    .lb-empty{font-size:13px;padding:14px}
+    #help{padding:28px 32px;max-width:320px;width:auto;font-size:14px;line-height:2.2}
+    #help h2{font-size:20px;margin-bottom:8px}
+    #help .cb{margin-top:18px;padding:10px 32px;font-size:15px}
+    .toast-inner{padding:8px 22px;border-radius:14px;font-size:20px;gap:8px;max-width:none}
+}
 </style>
 </head>
 <body>
@@ -265,9 +306,9 @@ canvas{display:block}
         <div class="dbg-sec">
             <div class="dbg-sec-title">事件系统</div>
             <div class="dbg-csel" id="dbg-event-csel" data-value="">
-                <div class="dbg-csel-btn" tabindex="0">（自动随机）</div>
+                <div class="dbg-csel-btn" tabindex="0">自动随机</div>
                 <div class="dbg-csel-list">
-                    <div class="dbg-csel-opt sel" data-value="">（自动随机）</div>
+                    <div class="dbg-csel-opt sel" data-value="">自动随机</div>
                     <div class="dbg-csel-opt" data-value="tailwind">顺风</div>
                     <div class="dbg-csel-opt" data-value="headwind">逆风</div>
                     <div class="dbg-csel-opt" data-value="storm">暴风雨</div>
@@ -343,15 +384,49 @@ document.addEventListener('fullscreenchange',()=>{document.querySelector('#fs-bt
 
 // 音乐
 let audioCtx=null,musicOn=true,musicGain=null,musicOscs=[];
-function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)();musicGain=audioCtx.createGain();musicGain.gain.value=.1;musicGain.connect(audioCtx.destination)}
-function startBGM(){if(!audioCtx)return;const m=[[392,.4],[440,.4],[494,.4],[523,.6],[494,.4],[440,.4],[392,.6],[349,.4],[330,.4],[294,.6],[330,.4],[349,.4],[392,.6],[440,.4],[392,.4],[349,.6],[330,.4],[294,.4],[262,.8],[294,.4],[330,.4],[349,.6],[330,.4],[294,.4]];const b=[[196,1.2],[175,1.2],[165,1.2],[147,1.2],[131,1.2],[147,1.2],[175,1.2],[131,1.2]];let t=audioCtx.currentTime+.1;function sch(){if(!musicOn)return;for(const[f,d]of m){const o=audioCtx.createOscillator(),e=audioCtx.createGain();o.type='sine';o.frequency.value=f;e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(.2,t+.04);e.gain.linearRampToValueAtTime(.12,t+d*.6);e.gain.linearRampToValueAtTime(0,t+d);o.connect(e);e.connect(musicGain);o.start(t);o.stop(t+d+.01);musicOscs.push(o);t+=d}let bt=t-m.reduce((s,[,d])=>s+d,0);for(const[f,d]of b){const o=audioCtx.createOscillator(),e=audioCtx.createGain();o.type='triangle';o.frequency.value=f;e.gain.setValueAtTime(0,bt);e.gain.linearRampToValueAtTime(.06,bt+.05);e.gain.linearRampToValueAtTime(0,bt+d);o.connect(e);e.connect(musicGain);o.start(bt);o.stop(bt+d+.01);musicOscs.push(o);bt+=d}setTimeout(sch,m.reduce((s,[,d])=>s+d,0)*1000-200)}sch()}
+function initAudio(){
+    if(audioCtx)return;
+    try{
+        audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+        musicGain=audioCtx.createGain();musicGain.gain.value=.1;musicGain.connect(audioCtx.destination);
+    }catch(e){console.warn('AudioContext 创建失败',e);audioCtx=null}
+}
+function startBGM(){if(!audioCtx)return;const m=[[392,.4],[440,.4],[494,.4],[523,.6],[494,.4],[440,.4],[392,.6],[349,.4],[330,.4],[294,.6],[330,.4],[349,.4],[392,.6],[440,.4],[392,.4],[349,.6],[330,.4],[294,.4],[262,.8],[294,.4],[330,.4],[349,.6],[330,.4],[294,.4]];const b=[[196,1.2],[175,1.2],[165,1.2],[147,1.2],[131,1.2],[147,1.2],[175,1.2],[131,1.2]];let t=audioCtx.currentTime+.1;function sch(){if(!musicOn||!audioCtx)return;for(const[f,d]of m){const o=audioCtx.createOscillator(),e=audioCtx.createGain();o.type='sine';o.frequency.value=f;e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(.2,t+.04);e.gain.linearRampToValueAtTime(.12,t+d*.6);e.gain.linearRampToValueAtTime(0,t+d);o.connect(e);e.connect(musicGain);o.start(t);o.stop(t+d+.01);musicOscs.push(o);t+=d}let bt=t-m.reduce((s,[,d])=>s+d,0);for(const[f,d]of b){const o=audioCtx.createOscillator(),e=audioCtx.createGain();o.type='triangle';o.frequency.value=f;e.gain.setValueAtTime(0,bt);e.gain.linearRampToValueAtTime(.06,bt+.05);e.gain.linearRampToValueAtTime(0,bt+d);o.connect(e);e.connect(musicGain);o.start(bt);o.stop(bt+d+.01);musicOscs.push(o);bt+=d}setTimeout(sch,m.reduce((s,[,d])=>s+d,0)*1000-200)}sch()}
 function stopBGM(){musicOscs.forEach(o=>{try{o.stop()}catch(e){}});musicOscs=[]}
 let musicStarted=false;
-function autoStartMusic(){if(musicStarted)return;musicStarted=true;initAudio();if(musicOn){audioCtx.resume();startBGM()}}
+// 修复 AudioContext autoplay 报错：
+// - 必须在用户手势内创建/启动 AudioContext，否则浏览器会拦截
+// - resume() 返回 Promise，需在 then 中启动 BGM，避免在 suspended 状态下 sch 报错
+function autoStartMusic(){
+    if(musicStarted)return;musicStarted=true;
+    initAudio();
+    if(!audioCtx)return;
+    if(musicOn){
+        // audioCtx.state 可能是 suspended（autoplay 拦截），需 resume 后再 startBGM
+        const resumeP=audioCtx.resume();
+        if(resumeP&&typeof resumeP.then==='function'){
+            resumeP.then(()=>{if(musicOn&&audioCtx.state==='running')startBGM()}).catch(e=>console.warn('AudioContext.resume 失败',e));
+        }else{
+            // 旧浏览器无 Promise resume，直接尝试 startBGM
+            try{startBGM()}catch(e){console.warn('startBGM 失败',e)}
+        }
+    }
+}
 document.addEventListener('touchstart',autoStartMusic,{once:true});
 document.addEventListener('click',autoStartMusic,{once:true});
 document.addEventListener('keydown',autoStartMusic,{once:true});
-document.getElementById('music-btn').onclick=()=>{initAudio();musicOn=!musicOn;document.querySelector('#music-btn i').className=musicOn?'fa-solid fa-volume-high':'fa-solid fa-volume-xmark';if(musicOn){audioCtx.resume();startBGM()}else{stopBGM()}};
+document.getElementById('music-btn').onclick=()=>{
+    initAudio();
+    musicOn=!musicOn;
+    document.querySelector('#music-btn i').className=musicOn?'fa-solid fa-volume-high':'fa-solid fa-volume-xmark';
+    if(musicOn){
+        if(audioCtx){
+            const p=audioCtx.resume();
+            if(p&&p.then)p.then(()=>{if(musicOn&&audioCtx.state==='running')startBGM()}).catch(()=>{});
+            else try{startBGM()}catch(e){}
+        }
+    }else{stopBGM()}
+};
 function playSFX(t){if(!audioCtx)initAudio();if(!audioCtx)return;const o=audioCtx.createOscillator(),e=audioCtx.createGain(),n=audioCtx.currentTime;if(t==='collect'){o.frequency.setValueAtTime(523,n);o.frequency.linearRampToValueAtTime(784,n+.08);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.15);o.type='sine'}else if(t==='hit'){o.frequency.setValueAtTime(180,n);o.frequency.linearRampToValueAtTime(60,n+.25);e.gain.setValueAtTime(.3,n);e.gain.linearRampToValueAtTime(0,n+.3);o.type='sawtooth'}else{o.frequency.setValueAtTime(400,n);o.frequency.linearRampToValueAtTime(900,n+.15);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.35);o.type='triangle'}o.connect(e);e.connect(audioCtx.destination);o.start();o.stop(n+.5)}
 document.getElementById('help-btn').onclick=()=>document.getElementById('help').classList.toggle('show');
 // 调试模式：开关面板 + 立即触发指定事件 + 在附近生成物品 + 修改生命分数
@@ -389,22 +464,66 @@ function bindCsel(id,onChange){
     const btn=csel.querySelector('.dbg-csel-btn');
     const list=csel.querySelector('.dbg-csel-list');
     const opts=[...list.querySelectorAll('.dbg-csel-opt')];
-    const panel=document.getElementById('dbg-panel');
-    btn.onclick=e=>{e.stopPropagation();document.querySelectorAll('.dbg-csel.open').forEach(c=>{if(c!==csel)c.classList.remove('open')});const willOpen=!csel.classList.contains('open');csel.classList.toggle('open');if(panel)panel.style.overflowY=willOpen?'visible':'auto'};
+    const listParent=list.parentElement;  // 原父节点（csel 内），关闭后归还
+    // 关闭下拉框：把 list 移回原父节点，清掉 inline 样式
+    function closeList(){
+        if(list.parentElement!==listParent&&listParent)listParent.appendChild(list);
+        list.style.position='';list.style.left='';list.style.right='';list.style.top='';list.style.bottom='';list.style.width='';list.style.maxHeight='';
+    }
+    csel._closeList=closeList;  // 暴露给外部调用（关闭其他下拉框时用）
+    function positionList(){
+        // 把 list 移到 body 下，避免被 #dbg-panel 的 backdrop-filter 当作 containing block
+        if(list.parentElement!==document.body)document.body.appendChild(list);
+        const btnRect=btn.getBoundingClientRect();
+        const listNaturalH=Math.min(220,opts.length*32+10);
+        const belowH=window.innerHeight-btnRect.bottom-12;
+        const aboveH=btnRect.top-12;
+        list.style.position='fixed';
+        list.style.left=btnRect.left+'px';
+        list.style.right='auto';
+        list.style.width=btnRect.width+'px';
+        if(belowH<listNaturalH&&aboveH>belowH){
+            list.style.maxHeight=Math.min(220,aboveH)+'px';
+            list.style.top='auto';
+            list.style.bottom=(window.innerHeight-btnRect.top+4)+'px';
+        }else{
+            list.style.maxHeight=Math.max(80,Math.min(220,belowH))+'px';
+            list.style.top=(btnRect.bottom+4)+'px';
+            list.style.bottom='auto';
+        }
+    }
+    btn.onclick=e=>{
+        e.stopPropagation();
+        // 先关闭其他打开的下拉框（调用它们各自的 closeList）
+        document.querySelectorAll('.dbg-csel.open').forEach(c=>{if(c!==csel){c.classList.remove('open');if(typeof c._closeList==='function')c._closeList()}});
+        const willOpen=!csel.classList.contains('open');
+        if(willOpen){
+            csel.classList.add('open');
+            positionList();
+        }else{
+            csel.classList.remove('open');
+            closeList();
+        }
+    };
     btn.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();btn.click()}};
-    opts.forEach(o=>o.onclick=()=>{
+    opts.forEach(o=>o.onclick=ev=>{
+        ev.stopPropagation();
         const v=o.dataset.value;
         csel.dataset.value=v;
         btn.textContent=o.textContent;
         opts.forEach(x=>x.classList.remove('sel'));
         o.classList.add('sel');
         csel.classList.remove('open');
-        if(panel)panel.style.overflowY='auto';
+        closeList();
         if(onChange)onChange(v);
     });
+    // panel 滚动或窗口 resize 时，关闭或重新定位 list（避免位置错乱）
+    const panel=document.getElementById('dbg-panel');
+    if(panel)panel.addEventListener('scroll',()=>{if(csel.classList.contains('open')){csel.classList.remove('open');closeList()}},{passive:true});
+    window.addEventListener('resize',()=>{if(csel.classList.contains('open'))positionList()},{passive:true});
 }
 // 点击外部关闭
-document.addEventListener('click',e=>{if(!e.target.closest('.dbg-csel')){const panel=document.getElementById('dbg-panel');document.querySelectorAll('.dbg-csel.open').forEach(c=>c.classList.remove('open'));if(panel)panel.style.overflowY='auto'}});
+document.addEventListener('click',e=>{if(!e.target.closest('.dbg-csel')){document.querySelectorAll('.dbg-csel.open').forEach(c=>{c.classList.remove('open');if(typeof c._closeList==='function')c._closeList()})}});
 bindCsel('dbg-event-csel',v=>{dbgNextEvent=v||null;
     if(dbgNextEvent){pendingEvent=dbgNextEvent;warnedFor=null}else{pendingEvent=null;warnedFor=null}
 });
@@ -723,6 +842,50 @@ function mkWaveRing(radialSegs,thetaSegs,material,uvRepeat=1){
     };
     return mesh;
 }
+// ===== 贴浪面圆盘（实心圆，顶点逐帧贴合 waveHeight，不会被海浪遮挡） =====
+// 用于：漩涡主体/泡沫/中心暗洞等需要"贴图直接映射在水面"的场景
+// 跟 arrowPlane / mkWaveRing 同思路：每帧用 waveHeight(wx,wz) 同步顶点 y
+function mkWaveDisk(radius,radialSegs,thetaSegs,material,uvRepeatU=1,uvRepeatV=1){
+    const pos=new Float32Array((radialSegs+1)*(thetaSegs+1)*3);
+    const uv=new Float32Array((radialSegs+1)*(thetaSegs+1)*2);
+    const idx=[];
+    for(let r=0;r<=radialSegs;r++){
+        const rr=radius*(r/radialSegs);
+        for(let t=0;t<=thetaSegs;t++){
+            const i=r*(thetaSegs+1)+t;
+            const a=t/thetaSegs*Math.PI*2;
+            pos[i*3]=Math.cos(a)*rr;
+            pos[i*3+1]=0;
+            pos[i*3+2]=Math.sin(a)*rr;
+            uv[i*2]=t/thetaSegs*uvRepeatU;
+            uv[i*2+1]=r/radialSegs*uvRepeatV;
+        }
+    }
+    for(let r=0;r<radialSegs;r++)for(let t=0;t<thetaSegs;t++){
+        const a=r*(thetaSegs+1)+t,b=a+1,c=a+thetaSegs+1,d=c+1;
+        idx.push(a,c,b,b,c,d);
+    }
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mesh=new THREE.Mesh(geo,material);
+    mesh.frustumCulled=false;
+    // 每帧更新：圆盘中心 (cx,cz)，缩放 ws（对应 group.scale），yOff 微抬避免与 waveMesh 共面
+    mesh.userData.update=function(cx,cz,ws,yOff){
+        const p=geo.attributes.position;
+        for(let i=0;i<p.count;i++){
+            const lx=p.getX(i),lz=p.getZ(i);
+            const wx=cx+lx*ws,wz=cz+lz*ws;
+            // y 需除以 ws 抵消 group 缩放，使世界 y = waveHeight + yOff
+            p.setY(i,(waveHeight(wx,wz,waveClock)+yOff)/ws);
+        }
+        p.needsUpdate=true;
+        geo.computeVertexNormals();
+    };
+    return mesh;
+}
 
 // ===== 共享贴图：光点/辉光/浪花 =====
 const sparkTex=mkTex(32,32,(x)=>{const g=x.createRadialGradient(16,16,0,16,16,16);
@@ -1034,7 +1197,7 @@ function spawnAround(cx,cz){
 spawnAround(0,0);
 
 // 护盾
-const shieldMesh=new THREE.Mesh(new THREE.SphereGeometry(1.8,32,24),new THREE.MeshPhysicalMaterial({color:0x44ddff,transparent:true,opacity:0,roughness:0,metalness:.3,clearcoat:1,side:THREE.DoubleSide}));shieldMesh.visible=false;scene.add(shieldMesh);
+const shieldMesh=new THREE.Mesh(new THREE.SphereGeometry(1.8,32,24),new THREE.MeshPhysicalMaterial({color:0x44ddff,transparent:true,opacity:0,roughness:0,metalness:.3,clearcoat:1,side:THREE.DoubleSide,depthWrite:false}));shieldMesh.renderOrder=20;shieldMesh.visible=false;scene.add(shieldMesh);
 // 卡通王冠（程序化建模：圆润金环+胶囊尖柱+彩宝石；加载后挂为鸭子子节点，自动跟随头部位置与倾斜）
 const crownGroup=new THREE.Group();
 crownGroup.visible=false;
@@ -1054,8 +1217,8 @@ crownInner.scale.setScalar(1.04); // 抵消父级(鸭子)的0.72缩放，世界�
 crownGroup.add(crownInner);
 }
 // 连胜特效光环（柔和发光球）
-const auraMat=new THREE.MeshBasicMaterial({color:0xffd700,transparent:true,opacity:0,side:THREE.DoubleSide});
-const auraMesh=new THREE.Mesh(new THREE.SphereGeometry(2.5,24,16),auraMat);auraMesh.visible=false;scene.add(auraMesh);
+const auraMat=new THREE.MeshBasicMaterial({color:0xffd700,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false});
+const auraMesh=new THREE.Mesh(new THREE.SphereGeometry(2.5,24,16),auraMat);auraMesh.visible=false;auraMesh.renderOrder=30;scene.add(auraMesh);
 // 磁吸激活时的范围圈（贴浪面的能量虚线环，不再被海浪盖住一半）
 const magnetDashTex=mkTex(256,32,(x)=>{
     x.clearRect(0,0,256,32);x.lineCap='round';
@@ -1521,10 +1684,21 @@ function updateTransientFx(dt){
 }
 
 // ---- 排行榜（仅从 leaderboard.json 文件读写，无 localStorage 回退） ----
+// UUID v4 生成（用于稳定标识用户/记录）
+function genUUID(){
+    if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+        const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);
+        return v.toString(16);
+    });
+}
 const Leaderboard={
     FILE_NAME:'leaderboard.json',
     NAME_KEY:'duck_name',
+    USER_ID_KEY:'duck_user_id',   // 持久化 userId（uuid），跨设备识别同一用户
     DIR_KEY:'duck_dir_handle',     // 存目录句柄的标识
+    // "未来" 是 leaderboard.json 默认昵称，首次提交"未来"的用户自动接管该记录（赋予此固定 UUID）
+    INIT_UUID:'a1b2c3d4-1234-4abc-8def-1234567890ab',
     cache:{entries:[]},
     loaded:false,
     fileHandle:null,
@@ -1535,33 +1709,46 @@ const Leaderboard={
     // 加载：优先从已授权的文件句柄读取，否则 fetch 静态文件（无 localStorage 回退）
     async load(){
         if(this.loaded)return this.cache;
+        // 先 fetch 静态 leaderboard.json 作为基线数据
+        try{
+            const r=await fetch('./'+this.FILE_NAME);
+            if(r.ok){
+                const parsed=await r.json();
+                this.cache=(parsed&&Array.isArray(parsed.entries))?parsed:{entries:[]};
+            }
+        }catch(e){console.warn('读取 leaderboard.json 失败',e)}
+        // 如果支持文件系统 API 且有已授权的文件句柄，用用户文件的数据覆盖（用户文件是最新的）
         if(this.supported){
             try{
                 const h=await this.idbGet(this.DIR_KEY);
                 if(h){
-                    // 验证授权
                     const perm=await h.queryPermission({mode:'readwrite'});
                     if(perm==='granted'){this.fileHandle=h;await this.readFile()}
                     else if(perm==='prompt'){const p=await h.requestPermission({mode:'readwrite'});if(p==='granted'){this.fileHandle=h;await this.readFile()}}
                 }
             }catch(e){console.warn('文件句柄恢复失败',e)}
         }
-        if(!this.loaded){
-            // fetch 静态文件 leaderboard.json
-            try{const r=await fetch('./'+this.FILE_NAME);if(r.ok){this.cache=await r.json();this.loaded=true}}catch(e){console.warn('读取 leaderboard.json 失败',e)}
-        }
+        this.loaded=true;
         return this.cache;
     },
     async readFile(){
         try{
             const f=await this.fileHandle.getFile();
             const text=await f.text();
-            this.cache=text?JSON.parse(text):{entries:[]};
+            const parsed=text?JSON.parse(text):null;
+            // 仅当文件有有效 entries 时才覆盖 cache（防止空/损坏文件覆盖 fetch 拿到的静态数据）
+            if(parsed&&typeof parsed==='object'&&Array.isArray(parsed.entries)&&parsed.entries.length>0){
+                this.cache=parsed;
+            }
             this.loaded=true;
-        }catch(e){console.warn('读取 JSON 文件失败',e);this.cache={entries:[]};this.loaded=true}
+        }catch(e){console.warn('读取 JSON 文件失败',e);this.loaded=true}
     },
-    // 同步读取（内存缓存）
-    get(){return this.cache||{entries:[]}},
+    // 同步读取（内存缓存）。保证返回 {entries:[]} 结构，即使缓存被污染也不会让上层崩溃
+    get(){
+        const c=this.cache;
+        if(!c||typeof c!=='object'||!Array.isArray(c.entries))return{entries:[]};
+        return c;
+    },
     // 保存到 JSON 文件（仅文件，无 localStorage）
     async save(d){
         this.cache=d;
@@ -1597,22 +1784,61 @@ const Leaderboard={
         }
     },
     // 提交分数
+    // 返回 { data, entry, nameConflict, conflictedName }
+    //   nameConflict=true 表示其他用户已用相同昵称，调用方应提示用户改名后重试
     submit(sc,pt,name){
         const d=this.get();
+        // 双保险：若 d.entries 仍非数组（理论上 get() 已保证），强制初始化
+        if(!Array.isArray(d.entries))d.entries=[];
         const cachedName=localStorage.getItem(this.NAME_KEY);
-        const finalName=cachedName||name||'匿名小鸭';
-        let existingEntry=d.entries.find(e=>e.name===finalName);
+        // 优先用调用方传入的 name（confirmName 改名场景），其次用缓存（gameOver 默认场景）
+        const inputName=name||cachedName||'匿名小鸭';
+        // "未来" 特殊处理：昵称为"未来"时，自动赋予固定 UUID（接管 leaderboard.json 中的默认数据）
+        // 让首次用"未来"提交的用户直接关联到那条初始记录，而不是新建一条
+        let userId=this.getUserId();
+        if(inputName==='未来'&&userId!==this.INIT_UUID){
+            userId=this.INIT_UUID;
+            localStorage.setItem(this.USER_ID_KEY,userId);
+        }
+        // 重名检测：若其他用户(userId 不同)已用相同昵称，返回冲突信号，不写入数据
+        // 调用方应根据 nameConflict 提示用户改名，不再自动加后缀
+        const conflict=d.entries.some(e=>e&&e.userId!==userId&&e.name===inputName);
+        if(conflict){
+            return{data:d,entry:null,nameConflict:true,conflictedName:inputName};
+        }
+        // 用 userId 匹配当前用户的记录（跨设备/跨昵称也能识别同一用户）
+        let existingEntry=d.entries.find(e=>e&&e.userId===userId);
         if(existingEntry){
+            existingEntry.name=inputName;
+            // 只在新分更高时更新（保留最高分记录）
             if(sc>existingEntry.score){existingEntry.score=sc;existingEntry.playTime=pt;existingEntry.ts=Date.now()}
         }else{
-            const entry={name:finalName,score:sc,playTime:pt,ts:Date.now(),id:'e'+Date.now()+Math.floor(Math.random()*1000)};
+            const entry={name:inputName,score:sc,playTime:pt,ts:Date.now(),userId,id:genUUID()};
             d.entries.push(entry);
             existingEntry=entry;
         }
-        d.entries.sort((a,b)=>b.score-a.score);
+        // 排序：分数降序 → 同分按用时升序（用时短者在前）
+        d.entries.sort((a,b)=>{
+            const sa=a.score||0,sb=b.score||0;
+            if(sb!==sa)return sb-sa;
+            return (a.playTime||0)-(b.playTime||0);
+        });
         d.entries=d.entries.slice(0,50);
         this.save(d); // 异步落盘
-        return{data:d,entry:existingEntry};
+        return{data:d,entry:existingEntry,nameConflict:false};
+    },
+    // 生成/获取持久化的 userId（uuid），首次访问时生成并存 localStorage
+    getUserId(){
+        let id=localStorage.getItem(this.USER_ID_KEY);
+        if(!id){id=genUUID();localStorage.setItem(this.USER_ID_KEY,id)}
+        return id;
+    },
+    // 当前用户的历史最高分（只看自己的，不是全局第一）
+    myBest(){
+        const d=this.get(),uid=this.getUserId();
+        const mine=d.entries.filter(e=>e&&e.userId===uid);
+        if(!mine.length)return 0;
+        return Math.max(...mine.map(e=>e.score||0));
     },
     best(){const d=this.get();return d.entries[0]?d.entries[0].score:0},
     getCachedName(){return localStorage.getItem(this.NAME_KEY)||''},
@@ -1620,6 +1846,7 @@ const Leaderboard={
     isBound(){return !!this.fileHandle}
 };
 let lastEntry=null;
+let pendingScore=0,pendingPlayTime=0;  // 待提交的分数（供 confirmName 重试重名时使用）
 function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
 function renderLeaderboard(data){
     const list=document.getElementById('lb-list');
@@ -1629,16 +1856,28 @@ function renderLeaderboard(data){
         return `<div class="lb-item ${top} ${me}"><span class="rk">${i+1}</span><span class="nm">${escapeHtml(e.name)}</span><span class="sc">${e.score}</span></div>`
     }).join('');
 }
-function showGameOver(data){
+async function showGameOver(data, nameConflict, conflictedName){
     const go=document.getElementById('gameover');
     document.getElementById('go-score').textContent=score;
-    document.getElementById('go-best').textContent='历史最高：'+Leaderboard.best();
+    // 确保排行榜加载完成后再显示（防止游戏结束得太快，排行榜还没加载完）
+    try{await Leaderboard.load()}catch(e){}
+    const latestData=Leaderboard.get();
+    // 显示当前用户的历史最高分（不是全局第一）
+    const myBestScore=Leaderboard.myBest();
+    document.getElementById('go-best').textContent='我的最高分：'+myBestScore;
     // 排行榜昵称：第一次需要输入并点击"确定"，之后有缓存自动用之前的
     const cachedName=Leaderboard.getCachedName();
     const nameRow=document.querySelector('#go-name-wrap .go-name-row');
     const nameInput=document.getElementById('go-name');
     const nameWrap=document.getElementById('go-name-wrap');
-    if(cachedName){
+    if(nameConflict){
+        // 重名冲突：强制显示输入框，提示改名（不自动加后缀，由用户决定）
+        if(nameRow)nameRow.style.display='flex';
+        nameInput.value=conflictedName||'';
+        nameInput.placeholder='昵称已被占用，请改名';
+        if(nameWrap)nameWrap.querySelector('.greeting').innerHTML='<i class="fa-solid fa-triangle-exclamation" style="color:#ff6b6b"></i> 昵称"'+escapeHtml(conflictedName||'')+'"已被占用，请改名';
+        nameInput.focus();
+    }else if(cachedName){
         if(nameRow)nameRow.style.display='none';
         if(nameWrap)nameWrap.querySelector('.greeting').textContent='欢迎回来，'+cachedName+'！';
     }else{
@@ -1647,35 +1886,56 @@ function showGameOver(data){
         nameInput.placeholder='请输入昵称';
         if(nameWrap)nameWrap.querySelector('.greeting').textContent='首次游戏，请输入昵称';
     }
-    renderLeaderboard(data);
+    renderLeaderboard(latestData);
     go.classList.add('show');
 }
-// 昵称确定按钮：保存昵称到缓存并更新当前记录
+// 昵称确定按钮：保存昵称到缓存并重新提交（处理重名冲突或首次输入）
 window.confirmName=function(){
     const v=(document.getElementById('go-name').value||'').trim();
     if(!v){toast('请输入昵称','m');return}
-    Leaderboard.setCachedName(v);
-    // 更新当前记录的昵称
-    if(lastEntry){
-        const d=Leaderboard.get();
-        const e=d.entries.find(x=>x.id===lastEntry.id);
-        if(e){e.name=v;Leaderboard.save(d);renderLeaderboard(d)}
+    // 用全局 pendingScore/pendingPlayTime 重新 submit（submit 会做重名检测）
+    const r=Leaderboard.submit(pendingScore,pendingPlayTime,v);
+    if(r.nameConflict){
+        // 仍重名：提示并保留输入框，等用户再改名
+        toast('"'+v+'"已被占用，请换一个','m');
+        const nameInput=document.getElementById('go-name');
+        nameInput.value='';
+        nameInput.placeholder='昵称已被占用，请改名';
+        const nameWrap=document.getElementById('go-name-wrap');
+        if(nameWrap)nameWrap.querySelector('.greeting').innerHTML='<i class="fa-solid fa-triangle-exclamation" style="color:#ff6b6b"></i> 昵称"'+escapeHtml(v)+'"已被占用，请改名';
+        nameInput.focus();
+        return;
     }
-    // 隐藏输入区，显示欢迎回来
+    // 成功：缓存昵称 + 刷新排行榜 + 隐藏输入框
+    Leaderboard.setCachedName(v);
+    lastEntry=r.entry;
+    renderLeaderboard(r.data);
+    document.getElementById('go-best').textContent='我的最高分：'+Leaderboard.myBest();
     const nameRow=document.querySelector('#go-name-wrap .go-name-row');
     const nameWrap=document.getElementById('go-name-wrap');
     if(nameRow)nameRow.style.display='none';
     if(nameWrap)nameWrap.querySelector('.greeting').textContent='欢迎回来，'+v+'！';
     toast('<i class="fa-solid fa-check"></i> 昵称已保存','p');
 };
-function gameOver(){
+async function gameOver(){
     if(!gameActive)return;gameActive=false;
     playSFX('hit');
     const pt=Math.floor((Date.now()-playStartTime)/1000);
-    const cachedName=Leaderboard.getCachedName();
-    const r=Leaderboard.submit(score,pt,cachedName||'匿名小鸭');
-    lastEntry=r.entry;
-    showGameOver(r.data);
+    // 保存待提交分数，供 confirmName 在重名冲突时重试
+    pendingScore=score;pendingPlayTime=pt;
+    // 等待排行榜加载完成，确保 showGameOver 显示正确的最高分（避免在 leaderboard.json 异步加载完成前就显示 0）
+    try{await Leaderboard.load()}catch(e){console.warn('等待排行榜加载失败',e)}
+    // 包裹 Leaderboard 调用，防止异常中断导致游戏不结束（如缓存格式错误）
+    let r;
+    try{
+        const cachedName=Leaderboard.getCachedName();
+        r=Leaderboard.submit(pendingScore,pendingPlayTime,cachedName||'匿名小鸭');
+        lastEntry=r.entry;
+    }catch(e){
+        console.warn('Leaderboard.submit 异常，使用空数据兜底',e);
+        r={data:Leaderboard.get(),entry:null,nameConflict:false};
+    }
+    showGameOver(r.data, r.nameConflict, r.conflictedName);
 }
 window.restartGame=function(){
     // 如果用户没点"确定"就直接开始下一局，尝试用输入框的值兜底
@@ -1958,35 +2218,21 @@ whirlFoamTex.wrapS=whirlFoamTex.wrapT=THREE.RepeatWrapping;
 const whirlCoreTex=mkTex(128,128,(x)=>{const g=x.createRadialGradient(64,64,4,64,64,64);
     g.addColorStop(0,'rgba(1,8,16,1)');g.addColorStop(.7,'rgba(3,18,30,.95)');g.addColorStop(1,'rgba(4,24,38,0)');
     x.fillStyle=g;x.fillRect(0,0,128,128)});
-// 抛物线漏斗面（极坐标 UV：u=半径，v=角度，斜纹即螺旋）
-function mkFunnelGeo(rTop,depth,radialSegs,thetaSegs,yOff){
-    const pos=[],uv=[],idx=[];
-    for(let r=0;r<=radialSegs;r++){
-        const t=r/radialSegs,rr=Math.max(.12,rTop*t),y=-depth*(1-t)*(1-t)+yOff;
-        for(let j=0;j<=thetaSegs;j++){const a=j/thetaSegs*Math.PI*2;pos.push(Math.cos(a)*rr,y,Math.sin(a)*rr);uv.push(t,j/thetaSegs*6)}
-    }
-    for(let r=0;r<radialSegs;r++)for(let j=0;j<thetaSegs;j++){const a=r*(thetaSegs+1)+j,b=a+1,c=a+thetaSegs+1,d=c+1;idx.push(a,b,c,b,d,c)}
-    const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-    geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
-    geo.setIndex(idx);geo.computeVertexNormals();
-    return geo;
-}
 function mkWhirlpool(x,z){
     const g=new THREE.Group();
     const rTop=3.0,depth=2.4;
-    // 漏斗与 waveMesh 同处 y=0 平面：用 polygonOffset 把漏斗在深度缓冲里前推，
-    // 这样漏斗边缘能赢过波峰（y≈0.3）的深度测试，不会被水面遮挡，
-    // 同时漏斗实际仍在 y=0，不会"浮空"——像箭头一样紧贴水面
+    // LIFT=0 完全共面：让贴图真正"印在水面上"，不是浮在上面的重叠感
+    // 用 polygonOffset 在深度测试中获胜，避免与 waveMesh 共面 z-fighting
     const LIFT=0;
-    const funnel=new THREE.Mesh(mkFunnelGeo(rTop,depth,18,72,LIFT),
-        new THREE.MeshStandardMaterial({map:whirlWaterTex,transparent:true,opacity:.96,roughness:.35,metalness:0,side:THREE.DoubleSide,emissive:0x04202f,emissiveIntensity:.5,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
-    funnel.renderOrder=5;g.add(funnel);
-    const foam=new THREE.Mesh(mkFunnelGeo(rTop*.96,depth,14,64,LIFT+.02),
-        new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+    // 漩涡主体：圆盘平面贴图（与 waveMesh 完全共面，通过 polygonOffset 印在水面上）
+    const disk=mkWaveDisk(rTop,8,72,new THREE.MeshBasicMaterial({map:whirlWaterTex,transparent:true,opacity:.95,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),1,1);
+    disk.renderOrder=5;g.add(disk);
+    // 泡沫螺旋叠加（略小一点，稍高 LIFT 避免与主体共面冲突）
+    const foam=mkWaveDisk(rTop*.98,7,64,new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.82,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}),1,1);
     foam.renderOrder=6;g.add(foam);
-    const core=new THREE.Mesh(new THREE.CircleGeometry(.8,24),new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
-    core.renderOrder=7;core.rotation.x=-Math.PI/2;core.position.y=-depth+LIFT+.12;g.add(core);
+    // 中心暗洞（小圆盘贴图，再高一点）
+    const core=mkWaveDisk(.8,5,24,new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}),1,1);
+    core.renderOrder=7;g.add(core);
     // 随机大小：1/1.5/2/2.5/3 倍（0.5 档位）
     const wm=1+Math.floor(Math.random()*5)*.5;
     g.scale.setScalar(wm);
@@ -1996,22 +2242,34 @@ function mkWhirlpool(x,z){
     const field=mkWaveRing(1,72,new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.25,depthWrite:false,fog:false,side:THREE.DoubleSide}),1);
     scene.add(rim,field);
     const zone={x,z,r:rTop*wm,depth};whirlZones.push(zone);
-    return{group:g,funnel,foam,rim,field,zone,life:9+Math.random()*4,x,z,scale:wm};
+    return{group:g,disk,foam,core,rim,field,zone,life:9+Math.random()*4,x,z,scale:wm,depth};
 }
 function spawnWhirlpool(){
     if(!duckModel)return;
     const ang=Math.random()*Math.PI*2,dist=12+Math.random()*16;
     whirlpools.push(mkWhirlpool(duckModel.position.x+Math.cos(ang)*dist,duckModel.position.z+Math.sin(ang)*dist));
 }
+// 临时调试 hook（测试用，正式版可删）
+window.__whirlTest={
+    spawn:near=>{if(!duckModel)return;const d=near||6;whirlpools.push(mkWhirlpool(duckModel.position.x+d,duckModel.position.z));return whirlpools.length},
+    info:()=>whirlpools.map(w=>({hasDisk:!!w.disk,diskLift:w.disk.userData.update?'sync':'no',diskDepthWrite:w.disk?w.disk.material.depthWrite:null,diskPolygonOffset:w.disk?w.disk.material.polygonOffset:null,diskRenderOrder:w.disk?w.disk.renderOrder:null})),
+    // 检查漩涡 disk 顶点与 waveHeight 的差值（应为 0，完全共面）
+    checkSync:()=>{const w=whirlpools[0];if(!w)return'no whirl';const ws=w.scale||1;const pos=w.disk.geometry.attributes.position;let maxDiff=0,samples=0;const cx=w.x,cz=w.z;for(let i=0;i<pos.count;i+=20){const lx=pos.getX(i),lz=pos.getZ(i);const wx=cx+lx*ws,wz=cz+lz*ws;const wh=waveHeight(wx,wz,waveClock);const expected=wh/ws;const actual=pos.getY(i);const diff=Math.abs(actual-expected);if(diff>maxDiff)maxDiff=diff;samples++}return{maxDiff:samples?maxDiff.toFixed(4):0,samples}}
+};
+window.__auraTest={
+    info:()=>({depthWrite:auraMesh.material.depthWrite,renderOrder:auraMesh.renderOrder,visible:auraMesh.visible,opacity:auraMesh.material.opacity})
+};
 function updateWhirlpools(dt){
     for(let i=whirlpools.length-1;i>=0;i--){
         const w=whirlpools[i];w.life-=dt;
         const ws=w.scale||1;       // 漩涡缩放倍数
         const R=12*ws;              // 影响半径（大幅扩大，让鸭子更易进入吸力范围）
         const SINK_R=1.0*ws;       // 进入中心阈值：到达此处触发沉没动画
-        w.group.position.y=waveBase(w.x,w.z,waveClock);
-        w.funnel.rotation.y+=dt*1.4;
-        w.foam.rotation.y-=dt*2.6;
+        // 圆盘贴图每帧贴合浪面：LIFT=0 完全共面，靠 polygonOffset 在深度测试中获胜（真正"印在水面上"）
+        const LIFT=0;
+        w.disk.userData.update(w.x,w.z,ws,LIFT);
+        w.foam.userData.update(w.x,w.z,ws,LIFT);
+        w.core.userData.update(w.x,w.z,ws,LIFT);
         // 浪花环/引力圈逐帧贴合浪面（世界坐标采样，不再被海浪盖住一半）
         w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.08);
         w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.12);
@@ -2028,7 +2286,7 @@ function updateWhirlpools(dt){
                 // 切向旋涡（随距离指数增强）
                 const tan=Math.pow(ratio,4)*15+ratio*2;
                 duckVel.x+=-nz*tan*dt;duckVel.z+=nx*tan*dt;
-                // 到达中心 → 触发沉没动画（无敌可挡）
+                // 到达中心 → 触发沉没动画：护盾(hasShield)不能挡，只有无敌(invincible>0)可挡
                 if(d<SINK_R&&invincible<=0){
                     duckSink.state='sinking';duckSink.t=0;duckSink.whirl=w;
                     duckSink.startY=duckModel.position.y;duckSink.startX=duckModel.position.x;duckSink.startZ=duckModel.position.z;
@@ -2066,7 +2324,7 @@ function updateDuckSink(dt){
         duckModel.rotation.y+=dt*8;               // 高速旋转
         duckModel.scale.setScalar(.72*(1-k*.4));   // 微缩
         if(k>=1){
-            // 完成沉没：扣心 + 重生
+            // 完成沉没：直接扣心（绕过 takeDamage，护盾无法挡，只有 invincible 能在触发前挡）
             hearts=Math.max(0,hearts-1);updateHeartsUI();screenFlash();playSFX('hit');
             if(hearts<=0){D.state='none';gameOver();return}
             // 重生到安全位置（原点附近）
@@ -2196,8 +2454,10 @@ function updateShark(dt){
             if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX){
                 setTimeout(()=>{if(activeEvent==='shadow'&&eventSharkSpawnCount<EVENT_SHARK_MAX)spawnShark()},3000);
             }
+            return;
         }
         // 长时间未撞击：超过 12 秒后强制离开并尝试生成下一只（防止卡住）
+        if(!shark)return;
         shark.leaveTimer=(shark.leaveTimer||0)+dt;
         if(shark.leaveTimer>=12){
             removeShark();
