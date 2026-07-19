@@ -415,11 +415,108 @@ function initAudio(){
     if(audioCtx)return;
     try{
         audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-        musicGain=audioCtx.createGain();musicGain.gain.value=.1;musicGain.connect(audioCtx.destination);
+        musicGain=audioCtx.createGain();musicGain.gain.value=.62;musicGain.connect(audioCtx.destination);
     }catch(e){console.warn('AudioContext 创建失败',e);audioCtx=null}
 }
-function startBGM(){if(!audioCtx)return;const m=[[392,.4],[440,.4],[494,.4],[523,.6],[494,.4],[440,.4],[392,.6],[349,.4],[330,.4],[294,.6],[330,.4],[349,.4],[392,.6],[440,.4],[392,.4],[349,.6],[330,.4],[294,.4],[262,.8],[294,.4],[330,.4],[349,.6],[330,.4],[294,.4]];const b=[[196,1.2],[175,1.2],[165,1.2],[147,1.2],[131,1.2],[147,1.2],[175,1.2],[131,1.2]];let t=audioCtx.currentTime+.1;function sch(){if(!musicOn||!audioCtx)return;for(const[f,d]of m){const o=audioCtx.createOscillator(),e=audioCtx.createGain();o.type='sine';o.frequency.value=f;e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(.2,t+.04);e.gain.linearRampToValueAtTime(.12,t+d*.6);e.gain.linearRampToValueAtTime(0,t+d);o.connect(e);e.connect(musicGain);o.start(t);o.stop(t+d+.01);musicOscs.push(o);t+=d}let bt=t-m.reduce((s,[,d])=>s+d,0);for(const[f,d]of b){const o=audioCtx.createOscillator(),e=audioCtx.createGain();o.type='triangle';o.frequency.value=f;e.gain.setValueAtTime(0,bt);e.gain.linearRampToValueAtTime(.06,bt+.05);e.gain.linearRampToValueAtTime(0,bt+d);o.connect(e);e.connect(musicGain);o.start(bt);o.stop(bt+d+.01);musicOscs.push(o);bt+=d}setTimeout(sch,m.reduce((s,[,d])=>s+d,0)*1000-200)}sch()}
-function stopBGM(){musicOscs.forEach(o=>{try{o.stop()}catch(e){}});musicOscs=[]}
+// 音乐：轻快流畅版 BGM —— C 大调 120 BPM，平滑旋律 + 4 拍长贝斯 + 轻底鼓 + 稀疏镲，避免过度跳跃
+// 流畅感来自：连绵旋律（4 拍音 + 2 拍音交替）+ 拉长断奏（dur=拍*0.6）+ 4 拍长贝斯铺垫 + 无切分
+// 好听感来自：C-Am-Dm-G 经典卡农进行 + 三度和声 + 高音装饰 + 三角波圆润音色
+let _bgmTimer=null,_noiseBuf=null;
+function startBGM(){
+    if(!audioCtx)return;
+    // 节拍：120 BPM → 每拍 0.5s（中等偏慢，舒服的轻快节奏）
+    const BPM=120,beat=60/BPM,sixteenth=beat/4,eighth=beat/2;
+    // C 大调音阶频率
+    const N={C2:65.41,D2:73.42,E2:82.41,F2:87.31,G2:98.00,A2:110.00,B2:123.47,
+             C3:130.81,D3:146.83,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,
+             C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,
+             C5:523.25,D5:587.33,E5:659.25,F5:698.46,G5:783.99,A5:880.00,B5:987.77,
+             C6:1046.50};
+    // 准备白噪声 buffer（用于打击乐，复用）
+    if(!_noiseBuf||_noiseBuf.sampleRate!==audioCtx.sampleRate){
+        _noiseBuf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.5,audioCtx.sampleRate);
+        const d=_noiseBuf.getChannelData(0);
+        for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    }
+    // 主旋律（16 拍 = 8 小节）：连绵流畅的长线条，每音 2-4 拍
+    // 节奏型：长 → 长 → 长 → 长 → 长 → 长 → 长 → 长（避免短促跳跃）
+    const melody=[
+        [N.E4,0,2,.32], [N.D4,2,2,.28], [N.C4,4,2,.30], [N.E4,6,2,.28],
+        [N.G4,8,2,.34], [N.E4,10,2,.28], [N.D4,12,2,.30], [N.C4,14,2,.32]
+    ];
+    // 三度平行和声：低于主旋律三度，柔和支撑
+    const harm=[
+        [N.C4,0,2,.16], [N.A3,2,2,.14], [N.A3,4,2,.15], [N.C4,6,2,.14],
+        [N.E4,8,2,.17], [N.C4,10,2,.14], [N.A3,12,2,.15], [N.G3,14,2,.16]
+    ];
+    // 高音装饰：每 4 拍一个高音点缀，轻柔"叮咚"
+    const decor=[
+        [N.C5,1],[N.G5,5],[N.E5,9],[N.G5,13]
+    ];
+    // 贝斯：每和弦 4 拍长音（C-Am-Dm-G 卡农进行），持续感铺垫
+    const bass=[
+        [N.C2,0,4,.30], [N.A2,4,4,.30], [N.D3,8,4,.30], [N.G2,12,4,.30]
+    ];
+    // 底鼓：仅强拍（0/4/8/12）轻击，温和节奏感
+    const kickBeats=[[0,.32],[4,.32],[8,.32],[12,.32]];
+    // 闭镲：仅 8 分音符弱拍（每拍后半），轻柔沙沙感
+    const hatBeats=[];
+    for(let b=0;b<16;b++){hatBeats.push([b+.5,.06]);}
+    function playNote(freq,start,dur,type,vol){
+        const o=audioCtx.createOscillator(),e=audioCtx.createGain();
+        o.type=type;o.frequency.value=freq;
+        // 较长断奏：attack 5ms → 指数衰减（dur = 拍*0.6），让音连贯不跳跃
+        e.gain.setValueAtTime(0,start);
+        e.gain.linearRampToValueAtTime(vol,start+.005);
+        e.gain.exponentialRampToValueAtTime(.0001,start+dur);
+        o.connect(e);e.connect(musicGain);
+        o.start(start);o.stop(start+dur+.05);
+        musicOscs.push(o);
+    }
+    // 底鼓：低频正弦从 120Hz 滑下 —— 轻柔"咚"声
+    function playKick(start,vol){
+        const o=audioCtx.createOscillator(),e=audioCtx.createGain();
+        o.type='sine';
+        o.frequency.setValueAtTime(120,start);
+        o.frequency.exponentialRampToValueAtTime(50,start+.1);
+        e.gain.setValueAtTime(vol,start);
+        e.gain.exponentialRampToValueAtTime(.0001,start+.18);
+        o.connect(e);e.connect(musicGain);
+        o.start(start);o.stop(start+.2);
+        musicOscs.push(o);
+    }
+    // 闭镲：高通白噪声 + 短衰减 —— "沙"声
+    function playHat(start,vol){
+        const s=audioCtx.createBufferSource();s.buffer=_noiseBuf;
+        const filt=audioCtx.createBiquadFilter();
+        filt.type='highpass';filt.frequency.value=7000;
+        const g=audioCtx.createGain();
+        g.gain.setValueAtTime(vol,start);
+        g.gain.exponentialRampToValueAtTime(.0001,start+.04);
+        s.connect(filt);filt.connect(g);g.connect(musicGain);
+        s.start(start);s.stop(start+.05);
+        musicOscs.push(s);
+    }
+    // 调度函数：每轮 16 拍循环；用闭包变量 cycleStart 记录本轮起点
+    function scheduleCycle(){
+        if(!musicOn||!audioCtx)return;
+        const t=cycleStart;  // 本轮起点时间
+        try{
+            melody.forEach(([f,b,d,v])=>{playNote(f,t+b*beat,beat*d*.6,'triangle',v)});
+            harm.forEach(([f,b,d,v])=>{playNote(f,t+b*beat,beat*d*.6,'sine',v)});
+            decor.forEach(([f,b])=>{playNote(f,t+b*beat,eighth*.5,'sine',.10)});
+            bass.forEach(([f,b,d,v])=>{playNote(f,t+b*beat,beat*d*.85,'triangle',v)});
+            kickBeats.forEach(([b,v])=>{playKick(t+b*beat,v)});
+            hatBeats.forEach(([b,v])=>{playHat(t+b*beat,v)});
+        }catch(e){console.warn('BGM 调度异常',e)}
+        // 推进到下一轮，提前 300ms 排下一轮 setTimeout，确保连续循环
+        cycleStart=t+16*beat;
+        _bgmTimer=setTimeout(scheduleCycle,16*beat*1000-300);
+    }
+    let cycleStart=audioCtx.currentTime+.1;
+    scheduleCycle();
+}
+function stopBGM(){if(_bgmTimer){clearTimeout(_bgmTimer);_bgmTimer=null}musicOscs.forEach(o=>{try{o.stop()}catch(e){}});musicOscs=[]}
 let musicStarted=false;
 // 修复 AudioContext autoplay 报错：
 // - 必须在用户手势内创建/启动 AudioContext，否则浏览器会拦截
@@ -459,7 +556,29 @@ document.getElementById('music-btn').onclick=()=>{
         }
     }else{stopBGM()}
 };
-function playSFX(t){if(!audioCtx)initAudio();if(!audioCtx)return;const o=audioCtx.createOscillator(),e=audioCtx.createGain(),n=audioCtx.currentTime;if(t==='collect'){o.frequency.setValueAtTime(523,n);o.frequency.linearRampToValueAtTime(784,n+.08);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.15);o.type='sine'}else if(t==='hit'){o.frequency.setValueAtTime(180,n);o.frequency.linearRampToValueAtTime(60,n+.25);e.gain.setValueAtTime(.3,n);e.gain.linearRampToValueAtTime(0,n+.3);o.type='sawtooth'}else{o.frequency.setValueAtTime(400,n);o.frequency.linearRampToValueAtTime(900,n+.15);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.35);o.type='triangle'}o.connect(e);e.connect(audioCtx.destination);o.start();o.stop(n+.5)}
+function playSFX(t,sc){if(!audioCtx)initAudio();if(!audioCtx||!musicOn)return;const n=audioCtx.currentTime;if(t==='paddle'){
+// 划水音效：小鸭子脚掌拨水的"啪嗒"声 —— 短噪声脉冲经带通滤波(800-2500Hz) + 快速衰减
+// 模拟脚掌入水时清脆的水花拍击声；大鸭子 sf 越大 → 音量略重
+const sf=sc||1;
+const dur=.08;  // 极短 80ms，模拟单次脚掌拍水的清脆感
+const bufLen=Math.floor(audioCtx.sampleRate*dur);
+const buf=audioCtx.createBuffer(1,bufLen,audioCtx.sampleRate);
+const d=buf.getChannelData(0);
+for(let i=0;i<bufLen;i++)d[i]=Math.random()*2-1;
+const src=audioCtx.createBufferSource();src.buffer=buf;
+// 带通滤波：突显 1500Hz 中频段，模拟水花拍击的清脆"啪"声
+const bp=audioCtx.createBiquadFilter();
+bp.type='bandpass';bp.frequency.value=1500;bp.Q.value=1.0;
+// 音量包络：极快起音(3ms) + 快速指数衰减(80ms)，单次清脆拍击感
+const g=audioCtx.createGain();
+const vol=.12*Math.min(sf,1.6);
+g.gain.setValueAtTime(0,n);
+g.gain.linearRampToValueAtTime(vol,n+.003);
+g.gain.exponentialRampToValueAtTime(.0001,n+dur);
+src.connect(bp);bp.connect(g);g.connect(audioCtx.destination);
+src.start(n);src.stop(n+dur+.02);
+return;
+}const o=audioCtx.createOscillator(),e=audioCtx.createGain();if(t==='collect'){o.frequency.setValueAtTime(523,n);o.frequency.linearRampToValueAtTime(784,n+.08);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.15);o.type='sine'}else if(t==='hit'){o.frequency.setValueAtTime(180,n);o.frequency.linearRampToValueAtTime(60,n+.25);e.gain.setValueAtTime(.3,n);e.gain.linearRampToValueAtTime(0,n+.3);o.type='sawtooth'}else{o.frequency.setValueAtTime(400,n);o.frequency.linearRampToValueAtTime(900,n+.15);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.35);o.type='triangle'}o.connect(e);e.connect(audioCtx.destination);o.start();o.stop(n+.5)}
 document.getElementById('help-btn').onclick=()=>document.getElementById('help').classList.toggle('show');
 // 调试模式：开关面板 + 立即触发指定事件 + 在附近生成物品 + 修改生命分数
 // 通过 <meta name="env" content="MODE=dev"> 决定是否显示调试按钮，避免外部 fetch
@@ -709,7 +828,7 @@ const clouds=[];
         const rad=70+(i%3)*90+Math.random()*70;
         s.position.set(Math.cos(ang)*rad,28+Math.random()*65,Math.sin(ang)*rad);
         cloudGroup.add(s);
-        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:1.2+Math.random()*1.2});
+        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:(1.2+Math.random()*1.2)*3});
     }
     // 统一风向缓慢漂移（速度提高，让缓慢移动更明显）
     const wa=Math.random()*Math.PI*2;
@@ -1142,6 +1261,8 @@ window._timeIdx=0;window.cycleTime=()=>{const ts=[6,9,12,15,18,20,0];window._tim
 
 // ===== 物品 =====
 const items=[];const MAP=14;let eventRockBoost=0,eventWaveTarget=1,waveSpeedTarget=1;
+// playStartTime 提前声明（用于难度递进计算），后续在 gameActive 段重新赋值
+let playStartTime=Date.now();
 function mkRock(p,s){const g=new THREE.DodecahedronGeometry(1,1);const a=g.attributes.position;for(let i=0;i<a.count;i++){let x=a.getX(i),y=a.getY(i),z=a.getZ(i);const n=Math.sin(x*3.7)*Math.cos(y*2.3)*Math.sin(z*4.1)*.15;x+=n;y+=n*.5;z+=n;y*=.55;a.setXYZ(i,x,y,z)}g.computeVertexNormals();const tint=.92+Math.random()*.16;const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:new THREE.Color(0x8d8177).multiplyScalar(tint),roughness:.85,flatShading:true}));m.position.copy(p);m.scale.setScalar(s);m.rotation.set(Math.random(),Math.random(),0);m.castShadow=true;m.receiveShadow=true;return m}
 function mkGrass(x,z,n){const g=new THREE.Group();const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide});const cRoot=new THREE.Color(0x1d5c22),cTip=new THREE.Color(0x8fdd55),cc=new THREE.Color();for(let i=0;i<n;i++){const h=.4+Math.random()*.35,w=.05+Math.random()*.035;const geo=new THREE.PlaneGeometry(w,h,1,6);const a=geo.attributes.position;const cols=new Float32Array(a.count*3);const bend=(Math.random()-.5)*.4;for(let j=0;j<a.count;j++){let px=a.getX(j),py=a.getY(j);const t=py/h+.5;px*=1-t*.85;px+=t*t*bend;a.setX(j,px);cc.copy(cRoot).lerp(cTip,t);cols[j*3]=cc.r;cols[j*3+1]=cc.g;cols[j*3+2]=cc.b}geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();const b=new THREE.Mesh(geo,mat);b.position.set((Math.random()-.5)*.6,h*.5,(Math.random()-.5)*.6);b.rotation.y=Math.random()*Math.PI;b.castShadow=true;g.add(b)}g.position.set(x,0,z);return g}
 function mkLily(x,z,s){const g=new THREE.Group();const pg=new THREE.CircleGeometry(s,24,0,Math.PI*1.85);const pa=pg.attributes.position;const pcols=new Float32Array(pa.count*3);const cIn=new THREE.Color(0x46a857),cOut=new THREE.Color(0x1e6b31),cc=new THREE.Color();for(let i=0;i<pa.count;i++){const px=pa.getX(i),py=pa.getY(i);const r=Math.min(Math.sqrt(px*px+py*py)/s,1);pa.setZ(i,r*r*.14*s);cc.copy(cIn).lerp(cOut,r);pcols[i*3]=cc.r;pcols[i*3+1]=cc.g;pcols[i*3+2]=cc.b}pg.setAttribute('color',new THREE.BufferAttribute(pcols,3));pg.computeVertexNormals();const pad=new THREE.Mesh(pg,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.55,side:THREE.DoubleSide}));pad.rotation.x=-Math.PI/2;pad.receiveShadow=true;g.add(pad);
@@ -1217,7 +1338,9 @@ let magnetTimer=0,magnetActive=false;
 function spawnAround(cx,cz){
     const cnt={rock:0,flower:0,grass:0,lily:0,magnet:0};items.forEach(i=>{if(!i.coll)cnt[i.type]++});
     // 目标数量按面积比例扩大（4 倍），并额外提升密度
-    const tgt={rock:30+eventRockBoost,flower:90,grass:80,lily:42,magnet:2};  // 4x 区域 + 密集
+    // 难度递进：石头目标数量随时间提升（30 → 50，满级）
+    const _diff=difficultyFactor();
+    const tgt={rock:30+Math.round(20*_diff)+eventRockBoost,flower:90,grass:80,lily:42,magnet:2};  // 4x 区域 + 密集
     for(const[type,target]of Object.entries(tgt)){while(cnt[type]<target&&items.length<MAX_I){
     // 磁铁刷新概率 50%（稀有道具）
     if(type==='magnet'&&Math.random()>.5)break;
@@ -1305,7 +1428,7 @@ let score=0,hasShield=false,shieldTimer=0,invincible=0;
 function toast(t,type){const el=document.getElementById('toast');document.getElementById('toast-text').innerHTML=t;el.className='toast show '+type;setTimeout(()=>el.className='toast',1200)}
 let streakItems=[];let streakActive=false;let streakTimer=0;let scoreMultiplier=1;let streakType='';let bigTimer=0;// 'same' or 'diff'
 const STREAK_ICONS={flower:'fa-sun',grass:'fa-seedling',lily:'fa-spa',rock:'fa-gem',heart:'fa-heart',magnet:'fa-magnet'};
-const STREAK_COLORS={flower:'#ffee44',grass:'#44dd44',lily:'#44ddff',rock:'#cc8844',heart:'#ff4d6d',magnet:'#aa66ff'};
+const STREAK_COLORS={flower:'#ffee44',grass:'#44dd44',lily:'#ff9ec7',rock:'#cc8844',heart:'#ff4d6d',magnet:'#aa66ff'};
 function addScore(n){const mult=streakActive?scoreMultiplier:1;const actual=n*mult;score=Math.max(0,score+actual);document.getElementById('score').textContent=score;if(streakActive&&mult>1&&n>0){toast(`<i class="fa-solid fa-fire"></i> +${n}×${mult}`,actual>=0?'p':'m')}}
 function trackStreak(type){
     if(type==='rock')return;// 岩石不计入连胜
@@ -1521,6 +1644,125 @@ let duckSpeed=0; // 当前速度
 const DUCK_MAX_SPEED=4.0,DUCK_ACCEL=5.0,DUCK_DECEL=6.0;
 // GLB 模型初始朝向修正：经典 Rubber Duck 模型面朝 -Z，需旋转 Math.PI 使其面朝 +Z
 const DUCK_ROT_OFFSET=Math.PI;
+// 拨水尾迹 + 尾部水花：随鸭子的速度周期性生成（节流，避免每帧过多特效）
+let duckWakeTimer=0,duckSplashTimer=0,_paddleSfxTimer=0;
+// 鸭子尾迹：不规则涟漪环（顶点扰动）+ 多层延迟扩散，模拟真实水波纹
+// 制作不规则环：用 RingGeometry，对每个顶点施加随机径向扰动，形成自然水波边缘
+function makeIrregularRing(innerR,outerR,segments,jitter){
+    const geo=new THREE.RingGeometry(innerR,outerR,segments);
+    const pos=geo.attributes.position;
+    // 为每个顶点施加径向扰动（沿其到中心的法线方向偏移）
+    for(let i=0;i<pos.count;i++){
+        const x=pos.getX(i),y=pos.getY(i);
+        const len=Math.sqrt(x*x+y*y);
+        if(len<1e-4)continue;
+        // 随机扰动量 ±jitter，使用 sin/cos 让扰动有连续性而非纯随机
+        const ang=Math.atan2(y,x);
+        const n=Math.sin(ang*3+Math.random()*6)*.5
+               +Math.sin(ang*7+Math.random()*4)*.3
+               +Math.sin(ang*13+Math.random()*2)*.2;
+        const off=n*jitter;
+        pos.setX(i,x+(x/len)*off);
+        pos.setY(i,y+(y/len)*off);
+    }
+    pos.needsUpdate=true;
+    geo.computeVertexNormals();
+    return geo;
+}
+function spawnDuckWake(pos,yaw,speed,scaleFactor){
+    scaleFactor=scaleFactor||1;
+    // 大鸭子体型大 → 尾部位置后移、涟漪半径/扰动/水珠尺寸全部按 scaleFactor 放大
+    const backOff=.55*scaleFactor;
+    const backX=pos.x-Math.sin(yaw)*backOff,backZ=pos.z-Math.cos(yaw)*backOff;
+    const baseY=waveHeight(backX,backZ,waveClock);
+    const baseScale=(Math.min(1.4,.5+speed*.2))*scaleFactor;
+    // 三层涟漪扩散：依次延迟启动、初始半径递增、寿命递减，形成"一波未平一波又起"的水波感
+    // 每层使用独立的不规则环几何体（顶点扰动量不同），让形状自然随机；半径与扰动随体型放大
+    const layers=[
+        {delay:0,   inner:.24*scaleFactor,outer:.28*scaleFactor,jitter:.04*scaleFactor,life:1.4,opacity:.55,scaleMul:1.0},
+        {delay:.18, inner:.30*scaleFactor,outer:.34*scaleFactor,jitter:.05*scaleFactor,life:1.2,opacity:.40,scaleMul:1.3},
+        {delay:.38, inner:.36*scaleFactor,outer:.40*scaleFactor,jitter:.06*scaleFactor,life:1.0,opacity:.28,scaleMul:1.7}
+    ];
+    layers.forEach(L=>{
+        const ring=new THREE.Mesh(
+            makeIrregularRing(L.inner,L.outer,28,L.jitter),
+            new THREE.MeshBasicMaterial({
+                color:0xc8e6ff,transparent:true,opacity:L.opacity,side:THREE.DoubleSide,
+                depthWrite:false,depthTest:false,fog:false
+            })
+        );
+        ring.position.set(backX,baseY+.08,backZ);
+        ring.rotation.x=-Math.PI/2;
+        ring.renderOrder=999;
+        scene.add(ring);
+        ring.scale.setScalar(baseScale*L.scaleMul);
+        // 通过 delay 控制启动时间：life 初始扣减 delay，让后两层"延后开始扩散"
+        transientFx.push({
+            m:ring,wake:true,wakeDelay:L.delay,
+            vx:0,vy:0,vz:0,
+            life:L.life+L.delay,max:L.life+L.delay,
+            baseOpacity:L.opacity
+        });
+    });
+    // 两侧小水珠：向后外侧漂移，形成自然 V 形拨水（大鸭子水珠更粗、漂得更远）
+    for(let side=-1;side<=1;side+=2){
+        const m=new THREE.Mesh(
+            new THREE.SphereGeometry((.05+Math.random()*.03)*scaleFactor,10,8),
+            new THREE.MeshBasicMaterial({
+                color:0xeaf6ff,transparent:true,opacity:.8,fog:false,
+                depthWrite:false,depthTest:false
+            })
+        );
+        const offX=(Math.cos(yaw)*.4*side-Math.sin(yaw)*.3)*scaleFactor;
+        const offZ=(-Math.sin(yaw)*.4*side-Math.cos(yaw)*.3)*scaleFactor;
+        m.position.set(pos.x+offX,baseY+.22*scaleFactor,pos.z+offZ);
+        m.renderOrder=1000;
+        scene.add(m);
+        const driftAng=yaw+Math.PI+(side*.5);
+        const sp=(.4+speed*.15)*scaleFactor;
+        transientFx.push({
+            m,vx:Math.sin(driftAng)*sp,vy:.3*scaleFactor,vz:Math.cos(driftAng)*sp,
+            life:.7,max:.7,gravity:1.5
+        });
+    }
+}
+function spawnTailSplash(pos,yaw,speed,scaleFactor){
+    scaleFactor=scaleFactor||1;
+    // 尾部水花：5-7 颗蓝白渐变水珠向后向上飞溅，呈现拨水跳跃感
+    // 关键：起始 y 抬到 waveHeight+0.35（确保高于波浪峰值），depthTest:false 防遮挡
+    // 大鸭子：尾部后移、水珠数量更多更粗、初速度提升，呈现"大脚拨水"的厚重感
+    const backOff=.5*scaleFactor;
+    const backX=pos.x-Math.sin(yaw)*backOff,backZ=pos.z-Math.cos(yaw)*backOff;
+    const baseY=waveHeight(backX,backZ,waveClock);
+    const n=Math.floor((5+Math.floor(Math.min(speed,4)*.6))*Math.min(scaleFactor,2.2));
+    for(let i=0;i<n;i++){
+        // 高质量球体（12 段）+ 蓝白渐变色 + 不参与深度测试；半径随体型放大
+        const isTop=Math.random()<.4;
+        const m=new THREE.Mesh(
+            new THREE.SphereGeometry((.07+Math.random()*.05)*scaleFactor,12,10),
+            new THREE.MeshBasicMaterial({
+                color:isTop?0xffffff:0xb8e3ff,
+                transparent:true,opacity:.95,fog:false,
+                depthWrite:false,depthTest:false
+            })
+        );
+        // 起始位置：尾部水面之上 0.3-0.45，加少量横向偏移；偏移量随体型放大
+        const sideOff=(Math.random()-.5)*.4*scaleFactor;
+        m.position.set(
+            backX+Math.cos(yaw)*sideOff,
+            baseY+(.35+Math.random()*.1)*scaleFactor,
+            backZ-Math.sin(yaw)*sideOff
+        );
+        m.renderOrder=1001;
+        scene.add(m);
+        // 后向飞溅：与鸭子朝向相反，加少量侧向扰动；初速度随体型提升，水花跳得更高更远
+        const spread=(Math.random()-.5)*.7;
+        const backAng=yaw+Math.PI+spread;
+        const sp=(1.6+Math.random()*1.8+speed*.25)*Math.min(scaleFactor,1.6);
+        const vy0=(2.2+Math.random()*1.4)*Math.min(scaleFactor,1.5);  // 大鸭子水花跳得更高
+        transientFx.push({m,vx:Math.sin(backAng)*sp,vy:vy0,vz:Math.cos(backAng)*sp,life:.85,max:.85,gravity:7});
+    }
+}
 function updateDuck(dt){if(!duckModel)return;if(!gameActive)return;
 // 变大时（连胜巨鸭）移动更灵敏：最大速度/加速度/转向随体型提升
 const bigMul=1+(duckModel.scale.x/.72-1)*0.45;
@@ -1580,7 +1822,10 @@ const hC=waveHeight(px,pz,waveClock);
 const ws=.9;
 const slopeX=(waveHeight(px+ws,pz,waveClock)-waveHeight(px-ws,pz,waveClock))/(2*ws);
 const slopeZ=(waveHeight(px,pz+ws,waveClock)-waveHeight(px,pz-ws,waveClock))/(2*ws);
-const bobY=Math.sin(gameClock*1.8)*.04;
+// 逆风吃力姿态：减速时鸭子前倾（向前顶风）、bob 减弱（更费力更迟钝）
+const headwindFactor=(windActive&&windSpeedMul<1)?1:0;
+const bobFreq=headwindFactor?1.0:1.8;
+const bobY=Math.sin(gameClock*bobFreq)*.04*(1-headwindFactor*.4);
 // 模型底部相对原点约 0.072*duckScale，让底部略没入水中（waveHeight 对时空均光滑，直接赋值无抖动）
 duckModel.position.y=hC-0.11*duckScale+bobY;
 // 鸭子朝向（模型默认面朝+X，需补偿-90°使嘴巴朝运动方向）
@@ -1590,8 +1835,34 @@ duckModel.rotation.y=duckYaw-Math.PI/2;
 const fwdX=Math.sin(duckYaw),fwdZ=Math.cos(duckYaw);
 const slopeF=slopeX*fwdX+slopeZ*fwdZ; // 前进方向坡度→抬头/低头
 const slopeS=slopeX*fwdZ-slopeZ*fwdX; // 侧向坡度→左右侧倾
-// 摇摆动画 + 浪面倾斜
-const sf=Math.min(duckVel.length()/DUCK_MAX_SPEED,1);duckModel.rotation.z=Math.sin(gameClock*8)*sf*.06+Math.sin(gameClock*.9)*.03+c.x*.04+slopeF*.5;duckModel.rotation.x=-c.z*.04+slopeS*.5;
+// 摇摆动画 + 浪面倾斜（逆风时前倾吃力姿态：rotation.x 正值=向前倾，旋转频率减半更迟钝）
+const sf=Math.min(duckVel.length()/DUCK_MAX_SPEED,1);
+const swayFreq=headwindFactor?4:8;     // 逆风时摇摆变慢，表现挣扎
+const headwindLean=headwindFactor*.18; // 顶风前倾量
+duckModel.rotation.z=Math.sin(gameClock*swayFreq)*sf*.06+Math.sin(gameClock*.9)*.03+c.x*.04+slopeF*.5;
+duckModel.rotation.x=-c.z*.04+slopeS*.5+headwindLean;
+// 拨水尾迹 + 尾部水花：鸭子在移动时按周期生成（速度越快越频繁）
+// 涟漪/水花按体型缩放：大鸭子产生更夸张的拨水效果
+// 划水音效仅在鸭子高速移动且较长时间间隔触发一次，避免叠加产生嗡嗡声
+if(duckVel.length()>0.6){
+    duckWakeTimer-=dt;
+    if(duckWakeTimer<=0){
+        spawnDuckWake(duckModel.position,duckYaw,duckSpeed,duckScale);
+        duckWakeTimer=Math.max(.12,.4-sf*.25);
+    }
+    duckSplashTimer-=dt;
+    if(duckSplashTimer<=0&&duckVel.length()>1.5){
+        spawnTailSplash(duckModel.position,duckYaw,duckSpeed,duckScale);
+        duckSplashTimer=Math.max(.08,.22-sf*.12);
+    }
+    // 划水音效：仅当鸭子实际在拨水（速度>1.2）时按节奏触发，模拟双脚交替"啪嗒啪嗒"
+    _paddleSfxTimer-=dt;
+    if(_paddleSfxTimer<=0&&duckVel.length()>1.2){
+        playSFX('paddle',duckScale);
+        // 0.28-0.4s 一次，模拟脚掌交替入水的自然节奏
+        _paddleSfxTimer=.28+Math.random()*.12;
+    }
+}
 if(hasShield){shieldMesh.position.copy(duckModel.position);shieldMesh.position.y+=.3*duckScale;shieldMesh.scale.setScalar(duckScale);shieldMesh.material.opacity=.15+Math.sin(gameClock*3)*.08;shieldMesh.rotation.y=gameClock*.5;shieldTimer-=dt;if(shieldTimer<=0){hasShield=false;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;shieldMesh.scale.setScalar(1)}}
 // 连胜特效：光环+皇冠（仅连胜60s期间显示）
 if(streakActive&&duckModel){crownGroup.visible=true;
@@ -1647,7 +1918,7 @@ const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.s
 // 动画
 // ===== v2.0 生命 / 排行榜 / 漩涡 / 血瓶 / 随机事件 系统 =====
 // ---- 生命系统 ----
-let hearts=3;const MAX_HEARTS=5;let gameActive=true;let playStartTime=Date.now();
+let hearts=3;const MAX_HEARTS=5;let gameActive=true;playStartTime=Date.now();
 function updateHeartsUI(){const el=document.getElementById('hearts-hud');if(!el)return;let html='';for(let i=0;i<MAX_HEARTS;i++){html+=`<span class="hp ${i<hearts?'':'empty'}"><i class="fa-solid fa-heart"></i></span>`}el.innerHTML=html}
 function screenFlash(){const f=document.getElementById('red-flash');if(!f)return;f.classList.add('show');setTimeout(()=>f.classList.remove('show'),40)}
 function takeDamage(amount=1){
@@ -1713,12 +1984,32 @@ function spawnRockShatter(pos,scale){
 function updateTransientFx(dt){
     for(let i=transientFx.length-1;i>=0;i--){const f=transientFx[i];f.life-=dt;
         if(f.ring){
-            // 冲击波环：扩大 + 淡出
+            // 冲击波环（碰撞/破碎用）：扩大 + 淡出
             const t=Math.max(0,f.life/f.max);
             const sc=1+(1-t)*4;
             f.m.scale.setScalar(sc);
             f.m.material.opacity=t*.9;
+        }else if(f.wake){
+            // 不规则涟漪环：延迟启动 + 慢扩散 + 缓淡出，每帧贴合浪面（抬高 0.08 防遮挡）
+            const delay=f.wakeDelay||0;
+            const elapsed=f.max-f.life;  // 已经过去的时间
+            if(elapsed<delay){
+                // 延迟期内：保持初始状态不可见
+                f.m.material.opacity=0;
+            }else{
+                // 启动后：基于自身 life 比例扩散 + 淡出
+                const realLife=f.life;          // 剩余寿命
+                const realMax=f.max-delay;      // 真实最大寿命
+                const t=Math.max(0,realLife/realMax);  // 1=刚启动，0=消亡
+                const sc=1+(1-t)*1.8;           // 扩散幅度 1→2.8 倍
+                f.m.scale.setScalar(sc);
+                // 入场快（前 10% 时间从 0 涨到 baseOpacity），主体缓淡出
+                const fadeIn=Math.min(1,elapsed/0.08);
+                f.m.material.opacity=f.baseOpacity*t*fadeIn;
+                f.m.position.y=waveHeight(f.m.position.x,f.m.position.z,waveClock)+.08;
+            }
         }else{
+            // 通用粒子（含鸭子水珠尾迹、尾部水花、碎片等）：抛物线运动 + 重力 + 淡出
             f.m.position.x+=f.vx*dt;f.m.position.y+=f.vy*dt;f.m.position.z+=f.vz*dt;
             f.vy-=(f.gravity||3.2)*dt;
             // 旋转
@@ -2452,7 +2743,6 @@ function spawnWhirlpool(){
     const ang=Math.random()*Math.PI*2,dist=12+Math.random()*16;
     whirlpools.push(mkWhirlpool(duckModel.position.x+Math.cos(ang)*dist,duckModel.position.z+Math.sin(ang)*dist));
 }
-// 临时调试 hook（测试用，正式版可删）
 window.__whirlTest={
     spawn:near=>{if(!duckModel)return;const d=near||6;whirlpools.push(mkWhirlpool(duckModel.position.x+d,duckModel.position.z));return whirlpools.length},
     info:()=>whirlpools.map(w=>({hasDisk:!!w.disk,diskLift:w.disk.userData.update?'sync':'no',diskDepthWrite:w.disk?w.disk.material.depthWrite:null,diskPolygonOffset:w.disk?w.disk.material.polygonOffset:null,diskRenderOrder:w.disk?w.disk.renderOrder:null})),
@@ -2686,7 +2976,26 @@ const EV_TINT={good:'rgba(24,150,74,.62)',bad:'rgba(196,46,46,.62)',neutral:'rgb
 const EV_BORDER={good:'rgba(90,230,150,.6)',bad:'rgba(255,120,120,.6)',neutral:'rgba(255,220,110,.6)'};
 const EV_W_NORMAL=[['tailwind',10],['headwind',10],['storm',15],['rainbow',15],['shadow',15],['bigwave',15],['itemrain',10],['calm',10]];
 const EV_W_MERCY=[['itemrain',40],['rainbow',30],['calm',20],['tailwind',10]];
-function pickEvent(){let w=hearts<=1?EV_W_MERCY:EV_W_NORMAL;let tot=0;for(const p of w)tot+=p[1];let r=Math.random()*tot;for(const p of w){r-=p[1];if(r<=0)return p[0]}return w[0][0]}
+// 难度递进：基于游戏时长返回 0..1 的难度因子（0=开局，1=5分钟后满级）
+function difficultyFactor(){
+    if(!playStartTime)return 0;
+    const mins=(Date.now()-playStartTime)/60000;
+    return Math.min(1,mins/5);
+}
+// 按难度动态加权：坏事件权重随难度上升（开局保持原配置，满级坏事件 ×2.5）
+function pickEvent(){
+    const diff=difficultyFactor();
+    const base=hearts<=1?EV_W_MERCY:EV_W_NORMAL;
+    const w=base.map(([k,v])=>{
+        const t=EVENTS[k].t;
+        const m=t==='bad'?(1+1.5*diff):1; // 坏事件随时间加重
+        return [k,v*m];
+    });
+    let tot=0;for(const p of w)tot+=p[1];
+    let r=Math.random()*tot;
+    for(const p of w){r-=p[1];if(r<=0)return p[0]}
+    return w[0][0];
+}
 let globalEventTimer=30,activeEvent=null,activeEventTime=0,pendingEvent=null,warnedFor=null;
 let whirlSpawnTimer=0;
 let windActive=false;let windSpeedMul=1;
@@ -2705,7 +3014,10 @@ function showWarn(e){
 }
 function hideWarn(){document.getElementById('event-warn').classList.remove('show')}
 function startEvent(key){
-    activeEvent=key;activeEventTime=EVENTS[key].d;showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');
+    activeEvent=key;
+    // 事件持续时间随难度延长：满级时 +60%（开局保持原配置）
+    activeEventTime=EVENTS[key].d*(1+0.6*difficultyFactor());
+    showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');
     windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;waveSpeedTarget=1;
     document.getElementById('rain-overlay').classList.remove('show');
     document.getElementById('rainbow-overlay').classList.remove('show');
@@ -2742,11 +3054,14 @@ function endEvent(){
 }
 function updateGlobalEvent(dt){
     if(!gameActive)return;
-    // 漩涡独立 5 秒周期：30% 概率生成1-2个，暴风雨事件期间概率翻倍至 60%
+    // 难度递进：漩涡生成周期 5s → 3s（满级），生成概率 30% → 50%（暴风雨 60% → 80%）
+    const diff=difficultyFactor();
+    const whirlPeriod=5-2*diff;
     whirlSpawnTimer=(whirlSpawnTimer||0)+dt;
-    if(whirlSpawnTimer>=5){
+    if(whirlSpawnTimer>=whirlPeriod){
         whirlSpawnTimer=0;
-        const prob=stormActive?0.6:0.3;
+        const baseProb=stormActive?0.6:0.3;
+        const prob=baseProb+0.2*diff;
         if(Math.random()<prob){const n=1+Math.floor(Math.random()*2);for(let i=0;i<n;i++)spawnWhirlpool()}
     }
     if(!activeEvent){

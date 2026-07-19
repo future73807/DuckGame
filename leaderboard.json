@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "name": "测试玩家",
+      "score": 1659,
+      "playTime": 158,
+      "ts": 1784432548862,
+      "userId": "e2a17b12-1628-42a5-999f-155f82aebe72",
+      "id": "5b8f5daf-b6e6-4074-8538-a228b847f93f"
+    },
+    {
       "name": "未来",
       "score": 888,
       "playTime": 666,
