@@ -1,6 +1,22 @@
 {
   "entries": [
     {
+      "name": "勇敢鸭鸭ssRkR",
+      "score": 100000,
+      "playTime": 8,
+      "ts": 1784568416784,
+      "userId": "f583b265-38f1-4eaa-8546-06c5a9b94810",
+      "id": "55f7a0f7-e024-4c86-a557-08220bbb6345"
+    },
+    {
+      "name": "勇敢鸭鸭XpSrV",
+      "score": 10000,
+      "playTime": 11,
+      "ts": 1784568380532,
+      "userId": "6de10af9-d9f0-440d-9edb-021aa1da0c8b",
+      "id": "aaaead39-72c7-4360-9410-dfb00b4209a1"
+    },
+    {
       "name": "测试玩家",
       "score": 1659,
       "playTime": 158,
@@ -16,6 +32,14 @@
       "userId": "1652ae41-30a0-4273-a8e5-26342656ced9",
       "id": "74cdd7b5-6a53-4473-95ed-46f46933c55c",
       "pwdHash": "6f4afa078c7fd58f7ae2572e50c00e5f8558eda3694c03bcf43f5eb00de02bfc"
+    },
+    {
+      "name": "勇敢鸭鸭lrdus",
+      "score": 0,
+      "playTime": 3,
+      "ts": 1784568449036,
+      "userId": "1a0faa43-95bb-4b25-becc-c36f348aa472",
+      "id": "8e892176-570f-4cf5-9f2b-9fb4bafa5f0c"
     }
   ]
 }

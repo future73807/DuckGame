@@ -194,7 +194,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 #invincible-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#44ddff;padding:3px 10px;border-radius:8px;font-size:11px;display:none;align-items:center;gap:5px;border:1px solid rgba(68,221,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(68,221,255,.3)}
 #invincible-hud .inv-time{color:#ffd700;font-weight:bold;font-size:13px}
 /* 详情弹窗 */
-#detail-modal,#share-modal{position:fixed;inset:0;background:rgba(5,10,25,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px}
+#detail-modal,#share-modal{position:fixed;inset:0;background:rgba(5,10,25,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;overflow-y:auto}
 /* 关闭叉号（弹窗右上角） */
 .close-x{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:501;transition:all .15s}
 .close-x:hover{background:rgba(255,80,80,.6);transform:rotate(90deg)}
@@ -212,19 +212,20 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 #detail-modal .dm-item .ts{color:#666;font-size:11px;min-width:60px;text-align:right}
 #detail-modal .dm-btn{padding:10px 32px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin:4px}
 #detail-modal .dm-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-/* 分享卡片 */
-#share-modal .sm-card{width:360px;background:linear-gradient(180deg,#0c1830 0%,#0a1428 50%,#080f1f 100%);border-radius:6px;padding:36px 28px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6),inset 0 0 0 1px rgba(212,175,100,.4)}
-#share-modal .sm-card .sm-title{font-size:14px;color:#e8c878;font-weight:300;letter-spacing:6px;margin-bottom:6px;font-family:Georgia,serif}
-#share-modal .sm-card .sm-sub{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:4px;margin-bottom:24px;font-weight:300}
-#share-modal .sm-card .sm-score{font-size:72px;color:#fff;font-weight:900;text-shadow:0 0 30px rgba(255,210,140,.4);font-family:Georgia,serif;line-height:1;margin:8px 0}
-#share-modal .sm-card .sm-label{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:2px;margin-bottom:20px;font-weight:300}
-#share-modal .sm-card .sm-qr{width:120px;height:120px;background:#fff;border-radius:6px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;padding:6px}
-#share-modal .sm-card .sm-qr canvas{border-radius:4px}
-#share-modal .sm-card .sm-url{font-size:10px;color:rgba(255,255,255,.35);word-break:break-all;letter-spacing:.5px}
-#share-modal .sm-btns{display:flex;gap:8px;justify-content:center;margin-top:20px}
+/* 分享卡片：预览直接显示 canvas 生成的图片，确保和下载的 PNG 一模一样 */
+#share-modal .sm-card{width:600px;max-width:90vw;background:#0a1428;border-radius:6px;padding:0;display:block;box-shadow:0 12px 48px rgba(0,0,0,.6);position:relative;overflow:hidden;box-sizing:border-box}
+#share-modal .sm-card #share-preview-img{display:block;width:100%;height:auto;border-radius:6px}
+#share-modal .sm-btns{display:flex;gap:8px;justify-content:center;margin-top:16px}
 #share-modal .sm-btn{padding:10px 28px;background:transparent;color:#e8c878;border:1px solid rgba(212,175,100,.5);border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:2px;transition:all .2s}
 #share-modal .sm-btn:hover{background:rgba(212,175,100,.1);border-color:rgba(212,175,100,.8)}
 #share-modal .sm-btn.outline{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
+/* 手机端：预览区域矮一点，给按钮留空间 */
+@media(max-width:768px){
+    #share-modal{justify-content:center;padding:50px 16px 24px;gap:16px}
+    #share-modal .sm-card{width:78vw;max-width:78vw;flex-shrink:0}
+    #share-modal .sm-btns{margin-top:0;flex-shrink:0}
+    #share-modal .sm-btn{padding:11px 28px;font-size:13px}
+}
 /* 游戏结束按钮区 */
 #gameover .go-btn.share{background:linear-gradient(135deg,#4dc9ff,#2a8adf)}
 /* 排行榜按钮区 */
@@ -312,12 +313,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
     <div id="share-modal">
         <button class="close-x" onclick="document.getElementById('share-modal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
         <div class="sm-card">
-            <div class="sm-title"><svg viewBox='0 0 512 512' width='28' height='28' style='vertical-align:middle;margin-right:6px'><g transform='scale(-1,1) translate(-512,0)'><path fill='#FFDE76' d='M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z'/><path fill='#FFB641' d='M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z'/><path fill='#38484A' d='M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z'/></g></svg> 小黄鸭漂流记</div>
-            <div class="sm-sub">我的最高分</div>
-            <div class="sm-score" id="share-score">0</div>
-            <div class="sm-label">快来挑战吧！</div>
-            <div class="sm-qr" id="share-qr"></div>
-            <div class="sm-url" id="share-url"></div>
+            <img id="share-preview-img" alt="分享卡片预览">
         </div>
         <div class="sm-btns">
             <button class="sm-btn" onclick="downloadShareCard()"><i class="fa-solid fa-download"></i> 保存卡片</button>
@@ -397,8 +393,8 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
     <div id="help">
         <button class="help-close" onclick="document.getElementById('help').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
         <h2><svg viewBox="29 12 62 62" width="28" height="28" style="display:block;flex-shrink:0;margin-right:2px"><g transform="translate(90.7,12) scale(-0.12,0.12)"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></g></svg> 小黄鸭漂流记</h2>
-        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-spa" style="color:#ff9ec7"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
-        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-spa" style="color:#ff9ec7"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
+        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-spa" style="color:#fff"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
+        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-spa" style="color:#fff"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
     </div>
 </div>
 <canvas id="c"></canvas>
@@ -3166,24 +3162,27 @@ function generateQRDataURL(text,size){
         }catch(e){document.body.removeChild(holder);resolve(null)}
     });
 }
-function showShareModal(){
-    const best=Leaderboard.best();
-    document.getElementById('share-score').textContent=best;
-    const url=location.href.split('?')[0];
-    document.getElementById('share-url').textContent=url;
-    const qrContainer=document.getElementById('share-qr');
-    qrContainer.innerHTML='';
-    ensureQRCodeLib().then(()=>{
-        try{new QRCode(qrContainer,{text:url,width:140,height:140})}catch(e){qrContainer.innerHTML='<div style="color:#888;font-size:11px;padding:20px">二维码加载失败</div>'}
-    });
+let _cachedShareDataURL=null;  // 缓存生成的卡片 dataURL，确保预览和下载一致
+async function showShareModal(){
     document.getElementById('share-modal').classList.add('show');
+    const img=document.getElementById('share-preview-img');
+    img.style.opacity='0.4';
+    try{
+        _cachedShareDataURL=await generateShareCardDataURL();
+        img.src=_cachedShareDataURL;
+        img.style.opacity='1';
+    }catch(e){
+        console.error('showShareModal error:',e);
+        img.alt='卡片生成失败：'+e.message;
+        img.style.opacity='1';
+    }
 }
-async function downloadShareCard(){
+// 生成分享卡片 dataURL（预览和下载共用，确保一模一样）
+async function generateShareCardDataURL(){
     const best=Leaderboard.best();
-    const myBest=Leaderboard.getMyBest();
+    const myBest=Leaderboard.myBest();
     const myName=Leaderboard.getCachedName()||'勇敢鸭鸭';
     const url=location.href.split('?')[0];
-    // 计算排名
     let myRank=0;
     try{
         const d=Leaderboard.get();
@@ -3193,148 +3192,237 @@ async function downloadShareCard(){
         if(idx>=0)myRank=idx+1;
     }catch(e){}
     // 生成二维码 dataURL
-    await ensureQRCodeLib();
-    const qrDataURL=await generateQRDataURL(url,256);
-    // 截取当前游戏画面
-    let gameShot=null;
+    let qrDataURL=null;
     try{
-        if(typeof renderer!=='undefined'&&renderer.domElement){
-            renderer.render(scene,camera);
-            gameShot=renderer.domElement.toDataURL('image/png');
-        }
-    }catch(e){gameShot=null}
-    const W=720,H=1280;  // 加高 → 更多留白
+        await ensureQRCodeLib();
+        qrDataURL=await generateQRDataURL(url,200);
+    }catch(e){qrDataURL=null}
+    // ===== 3:2 横版画布（1200×800）=====
+    const W=1200,H=800;
     const canvas=document.createElement('canvas');
     canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d');
-    // ===== 背景：深午夜蓝 + 顶部暖光晕（极简，去掉花哨渐变）=====
-    const bg=ctx.createLinearGradient(0,0,0,H);
+    // ===== 背景 =====
+    const bg=ctx.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,'#0c1830');bg.addColorStop(.5,'#0a1428');bg.addColorStop(1,'#080f1f');
     ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-    // 顶部柔和暖光（聚焦感，不抢戏）
-    const halo=ctx.createRadialGradient(W/2,80,0,W/2,80,520);
-    halo.addColorStop(0,'rgba(255,210,140,.16)');halo.addColorStop(.5,'rgba(255,200,120,.05)');halo.addColorStop(1,'rgba(255,200,120,0)');
-    ctx.fillStyle=halo;ctx.fillRect(0,0,W,520);
-    // 底部微暗角（让中心更聚焦）
-    const vig=ctx.createRadialGradient(W/2,H*.55,200,W/2,H*.55,H*.7);
-    vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,.35)');
+    // 左上柔和暖光
+    const haloL=ctx.createRadialGradient(W*.22,180,0,W*.22,180,480);
+    haloL.addColorStop(0,'rgba(255,210,140,.18)');haloL.addColorStop(.5,'rgba(255,200,120,.05)');haloL.addColorStop(1,'rgba(255,200,120,0)');
+    ctx.fillStyle=haloL;ctx.fillRect(0,0,W*.55,H);
+    // 右侧金光（聚焦小黄鸭区）
+    const haloR=ctx.createRadialGradient(W*.8,H*.42,0,W*.8,H*.42,400);
+    haloR.addColorStop(0,'rgba(255,200,100,.16)');haloR.addColorStop(.6,'rgba(255,180,80,.04)');haloR.addColorStop(1,'rgba(255,180,80,0)');
+    ctx.fillStyle=haloR;ctx.fillRect(W*.45,0,W*.55,H);
+    // 底部微暗角
+    const vig=ctx.createRadialGradient(W/2,H*.55,300,W/2,H*.55,H*.8);
+    vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,.3)');
     ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
-    // ===== 优雅边框：仅细金线 + 内侧细白线（双层但都极细，像奢侈品质感）=====
-    ctx.strokeStyle='rgba(212,175,100,.55)';ctx.lineWidth=1.2;
-    roundRect(ctx,28,28,W-56,H-56,4);ctx.stroke();
-    ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=.8;
-    roundRect(ctx,36,36,W-72,H-72,2);ctx.stroke();
-    // ===== 顶部装饰：鸭图标 + 字距加宽的小写英文标题（极简高级感）=====
-    ctx.textAlign='center';
-    // 鸭 SVG（缩小、不抢戏）
-    const duckSVG=`<svg viewBox='0 0 512 512' width='40' height='40'><g transform='scale(-1,1) translate(-512,0)'><path fill='#FFDE76' d='M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z'/><path fill='#FFB641' d='M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z'/></g></svg>`;
-    const duckImg=new Image();
-    duckImg.src='data:image/svg+xml;base64,'+btoa(duckSVG);
-    await new Promise(res=>{duckImg.onload=res;duckImg.onerror=res});
-    ctx.drawImage(duckImg,W/2-20,90,40,40);
-    // 主标题：小号、细字重、字距加宽（极简标识）
-    ctx.fillStyle='#e8c878';ctx.font='300 22px "Georgia","Times New Roman",serif';
-    drawSpacedText(ctx,'D U C K   D R I F T',W/2,160,0);
-    // 细金线分隔（极细，1px）
-    ctx.strokeStyle='rgba(212,175,100,.4)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(W/2-80,180);ctx.lineTo(W/2+80,180);ctx.stroke();
-    // 中文副标题
-    ctx.fillStyle='rgba(255,255,255,.5)';ctx.font='300 14px sans-serif';
-    drawSpacedText(ctx,'小 黄 鸭 漂 流 记',W/2,206,2);
-    // ===== 核心区：极大字号分数（信息层级最重）=====
-    // 上方小标签
-    ctx.fillStyle='rgba(255,210,140,.65)';ctx.font='400 12px sans-serif';
-    drawSpacedText(ctx,'M Y   B E S T   S C O R E',W/2,290,3);
-    // 巨大分数（180px）
-    const scoreStr=(myBest||best).toLocaleString();
-    ctx.fillStyle='#fff';ctx.font='900 168px "Georgia","Times New Roman",serif';
-    ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(255,210,140,.4)';ctx.shadowBlur=30;
-    ctx.fillText(scoreStr,W/2,420);
-    ctx.shadowBlur=0;
-    ctx.textBaseline='alphabetic';
-    // 下方玩家信息 + 排名（小、淡，层级最低）
-    ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='400 14px sans-serif';
-    let infoLine=myName||'匿名玩家';
-    if(myRank>0)infoLine+='   ·   全榜第 #'+myRank+' 名';
-    ctx.fillText(infoLine,W/2,540);
-    // 装饰小点分隔
-    ctx.fillStyle='rgba(212,175,100,.5)';
-    for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2-12+i*12,565,1.5,0,Math.PI*2);ctx.fill()}
-    // ===== 游戏截图区：优雅细框 + 投影感（无粗边）=====
-    let layoutY=620;
-    if(gameShot){
-        try{
-            const img=new Image();
-            img.src=gameShot;
-            await new Promise((res,rej)=>{img.onload=res;img.onerror=rej});
-            const iw=W-160,ih=Math.floor(iw*9/16);
-            const ix=80,iy=layoutY;
-            // 投影（柔和外发光感，模拟纸张阴影）
-            ctx.save();
-            ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=24;ctx.shadowOffsetY=8;
-            ctx.fillStyle='#000';
-            roundRect(ctx,ix,iy,iw,ih,8);ctx.fill();
-            ctx.restore();
-            // 图像
-            ctx.save();
-            roundRect(ctx,ix,iy,iw,ih,8);ctx.clip();
-            ctx.drawImage(img,ix,iy,iw,ih);
-            ctx.restore();
-            // 极细金线包边（不粗）
-            ctx.strokeStyle='rgba(212,175,100,.35)';ctx.lineWidth=1;
-            roundRect(ctx,ix,iy,iw,ih,8);ctx.stroke();
-            layoutY+=ih+40;
-        }catch(e){}
-    }else{
-        // 无截图时优雅占位（仅细线框 + 居中小字）
-        const iw=W-160,ih=Math.floor(iw*9/16);
-        ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
-        roundRect(ctx,80,layoutY,iw,ih,8);ctx.stroke();
-        ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='300 14px sans-serif';
-        drawSpacedText(ctx,'乘 风 破 浪   收 集 高 分',W/2,layoutY+ih/2,2);
-        layoutY+=ih+40;
+    // 装饰：角花（移除，已被塔罗牌式边框四角装饰取代）
+    // ===== 塔罗牌式奢华边框（4层金线 + 四角花纹 + 中点菱形）=====
+    const BW=24;
+    // 第1层：外粗金线
+    ctx.strokeStyle='rgba(212,175,100,.75)';ctx.lineWidth=2.5;
+    roundRect(ctx,BW,BW,W-BW*2,H-BW*2,4);ctx.stroke();
+    // 第2层：内 6px 极细金线
+    ctx.strokeStyle='rgba(212,175,100,.35)';ctx.lineWidth=.8;
+    roundRect(ctx,BW+6,BW+6,W-(BW+6)*2,H-(BW+6)*2,2);ctx.stroke();
+    // 第3层：再内 4px 中粗金线
+    ctx.strokeStyle='rgba(212,175,100,.6)';ctx.lineWidth=1.5;
+    roundRect(ctx,BW+10,BW+10,W-(BW+10)*2,H-(BW+10)*2,2);ctx.stroke();
+    // 第4层：再内 6px 极细白线
+    ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=.5;
+    roundRect(ctx,BW+16,BW+16,W-(BW+16)*2,H-(BW+16)*2,1);ctx.stroke();
+    // ===== 四角装饰花纹（菱形+卷曲，无圆形）=====
+    function drawCornerOrnament(x,y,dx,dy){
+        ctx.save();
+        ctx.globalAlpha=0.35;  // 半透明，避免遮挡元素
+        ctx.strokeStyle='rgba(212,175,100,.75)';ctx.lineWidth=1.5;
+        // 中心菱形（距角 15px）
+        const cx=x+dx*15,cy=y+dy*15;
+        ctx.beginPath();
+        ctx.moveTo(cx,cy-6*dy);
+        ctx.lineTo(cx+6*dx,cy);
+        ctx.lineTo(cx,cy+6*dy);
+        ctx.lineTo(cx-6*dx,cy);
+        ctx.closePath();
+        ctx.stroke();
+        // 横向卷曲
+        ctx.beginPath();
+        ctx.moveTo(x+dx*32,y+dy*8);
+        ctx.quadraticCurveTo(x+dx*38,y+dy*8,x+dx*38,y+dy*15);
+        ctx.stroke();
+        // 纵向卷曲
+        ctx.beginPath();
+        ctx.moveTo(x+dx*8,y+dy*32);
+        ctx.quadraticCurveTo(x+dx*8,y+dy*38,x+dx*15,y+dy*38);
+        ctx.stroke();
+        ctx.restore();
     }
-    // ===== 底部：二维码 + 文字左右排版（不再粗暴居中堆叠）=====
-    const qrSize=140;
-    const qrY=layoutY+20;
-    const totalBottomW=qrSize+200;
-    const startX=W/2-totalBottomW/2;
+    drawCornerOrnament(BW+22,BW+22,1,1);       // 左上
+    drawCornerOrnament(W-BW-22,BW+22,-1,1);    // 右上
+    drawCornerOrnament(BW+22,H-BW-22,1,-1);    // 左下
+    drawCornerOrnament(W-BW-22,H-BW-22,-1,-1); // 右下
+    // ===== 边框中点小菱形装饰 =====
+    function drawMidOrnament(x,y,horizontal){
+        ctx.save();
+        ctx.fillStyle='rgba(212,175,100,.6)';
+        ctx.strokeStyle='rgba(212,175,100,.4)';ctx.lineWidth=.8;
+        if(horizontal){
+            ctx.beginPath();
+            ctx.moveTo(x,y-5);ctx.lineTo(x+5,y);ctx.lineTo(x,y+5);ctx.lineTo(x-5,y);
+            ctx.closePath();ctx.fill();ctx.stroke();
+            // 两侧小点
+            ctx.fillStyle='rgba(212,175,100,.45)';
+            ctx.beginPath();ctx.arc(x-12,y,1.5,0,Math.PI*2);ctx.fill();
+            ctx.beginPath();ctx.arc(x+12,y,1.5,0,Math.PI*2);ctx.fill();
+        }else{
+            ctx.beginPath();
+            ctx.moveTo(x-5,y);ctx.lineTo(x,y+5);ctx.lineTo(x+5,y);ctx.lineTo(x,y-5);
+            ctx.closePath();ctx.fill();ctx.stroke();
+            ctx.fillStyle='rgba(212,175,100,.45)';
+            ctx.beginPath();ctx.arc(x,y-12,1.5,0,Math.PI*2);ctx.fill();
+            ctx.beginPath();ctx.arc(x,y+12,1.5,0,Math.PI*2);ctx.fill();
+        }
+        ctx.restore();
+    }
+    drawMidOrnament(W/2,BW,true);     // 顶部中点
+    drawMidOrnament(W/2,H-BW,true);   // 底部中点
+    drawMidOrnament(BW,H/2,false);    // 左侧中点
+    drawMidOrnament(W-BW,H/2,false);  // 右侧中点
+    // ===== 左侧区域（与弹窗 sm-left 对应：品牌区 + 分数区 + URL 区）=====
+    const LX=80, RX_right=W-80;  // 内容左右边距
+    const contentTop=80, contentBottom=H-80;
+    const contentH=contentBottom-contentTop;
+    ctx.textAlign='left';
+    // ===== 顶部品牌区（对应 sm-brand）=====
+    ctx.fillStyle='#e8c878';ctx.font='300 32px "Georgia","Times New Roman",serif';
+    drawSpacedTextLeft(ctx,'D U C K   D R I F T',LX,contentTop+40,0);
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.font='300 18px sans-serif';
+    drawSpacedTextLeft(ctx,'小 黄 鸭 漂 流 记',LX,contentTop+78,2);
+    // 品牌区下方分割线（对应 sm-brand 的 border-bottom）
+    ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(LX,contentTop+110);ctx.lineTo(RX_right,contentTop+110);ctx.stroke();
+    // ===== 中间分数区（对应 sm-mid，垂直居中）=====
+    const midTop=contentTop+110, midBottom=contentBottom-90;
+    const midCenterY=(midTop+midBottom)/2;
+    // MY BEST 小标签（对应 sm-score-tag）
+    ctx.fillStyle='rgba(255,210,140,.65)';ctx.font='400 18px sans-serif';
+    drawSpacedTextLeft(ctx,'M Y   B E S T',LX,midCenterY-90,3);
+    // 大分数（对应 sm-score，自适应字号）
+    const scoreStr=formatScore(myBest||best);
+    const scoreLen=scoreStr.length;
+    const scoreFontSize=scoreLen<=4?140:scoreLen<=5?115:95;
+    ctx.fillStyle='#fff';ctx.font='900 '+scoreFontSize+'px "Georgia","Times New Roman",serif';
+    ctx.textBaseline='alphabetic';
+    ctx.shadowColor='rgba(255,210,140,.5)';ctx.shadowBlur=36;
+    ctx.fillText(scoreStr,LX,midCenterY+40);
+    ctx.shadowBlur=0;
+    // 玩家信息（对应 sm-label）
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='400 20px sans-serif';
+    let labelTxt=myName||'匿名玩家';
+    if(myRank>0)labelTxt+='   ·   全榜第 #'+myRank+' 名';
+    ctx.fillText(labelTxt,LX,midCenterY+90);
+    // ===== 底部 URL 区（对应 sm-bottom）=====
+    // 上方分割线
+    ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(LX,contentBottom-50);ctx.lineTo(RX_right,contentBottom-50);ctx.stroke();
+    // URL 文字
+    ctx.fillStyle='rgba(255,255,255,.4)';ctx.font='300 16px sans-serif';
+    ctx.fillText(url,LX,contentBottom-25);
+    // ===== 右侧区域：二维码 + 鸭子列（对应 sm-right，水平排列）=====
+    // 鸭子位置（略右略下），垂直居中偏下
+    const duckSize=280;
+    const duckCX=W*.76;
+    const duckCY=H*.54;
+    // 鸭子背后的大光环
+    const duckHalo=ctx.createRadialGradient(duckCX,duckCY,0,duckCX,duckCY,260);
+    duckHalo.addColorStop(0,'rgba(255,215,130,.25)');
+    duckHalo.addColorStop(.5,'rgba(255,200,100,.1)');
+    duckHalo.addColorStop(1,'rgba(255,200,100,0)');
+    ctx.fillStyle=duckHalo;
+    ctx.beginPath();ctx.arc(duckCX,duckCY,260,0,Math.PI*2);ctx.fill();
+    // 装饰外环（围绕鸭子，对应 sm-duck-col::before/::after）
+    ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(duckCX,duckCY,240,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle='rgba(212,175,100,.12)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(duckCX,duckCY,210,0,Math.PI*2);ctx.stroke();
+    // 二维码（鸭子圆环左边，与圆环之间留间隙）
+    const qrSize=160;
+    const ringRadius=240;          // 圆环外缘半径
+    const qrGap=28;                // 二维码与圆环之间的间隙
+    const qrX=duckCX-ringRadius-qrGap-qrSize;  // 二维码左上角 X
+    const qrY=duckCY-qrSize/2;     // 垂直居中对齐鸭子中心
     if(qrDataURL){
         const qrImg=new Image();
         qrImg.src=qrDataURL;
-        await new Promise((res,rej)=>{qrImg.onload=res;qrImg.onerror=rej});
-        // 左侧：白底圆角二维码
+        await new Promise(res=>{qrImg.onload=res;qrImg.onerror=res});
+        // 白底圆角 + 双层金边（圆角边框更明显）
         ctx.fillStyle='#fff';
-        roundRect(ctx,startX-8,qrY-8,qrSize+16,qrSize+16,10);ctx.fill();
-        ctx.drawImage(qrImg,startX,qrY,qrSize,qrSize);
-        // 右侧：竖排文字
-        const tx=startX+qrSize+32;
-        ctx.textAlign='left';
-        ctx.fillStyle='#e8c878';ctx.font='500 18px sans-serif';
-        ctx.fillText('扫码挑战',tx,qrY+30);
-        ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='300 12px sans-serif';
-        ctx.fillText('和我一起漂流',tx,qrY+54);
-        // 细金线
-        ctx.strokeStyle='rgba(212,175,100,.4)';ctx.lineWidth=1;
-        ctx.beginPath();ctx.moveTo(tx,qrY+72);ctx.lineTo(tx+80,qrY+72);ctx.stroke();
-        // URL（小字折行）
-        ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='300 10px sans-serif';
-        const shortURL=url.length>32?url.substring(0,32)+'...':url;
-        wrapText(ctx,shortURL,tx,qrY+92,140,14);
-        ctx.textAlign='center';
-    }else{
-        ctx.fillStyle='rgba(255,255,255,.4)';ctx.font='300 14px sans-serif';
-        ctx.fillText('（二维码生成失败）',W/2,qrY+60);
+        roundRect(ctx,qrX-10,qrY-10,qrSize+20,qrSize+20,10);ctx.fill();
+        ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
+        // 外金边
+        ctx.strokeStyle='rgba(212,175,100,.7)';ctx.lineWidth=2.5;
+        roundRect(ctx,qrX-10,qrY-10,qrSize+20,qrSize+20,10);ctx.stroke();
+        // 内细金线
+        ctx.strokeStyle='rgba(212,175,100,.3)';ctx.lineWidth=1;
+        roundRect(ctx,qrX-3,qrY-3,qrSize+6,qrSize+6,5);ctx.stroke();
     }
-    // ===== 底部品牌印记：极简标识 =====
-    ctx.fillStyle='rgba(212,175,100,.35)';ctx.font='300 11px sans-serif';
-    drawSpacedText(ctx,'D U C K   D R I F T   ·   '+new Date().getFullYear(),W/2,H-60,2);
-    // 下载
-    const a=document.createElement('a');
-    a.href=canvas.toDataURL('image/png');
-    a.download='duck_best_score_'+(myBest||best)+'.png';
-    a.click();
+    // 完整多 path 小黄鸭 SVG（对应弹窗 sm-right 里的 duck SVG）
+    const duckSVG=`<svg viewBox="0 0 512 512" width="${duckSize}" height="${duckSize}" xmlns="http://www.w3.org/2000/svg"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></svg>`;
+    const duckImg=new Image();
+    duckImg.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(duckSVG);
+    await new Promise(res=>{duckImg.onload=res;duckImg.onerror=res});
+    if(duckImg.width>0){
+        ctx.drawImage(duckImg,duckCX-duckSize/2,duckCY-duckSize/2,duckSize,duckSize);
+    }
+    // 鸭子下方标签（对应 sm-duck-label）
+    ctx.fillStyle='rgba(232,200,120,.7)';ctx.font='400 16px "Georgia",serif';
+    ctx.textAlign='center';
+    drawSpacedText(ctx,'D U C K',duckCX,duckCY+duckSize/2+36,3);
+    drawSpacedText(ctx,'D R I F T',duckCX,duckCY+duckSize/2+62,3);
+    ctx.textAlign='left';
+    // 返回 dataURL（预览和下载共用）
+    return canvas.toDataURL('image/png');
+}
+// 下载分享卡片（优先用缓存的预览图，确保和预览一模一样）
+async function downloadShareCard(){
+    try{
+        let dataURL=_cachedShareDataURL;
+        if(!dataURL)dataURL=await generateShareCardDataURL();
+        const best=Leaderboard.best();
+        const myBest=Leaderboard.myBest();
+        const a=document.createElement('a');
+        a.href=dataURL;
+        a.download='duck_best_score_'+(myBest||best)+'.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }catch(e){
+        console.error('downloadShareCard error:',e);
+        alert('卡片生成失败：'+e.message);
+    }
+}
+// 分数格式化：<1k raw, 1k-10k → X.Xk, 10k-1M → XX.Xw, 1M-10M → XXXw, 10M+ → X.Xkw（总长度≤5字符）
+function formatScore(n){
+    n=Math.floor(n||0);
+    if(n<1000)return String(n);
+    if(n<10000)return(n/1000).toFixed(1).replace(/\.0$/,'')+'k';
+    if(n<1000000)return(n/10000).toFixed(1).replace(/\.0$/,'')+'w';
+    if(n<10000000)return Math.floor(n/10000)+'w';
+    return(n/10000000).toFixed(1).replace(/\.0$/,'')+'kw';
+}
+// 辅助：字距加宽的左对齐文字绘制
+function drawSpacedTextLeft(ctx,text,x,y,extraSpacing){
+    const chars=[...text];
+    let cx=x;
+    const oldAlign=ctx.textAlign;
+    ctx.textAlign='left';
+    for(let i=0;i<chars.length;i++){
+        ctx.fillText(chars[i],cx,y);
+        cx+=ctx.measureText(chars[i]).width+extraSpacing;
+    }
+    ctx.textAlign=oldAlign;
 }
 // 辅助：字距加宽的文字绘制
 function drawSpacedText(ctx,text,x,y,extraSpacing){
