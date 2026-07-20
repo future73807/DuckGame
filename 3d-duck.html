@@ -213,16 +213,17 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 #detail-modal .dm-btn{padding:10px 32px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin:4px}
 #detail-modal .dm-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 /* 分享卡片 */
-#share-modal .sm-card{width:340px;background:linear-gradient(135deg,#1a2a5e,#2a4a8e);border-radius:20px;padding:24px;border:2px solid rgba(255,215,0,.3);text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.5)}
-#share-modal .sm-card .sm-title{font-size:22px;color:#ffd700;font-weight:bold;margin-bottom:4px}
-#share-modal .sm-card .sm-sub{font-size:12px;color:#8fe0ff;margin-bottom:16px}
-#share-modal .sm-card .sm-score{font-size:48px;color:#fff;font-weight:900;text-shadow:0 0 20px rgba(255,215,0,.5)}
-#share-modal .sm-card .sm-label{font-size:13px;color:#aaa;margin-bottom:16px}
-#share-modal .sm-card .sm-qr{width:140px;height:140px;background:#fff;border-radius:12px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-#share-modal .sm-card .sm-qr canvas{border-radius:8px}
-#share-modal .sm-card .sm-url{font-size:11px;color:#888;word-break:break-all}
-#share-modal .sm-btns{display:flex;gap:8px;justify-content:center;margin-top:16px}
-#share-modal .sm-btn{padding:10px 24px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+#share-modal .sm-card{width:360px;background:linear-gradient(180deg,#0c1830 0%,#0a1428 50%,#080f1f 100%);border-radius:6px;padding:36px 28px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6),inset 0 0 0 1px rgba(212,175,100,.4)}
+#share-modal .sm-card .sm-title{font-size:14px;color:#e8c878;font-weight:300;letter-spacing:6px;margin-bottom:6px;font-family:Georgia,serif}
+#share-modal .sm-card .sm-sub{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:4px;margin-bottom:24px;font-weight:300}
+#share-modal .sm-card .sm-score{font-size:72px;color:#fff;font-weight:900;text-shadow:0 0 30px rgba(255,210,140,.4);font-family:Georgia,serif;line-height:1;margin:8px 0}
+#share-modal .sm-card .sm-label{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:2px;margin-bottom:20px;font-weight:300}
+#share-modal .sm-card .sm-qr{width:120px;height:120px;background:#fff;border-radius:6px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;padding:6px}
+#share-modal .sm-card .sm-qr canvas{border-radius:4px}
+#share-modal .sm-card .sm-url{font-size:10px;color:rgba(255,255,255,.35);word-break:break-all;letter-spacing:.5px}
+#share-modal .sm-btns{display:flex;gap:8px;justify-content:center;margin-top:20px}
+#share-modal .sm-btn{padding:10px 28px;background:transparent;color:#e8c878;border:1px solid rgba(212,175,100,.5);border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:2px;transition:all .2s}
+#share-modal .sm-btn:hover{background:rgba(212,175,100,.1);border-color:rgba(212,175,100,.8)}
 #share-modal .sm-btn.outline{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
 /* 游戏结束按钮区 */
 #gameover .go-btn.share{background:linear-gradient(135deg,#4dc9ff,#2a8adf)}
@@ -618,10 +619,12 @@ function playSFX(t,sc){
             tone({f0:640,f1:820,dur:.07,vol:.15,lp:2800,when:.06});
             tone({f0:820,f1:1040,dur:.09,vol:.14,lp:2800,when:.12});
             break;
-        case'rock': // 撞石头：沉重"咚"——强烈的低频撞击体感为主，一点石面脆响点缀（警戒靠"重"不靠"刺"）
-            tone({f0:95,f1:36,dur:.42,type:'triangle',vol:.58,lp:300});
-            noise({dur:.25,ftype:'lowpass',fq:200,vol:.34});
-            noise({dur:.03,fq:2600,Q:2.5,vol:.18});
+        case'rock': // 撞石头：超沉重"咚"——极低频体感冲击 + 厚重低鸣 + 碎石脆响点缀（重击感拉满，警戒靠"重"不靠"刺"）
+            tone({f0:75,f1:28,dur:.55,type:'triangle',vol:.7,lp:240});   // 主低频撞击：更深更长更响
+            tone({f0:140,f1:50,dur:.5,type:'sine',vol:.4,lp:400,when:.02}); // 二次低音加厚，体感更重
+            noise({dur:.4,ftype:'lowpass',fq:160,vol:.5});               // 厚重低频闷响
+            noise({dur:.18,ftype:'lowpass',fq:380,vol:.28,when:.05});    // 中低频体感延续
+            noise({dur:.04,fq:2400,Q:2,vol:.15});                        // 石面脆响点缀（更短更弱，不抢戏）
             break;
         case'hit': // 受伤通用：钝击"砰" + 低鸣
             tone({f0:200,f1:60,dur:.24,vol:.32,lp:600});
@@ -642,12 +645,23 @@ function playSFX(t,sc){
             tone({f0:620,f1:1560,dur:.14,vol:.09,lp:3200});
             tone({f0:1240,f1:1900,dur:.09,vol:.04,lp:4000,when:.03});
             break;
-        case'shieldbreak': // 护盾被击碎：清脆玻璃碎裂"叮铃哐啷"（多片高音碎裂下滑 + 亮噪声碎屑）
-            tone({f0:2400,f1:900,dur:.2,vol:.2,lp:7000});
-            tone({f0:3100,f1:1400,dur:.16,vol:.14,lp:8000,when:.04});
-            tone({f0:1800,f1:600,dur:.24,vol:.12,lp:6000,when:.09});
-            noise({dur:.2,fq:5600,Q:1,vol:.2});
-            noise({dur:.1,fq:8000,Q:2,vol:.1,when:.07});
+        case'shieldbreak': // 护盾被击碎：真实玻璃破碎——尖锐噪声裂纹 + 多片短促碎片叮当 + 高频碎屑下落 + 低闷"砰"（避免滑音造成鸟叫感）
+            // 初始尖锐"啪"裂纹（玻璃受力瞬间）：噪声为主，无滑音
+            noise({dur:.05,fq:5200,Q:3,vol:.36});
+            noise({dur:.03,fq:8500,Q:4,vol:.18});
+            // 玻璃碎片叮当：极短噪声脉冲（不同时间、不同频率，模拟碎片四溅撞击）——不用滑音，避免鸟叫
+            noise({dur:.05,fq:3800,Q:3,vol:.24,when:.03});
+            noise({dur:.04,fq:5200,Q:3.5,vol:.2,when:.07});
+            noise({dur:.06,fq:2800,Q:2.5,vol:.22,when:.11});
+            noise({dur:.04,fq:6200,Q:4,vol:.18,when:.15});
+            noise({dur:.05,fq:3400,Q:3,vol:.2,when:.19});
+            noise({dur:.04,fq:4800,Q:3.5,vol:.16,when:.23});
+            // 高频碎屑下落（持续噪声带，模拟细小玻璃粒洒落）
+            noise({dur:.3,fq:5800,Q:1.2,vol:.18,when:.1});
+            noise({dur:.2,fq:7500,Q:1.8,vol:.12,when:.2});
+            // 低闷"砰"落地感（碎片落到桌面/地面，重物感）
+            tone({f0:180,f1:60,dur:.25,type:'triangle',vol:.32,lp:500,when:.05});
+            noise({dur:.2,ftype:'lowpass',fq:280,vol:.28,when:.08});
             break;
         case'shield': // 护盾：水晶"叮"长音
             tone({f0:1180,f1:1160,dur:.4,vol:.15,lp:4000});
@@ -1757,11 +1771,27 @@ function drawLensFlare(x,W,H,nf){
     let g=x.createRadialGradient(fx,fy,0,fx,fy,R*.22);
     g.addColorStop(0,'rgba(255,252,235,'+(.62*vis)+')');g.addColorStop(.4,'rgba(255,240,190,'+(.3*vis)+')');g.addColorStop(1,'rgba(255,225,160,0)');
     x.fillStyle=g;x.fillRect(fx-R*.22,fy-R*.22,R*.44,R*.44);
-    // 柔亮核心（大半径低透明度，圆润滑散，不是硬圆盘）
+    // 柔亮核心（圆形，原始版本）
     g=x.createRadialGradient(fx,fy,0,fx,fy,R*.07);
     g.addColorStop(0,'rgba(255,255,250,'+(.85*vis)+')');g.addColorStop(.5,'rgba(255,248,220,'+(.35*vis)+')');g.addColorStop(1,'rgba(255,250,220,0)');
     x.fillStyle=g;x.beginPath();x.arc(fx,fy,R*.07,0,Math.PI*2);x.fill();
-    // 光圈环（宽而淡的环形晕带，柔和无棱角）
+    // 中心星形光芒（类似 * 的 6 道射线，柔和版：中间仅 25% 透明度，往外渐亮再淡出）
+    x.save();x.translate(fx,fy);
+    const sR=R*.2;
+    for(let k=0;k<6;k++){
+        const ang=k*Math.PI/3;
+        const ex=Math.cos(ang)*sR,ey=Math.sin(ang)*sR;
+        // 中心固定 25% 透明度，往外渐亮到 50%，再淡出到 0
+        const grd=x.createLinearGradient(0,0,ex,ey);
+        grd.addColorStop(0,'rgba(255,250,230,'+(.25*vis)+')');
+        grd.addColorStop(.5,'rgba(255,246,215,'+(.4*vis)+')');
+        grd.addColorStop(.85,'rgba(255,240,200,'+(.32*vis)+')');
+        grd.addColorStop(1,'rgba(255,236,180,0)');
+        x.strokeStyle=grd;x.lineWidth=Math.max(1.5,R*.014);x.lineCap='round';
+        x.beginPath();x.moveTo(0,0);x.lineTo(ex,ey);x.stroke();
+    }
+    x.restore();
+    // 光圈环（圆形，原始版本）
     g=x.createRadialGradient(fx,fy,R*.08,fx,fy,R*.2);
     g.addColorStop(0,'rgba(255,250,220,0)');
     g.addColorStop(.55,'rgba(255,244,200,'+(.32*vis)+')');
@@ -1774,19 +1804,23 @@ function drawLensFlare(x,W,H,nf){
     g.addColorStop(0,'rgba(255,248,220,'+(.28*vis)+')');g.addColorStop(.6,'rgba(255,242,200,'+(.12*vis)+')');g.addColorStop(1,'rgba(255,240,200,0)');
     x.fillStyle=g;x.beginPath();x.arc(0,0,R*.45,0,Math.PI*2);x.fill();
     x.restore();
-    // 圆形彩色鬼影：沿"太阳锚点→画面中心"连线排布的柔和光斑（纯径向渐变，圆润晕开，无描边无棱角）
+    // 六边形彩色鬼影：沿"太阳锚点→画面中心"连线排布的六边形光斑（径向渐变 + 描边，更像真实镜头鬼影的几何折射）
     const ghosts=[[.25,.026,'255,170,140'],[.45,.036,'255,220,170'],[.65,.048,'180,230,255'],[.85,.06,'200,255,220'],[1.05,.075,'255,200,180']];
     for(const[t,gr,col]of ghosts){
         const gx=fx+(cx2-fx)*t,gy=fy+(cy2-fy)*t,rr=gr*R;
-        g=x.createRadialGradient(gx,gy,0,gx,gy,rr);
-        g.addColorStop(0,'rgba('+col+','+(.2*vis)+')');g.addColorStop(.55,'rgba('+col+','+(.09*vis)+')');g.addColorStop(1,'rgba('+col+',0)');
-        x.fillStyle=g;x.beginPath();x.arc(gx,gy,rr,0,Math.PI*2);x.fill();
+        x.beginPath();
+        for(let k=0;k<6;k++){const ha=Math.PI/6+k*Math.PI/3,hx=gx+Math.cos(ha)*rr,hy=gy+Math.sin(ha)*rr;k?x.lineTo(hx,hy):x.moveTo(hx,hy)}
+        x.closePath();
+        g=x.createRadialGradient(gx,gy,rr*.15,gx,gy,rr);
+        g.addColorStop(0,'rgba('+col+','+(.18*vis)+')');g.addColorStop(.85,'rgba('+col+','+(.08*vis)+')');g.addColorStop(1,'rgba('+col+',0)');
+        x.fillStyle=g;x.fill();
+        x.strokeStyle='rgba('+col+','+(.3*vis)+')';x.lineWidth=Math.max(1,R*.002);x.stroke();
     }
-    // 大彩虹环鬼影：放在锚点的中心对称点；超宽超低透明度 → 几乎只剩一圈淡淡的彩色雾气
+    // 大彩虹环鬼影（参考图右下角的光谱圆环）：真实镜头鬼影关于画面中心点对称 → 放在锚点的中心对称点，必然在画面内
     const rx=2*cx2-fx,ry=2*cy2-fy,rr2=R*.12;
     for(let k=0;k<24;k++){
-        x.strokeStyle='hsla('+(k*15)+',90%,70%,'+(.09*vis)+')';
-        x.lineWidth=R*.032;
+        x.strokeStyle='hsla('+(k*15)+',95%,68%,'+(.2*vis)+')';
+        x.lineWidth=R*.014;
         x.beginPath();x.arc(rx,ry,rr2,k/24*Math.PI*2,(k+1)/24*Math.PI*2);x.stroke();
     }
 }
@@ -3146,11 +3180,22 @@ function showShareModal(){
 }
 async function downloadShareCard(){
     const best=Leaderboard.best();
+    const myBest=Leaderboard.getMyBest();
+    const myName=Leaderboard.getCachedName()||'勇敢鸭鸭';
     const url=location.href.split('?')[0];
+    // 计算排名
+    let myRank=0;
+    try{
+        const d=Leaderboard.get();
+        const uid=Leaderboard.getUserId();
+        const sorted=[...d.entries].sort((a,b)=>(b.score||0)-(a.score||0));
+        const idx=sorted.findIndex(e=>e.userId===uid);
+        if(idx>=0)myRank=idx+1;
+    }catch(e){}
     // 生成二维码 dataURL
     await ensureQRCodeLib();
     const qrDataURL=await generateQRDataURL(url,256);
-    // 截取当前游戏画面（最高分截图）
+    // 截取当前游戏画面
     let gameShot=null;
     try{
         if(typeof renderer!=='undefined'&&renderer.domElement){
@@ -3158,102 +3203,161 @@ async function downloadShareCard(){
             gameShot=renderer.domElement.toDataURL('image/png');
         }
     }catch(e){gameShot=null}
-    const W=720,H=1080;
+    const W=720,H=1280;  // 加高 → 更多留白
     const canvas=document.createElement('canvas');
     canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d');
-    // 背景：海洋蓝渐变
-    const bg=ctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,'#0a1838');bg.addColorStop(.5,'#1a3a6e');bg.addColorStop(1,'#0a2444');
+    // ===== 背景：深午夜蓝 + 顶部暖光晕（极简，去掉花哨渐变）=====
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#0c1830');bg.addColorStop(.5,'#0a1428');bg.addColorStop(1,'#080f1f');
     ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-    // 顶部光晕
-    const halo=ctx.createRadialGradient(W/2,120,0,W/2,120,360);
-    halo.addColorStop(0,'rgba(255,215,0,.18)');halo.addColorStop(1,'rgba(255,215,0,0)');
-    ctx.fillStyle=halo;ctx.fillRect(0,0,W,420);
-    // 装饰波浪线
-    ctx.strokeStyle='rgba(120,200,255,.25)';ctx.lineWidth=2;
-    for(let k=0;k<3;k++){
-        ctx.beginPath();
-        const baseY=820+k*60;
-        for(let x=0;x<=W;x+=8){
-            const y=baseY+Math.sin(x*.025+k)*8;
-            if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-        }
-        ctx.stroke();
-    }
-    // 圆角边框
-    ctx.strokeStyle='rgba(255,215,0,.5)';ctx.lineWidth=3;
-    roundRect(ctx,18,18,W-36,H-36,28);ctx.stroke();
-    ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;
-    roundRect(ctx,26,26,W-52,H-52,22);ctx.stroke();
-    // 标题
+    // 顶部柔和暖光（聚焦感，不抢戏）
+    const halo=ctx.createRadialGradient(W/2,80,0,W/2,80,520);
+    halo.addColorStop(0,'rgba(255,210,140,.16)');halo.addColorStop(.5,'rgba(255,200,120,.05)');halo.addColorStop(1,'rgba(255,200,120,0)');
+    ctx.fillStyle=halo;ctx.fillRect(0,0,W,520);
+    // 底部微暗角（让中心更聚焦）
+    const vig=ctx.createRadialGradient(W/2,H*.55,200,W/2,H*.55,H*.7);
+    vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,.35)');
+    ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+    // ===== 优雅边框：仅细金线 + 内侧细白线（双层但都极细，像奢侈品质感）=====
+    ctx.strokeStyle='rgba(212,175,100,.55)';ctx.lineWidth=1.2;
+    roundRect(ctx,28,28,W-56,H-56,4);ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=.8;
+    roundRect(ctx,36,36,W-72,H-72,2);ctx.stroke();
+    // ===== 顶部装饰：鸭图标 + 字距加宽的小写英文标题（极简高级感）=====
     ctx.textAlign='center';
-    ctx.fillStyle='#ffd700';ctx.font='bold 44px sans-serif';
-    ctx.fillText('🦆 小黄鸭漂流记',W/2,90);
-    ctx.fillStyle='#8fe0ff';ctx.font='20px sans-serif';
-    ctx.fillText('我的最高分纪录',W/2,128);
-    // 分数（大号）
-    ctx.fillStyle='#fff';ctx.font='bold 96px sans-serif';
-    ctx.shadowColor='rgba(255,215,0,.6)';ctx.shadowBlur=24;
-    ctx.fillText(best,W/2,230);
+    // 鸭 SVG（缩小、不抢戏）
+    const duckSVG=`<svg viewBox='0 0 512 512' width='40' height='40'><g transform='scale(-1,1) translate(-512,0)'><path fill='#FFDE76' d='M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z'/><path fill='#FFB641' d='M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z'/></g></svg>`;
+    const duckImg=new Image();
+    duckImg.src='data:image/svg+xml;base64,'+btoa(duckSVG);
+    await new Promise(res=>{duckImg.onload=res;duckImg.onerror=res});
+    ctx.drawImage(duckImg,W/2-20,90,40,40);
+    // 主标题：小号、细字重、字距加宽（极简标识）
+    ctx.fillStyle='#e8c878';ctx.font='300 22px "Georgia","Times New Roman",serif';
+    drawSpacedText(ctx,'D U C K   D R I F T',W/2,160,0);
+    // 细金线分隔（极细，1px）
+    ctx.strokeStyle='rgba(212,175,100,.4)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(W/2-80,180);ctx.lineTo(W/2+80,180);ctx.stroke();
+    // 中文副标题
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.font='300 14px sans-serif';
+    drawSpacedText(ctx,'小 黄 鸭 漂 流 记',W/2,206,2);
+    // ===== 核心区：极大字号分数（信息层级最重）=====
+    // 上方小标签
+    ctx.fillStyle='rgba(255,210,140,.65)';ctx.font='400 12px sans-serif';
+    drawSpacedText(ctx,'M Y   B E S T   S C O R E',W/2,290,3);
+    // 巨大分数（180px）
+    const scoreStr=(myBest||best).toLocaleString();
+    ctx.fillStyle='#fff';ctx.font='900 168px "Georgia","Times New Roman",serif';
+    ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(255,210,140,.4)';ctx.shadowBlur=30;
+    ctx.fillText(scoreStr,W/2,420);
     ctx.shadowBlur=0;
-    ctx.fillStyle='#ffd700';ctx.font='bold 22px sans-serif';
-    ctx.fillText('快来挑战吧！',W/2,272);
-    // 游戏截图（如可截取）
-    let layoutY=310;
+    ctx.textBaseline='alphabetic';
+    // 下方玩家信息 + 排名（小、淡，层级最低）
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='400 14px sans-serif';
+    let infoLine=myName||'匿名玩家';
+    if(myRank>0)infoLine+='   ·   全榜第 #'+myRank+' 名';
+    ctx.fillText(infoLine,W/2,540);
+    // 装饰小点分隔
+    ctx.fillStyle='rgba(212,175,100,.5)';
+    for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(W/2-12+i*12,565,1.5,0,Math.PI*2);ctx.fill()}
+    // ===== 游戏截图区：优雅细框 + 投影感（无粗边）=====
+    let layoutY=620;
     if(gameShot){
         try{
             const img=new Image();
             img.src=gameShot;
             await new Promise((res,rej)=>{img.onload=res;img.onerror=rej});
-            const iw=W-120,ih=Math.floor(iw*9/16);
+            const iw=W-160,ih=Math.floor(iw*9/16);
+            const ix=80,iy=layoutY;
+            // 投影（柔和外发光感，模拟纸张阴影）
             ctx.save();
-            roundRect(ctx,60,layoutY,iw,ih,16);ctx.clip();
-            ctx.drawImage(img,60,layoutY,iw,ih);
+            ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=24;ctx.shadowOffsetY=8;
+            ctx.fillStyle='#000';
+            roundRect(ctx,ix,iy,iw,ih,8);ctx.fill();
             ctx.restore();
-            ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=2;
-            roundRect(ctx,60,layoutY,iw,ih,16);ctx.stroke();
-            layoutY+=ih+24;
+            // 图像
+            ctx.save();
+            roundRect(ctx,ix,iy,iw,ih,8);ctx.clip();
+            ctx.drawImage(img,ix,iy,iw,ih);
+            ctx.restore();
+            // 极细金线包边（不粗）
+            ctx.strokeStyle='rgba(212,175,100,.35)';ctx.lineWidth=1;
+            roundRect(ctx,ix,iy,iw,ih,8);ctx.stroke();
+            layoutY+=ih+40;
         }catch(e){}
     }else{
-        // 无截图时绘制装饰条
-        ctx.fillStyle='rgba(255,255,255,.06)';
-        roundRect(ctx,60,layoutY,W-120,160,16);ctx.fill();
-        ctx.fillStyle='#8fe0ff';ctx.font='18px sans-serif';ctx.textAlign='center';
-        ctx.fillText('🌊 在浪花中漂流收集 🌊',W/2,layoutY+90);
-        layoutY+=184;
+        // 无截图时优雅占位（仅细线框 + 居中小字）
+        const iw=W-160,ih=Math.floor(iw*9/16);
+        ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
+        roundRect(ctx,80,layoutY,iw,ih,8);ctx.stroke();
+        ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='300 14px sans-serif';
+        drawSpacedText(ctx,'乘 风 破 浪   收 集 高 分',W/2,layoutY+ih/2,2);
+        layoutY+=ih+40;
     }
-    // 二维码区域（实际渲染 QR）
-    const qrSize=180;
-    const qrX=W/2-qrSize/2;
+    // ===== 底部：二维码 + 文字左右排版（不再粗暴居中堆叠）=====
+    const qrSize=140;
+    const qrY=layoutY+20;
+    const totalBottomW=qrSize+200;
+    const startX=W/2-totalBottomW/2;
     if(qrDataURL){
         const qrImg=new Image();
         qrImg.src=qrDataURL;
         await new Promise((res,rej)=>{qrImg.onload=res;qrImg.onerror=rej});
-        // 白底圆角
+        // 左侧：白底圆角二维码
         ctx.fillStyle='#fff';
-        roundRect(ctx,qrX-12,layoutY-12,qrSize+24,qrSize+24,16);ctx.fill();
-        ctx.drawImage(qrImg,qrX,layoutY,qrSize,qrSize);
-        ctx.fillStyle='#666';ctx.font='bold 16px sans-serif';
-        ctx.fillText('扫码挑战',W/2,layoutY+qrSize+30);
-        layoutY+=qrSize+50;
+        roundRect(ctx,startX-8,qrY-8,qrSize+16,qrSize+16,10);ctx.fill();
+        ctx.drawImage(qrImg,startX,qrY,qrSize,qrSize);
+        // 右侧：竖排文字
+        const tx=startX+qrSize+32;
+        ctx.textAlign='left';
+        ctx.fillStyle='#e8c878';ctx.font='500 18px sans-serif';
+        ctx.fillText('扫码挑战',tx,qrY+30);
+        ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='300 12px sans-serif';
+        ctx.fillText('和我一起漂流',tx,qrY+54);
+        // 细金线
+        ctx.strokeStyle='rgba(212,175,100,.4)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(tx,qrY+72);ctx.lineTo(tx+80,qrY+72);ctx.stroke();
+        // URL（小字折行）
+        ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='300 10px sans-serif';
+        const shortURL=url.length>32?url.substring(0,32)+'...':url;
+        wrapText(ctx,shortURL,tx,qrY+92,140,14);
+        ctx.textAlign='center';
     }else{
-        ctx.fillStyle='#888';ctx.font='14px sans-serif';
-        ctx.fillText('（二维码生成失败）',W/2,layoutY+90);
-        layoutY+=180;
+        ctx.fillStyle='rgba(255,255,255,.4)';ctx.font='300 14px sans-serif';
+        ctx.fillText('（二维码生成失败）',W/2,qrY+60);
     }
-    // URL
-    ctx.fillStyle='#aaa';ctx.font='13px sans-serif';
-    const shortURL=url.length>48?url.substring(0,48)+'...':url;
-    ctx.fillText(shortURL,W/2,layoutY);
-    // 底部水印
-    ctx.fillStyle='rgba(255,215,0,.5)';ctx.font='bold 14px sans-serif';
-    ctx.fillText('🏆 小黄鸭漂流记 · 排行榜见详情',W/2,H-50);
+    // ===== 底部品牌印记：极简标识 =====
+    ctx.fillStyle='rgba(212,175,100,.35)';ctx.font='300 11px sans-serif';
+    drawSpacedText(ctx,'D U C K   D R I F T   ·   '+new Date().getFullYear(),W/2,H-60,2);
     // 下载
     const a=document.createElement('a');
     a.href=canvas.toDataURL('image/png');
-    a.download='duck_best_score_'+best+'.png';
+    a.download='duck_best_score_'+(myBest||best)+'.png';
     a.click();
+}
+// 辅助：字距加宽的文字绘制
+function drawSpacedText(ctx,text,x,y,extraSpacing){
+    const chars=[...text];
+    const widths=chars.map(c=>ctx.measureText(c).width);
+    const total=widths.reduce((a,b)=>a+b,0)+extraSpacing*(chars.length-1);
+    let cx=x-total/2;
+    ctx.textAlign='left';
+    for(let i=0;i<chars.length;i++){
+        ctx.fillText(chars[i],cx,y);
+        cx+=widths[i]+extraSpacing;
+    }
+    ctx.textAlign='center';
+}
+// 辅助：文字折行
+function wrapText(ctx,text,x,y,maxW,lh){
+    const chars=[...text];let line='';
+    for(let i=0;i<chars.length;i++){
+        const test=line+chars[i];
+        if(ctx.measureText(test).width>maxW){ctx.fillText(line,x,y);y+=lh;line=chars[i]}
+        else line=test;
+    }
+    if(line)ctx.fillText(line,x,y);
 }
 function roundRect(ctx,x,y,w,h,r){
     ctx.beginPath();
