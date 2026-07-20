@@ -569,29 +569,113 @@ document.getElementById('music-btn').onclick=()=>{
         }
     }else{stopBGM()}
 };
-function playSFX(t,sc){if(!audioCtx)initAudio();if(!audioCtx||!musicOn)return;const n=audioCtx.currentTime;if(t==='paddle'){
-// 划水音效：小鸭子脚掌拨水的"啪嗒"声 —— 短噪声脉冲经带通滤波(800-2500Hz) + 快速衰减
-// 模拟脚掌入水时清脆的水花拍击声；大鸭子 sf 越大 → 音量略重
-const sf=sc||1;
-const dur=.08;  // 极短 80ms，模拟单次脚掌拍水的清脆感
-const bufLen=Math.floor(audioCtx.sampleRate*dur);
-const buf=audioCtx.createBuffer(1,bufLen,audioCtx.sampleRate);
-const d=buf.getChannelData(0);
-for(let i=0;i<bufLen;i++)d[i]=Math.random()*2-1;
-const src=audioCtx.createBufferSource();src.buffer=buf;
-// 带通滤波：突显 1500Hz 中频段，模拟水花拍击的清脆"啪"声
-const bp=audioCtx.createBiquadFilter();
-bp.type='bandpass';bp.frequency.value=1500;bp.Q.value=1.0;
-// 音量包络：极快起音(3ms) + 快速指数衰减(80ms)，单次清脆拍击感
-const g=audioCtx.createGain();
-const vol=.12*Math.min(sf,1.6);
-g.gain.setValueAtTime(0,n);
-g.gain.linearRampToValueAtTime(vol,n+.003);
-g.gain.exponentialRampToValueAtTime(.0001,n+dur);
-src.connect(bp);bp.connect(g);g.connect(audioCtx.destination);
-src.start(n);src.stop(n+dur+.02);
-return;
-}const o=audioCtx.createOscillator(),e=audioCtx.createGain();if(t==='collect'){o.frequency.setValueAtTime(523,n);o.frequency.linearRampToValueAtTime(784,n+.08);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.15);o.type='sine'}else if(t==='hit'){o.frequency.setValueAtTime(180,n);o.frequency.linearRampToValueAtTime(60,n+.25);e.gain.setValueAtTime(.3,n);e.gain.linearRampToValueAtTime(0,n+.3);o.type='sawtooth'}else{o.frequency.setValueAtTime(400,n);o.frequency.linearRampToValueAtTime(900,n+.15);e.gain.setValueAtTime(.2,n);e.gain.linearRampToValueAtTime(0,n+.35);o.type='triangle'}o.connect(e);e.connect(audioCtx.destination);o.start();o.stop(n+.5)}
+// ===== 自然音效引擎（去电子音：全部用"快速起音+指数衰减"包络 + 低通滤波 + 噪声成分，不用平稳蜂鸣音） =====
+function playSFX(t,sc){
+    if(!audioCtx)initAudio();if(!audioCtx||!musicOn)return;
+    const n=audioCtx.currentTime;
+    // 包络音调：f0→f1 滑音 + 快速起音指数衰减 + 可选低通（木质/水声质感）
+    const tone=({f0,f1=0,dur=.2,type='sine',vol=.2,lp=0,at=.004,when=0})=>{
+        const o=audioCtx.createOscillator(),e=audioCtx.createGain();
+        o.type=type;o.frequency.setValueAtTime(f0,n+when);
+        if(f1)o.frequency.exponentialRampToValueAtTime(f1,n+when+dur);
+        e.gain.setValueAtTime(0,n+when);e.gain.linearRampToValueAtTime(vol,n+when+at);
+        e.gain.exponentialRampToValueAtTime(.0001,n+when+dur);
+        let src=o;
+        if(lp){const f=audioCtx.createBiquadFilter();f.type='lowpass';f.frequency.value=lp;o.connect(f);src=f}
+        src.connect(e);e.connect(audioCtx.destination);
+        o.start(n+when);o.stop(n+when+dur+.05)};
+    // 噪声脉冲：白噪声经滤波 + 包络（水花/闷击/风声质感），fq 可滑动
+    const noise=({dur=.1,ftype='bandpass',fq=1500,fq1=0,Q=1,vol=.12,at=.003,when=0})=>{
+        const len=Math.max(1,Math.floor(audioCtx.sampleRate*dur));
+        const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+        const d=buf.getChannelData(0);
+        for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+        const src=audioCtx.createBufferSource();src.buffer=buf;
+        const f=audioCtx.createBiquadFilter();f.type=ftype;f.Q.value=Q;
+        f.frequency.setValueAtTime(fq,n+when);
+        if(fq1)f.frequency.exponentialRampToValueAtTime(fq1,n+when+dur);
+        const g=audioCtx.createGain();
+        g.gain.setValueAtTime(0,n+when);g.gain.linearRampToValueAtTime(vol,n+when+at);
+        g.gain.exponentialRampToValueAtTime(.0001,n+when+dur);
+        src.connect(f);f.connect(g);g.connect(audioCtx.destination);
+        src.start(n+when);src.stop(n+when+dur+.02)};
+    switch(t){
+        case'paddle':{ // 划水"啪嗒"：带通噪声短脉冲（背景音，最轻）
+            const sf=sc||1;
+            noise({dur:.07,fq:1300,Q:1,vol:.07*Math.min(sf,1.6)});
+            break}
+        case'grass': // 水草+1：清脆小水泡"啵"
+            tone({f0:540,f1:940,dur:.09,vol:.18,lp:2800});
+            noise({dur:.04,fq:3200,vol:.05});
+            break;
+        case'flower': // 花朵+2：马林巴双音"叮咚"
+            tone({f0:660,f1:640,dur:.2,vol:.2,lp:3400});
+            tone({f0:1320,f1:1320,dur:.07,vol:.06,lp:3400});
+            tone({f0:880,f1:860,dur:.24,vol:.17,lp:3400,when:.07});
+            break;
+        case'collect': // 荷叶/通用收集：三连小水泡上行
+            tone({f0:500,f1:640,dur:.07,vol:.16,lp:2800});
+            tone({f0:640,f1:820,dur:.07,vol:.15,lp:2800,when:.06});
+            tone({f0:820,f1:1040,dur:.09,vol:.14,lp:2800,when:.12});
+            break;
+        case'rock': // 撞石头：沉重"咚"——强烈的低频撞击体感为主，一点石面脆响点缀（警戒靠"重"不靠"刺"）
+            tone({f0:95,f1:36,dur:.42,type:'triangle',vol:.58,lp:300});
+            noise({dur:.25,ftype:'lowpass',fq:200,vol:.34});
+            noise({dur:.03,fq:2600,Q:2.5,vol:.18});
+            break;
+        case'hit': // 受伤通用：钝击"砰" + 低鸣
+            tone({f0:200,f1:60,dur:.24,vol:.32,lp:600});
+            noise({dur:.1,ftype:'lowpass',fq:450,vol:.2});
+            break;
+        case'die': // 死亡：悲伤下行滑音 + 缓缓沉入水底（延迟.15s起，先让最后一下受伤音落地）
+            tone({f0:520,f1:130,dur:.7,type:'triangle',vol:.26,lp:2200,when:.15});
+            tone({f0:340,f1:85,dur:.8,vol:.18,lp:1200,when:.3});
+            noise({dur:.9,fq:800,fq1:150,Q:1,vol:.15,when:.45});
+            break;
+        case'suck': // 被漩涡吸入瞬间：上升卷水"呜——咻"（加强版：更响 + 尾部低鸣）
+            noise({dur:.55,fq:400,fq1:1800,Q:1.6,vol:.3});
+            tone({f0:200,f1:520,dur:.4,vol:.18,lp:1400});
+            tone({f0:520,f1:160,dur:.35,vol:.18,lp:1400,when:.4});
+            noise({dur:.4,ftype:'lowpass',fq:300,vol:.12,when:.3});
+            break;
+        case'pull': // 磁铁吸附：顺滑上滑"嗞溜"（柔和正弦滑音+泛音，不再像木鱼敲击）
+            tone({f0:620,f1:1560,dur:.14,vol:.09,lp:3200});
+            tone({f0:1240,f1:1900,dur:.09,vol:.04,lp:4000,when:.03});
+            break;
+        case'shieldbreak': // 护盾被击碎：清脆玻璃碎裂"叮铃哐啷"（多片高音碎裂下滑 + 亮噪声碎屑）
+            tone({f0:2400,f1:900,dur:.2,vol:.2,lp:7000});
+            tone({f0:3100,f1:1400,dur:.16,vol:.14,lp:8000,when:.04});
+            tone({f0:1800,f1:600,dur:.24,vol:.12,lp:6000,when:.09});
+            noise({dur:.2,fq:5600,Q:1,vol:.2});
+            noise({dur:.1,fq:8000,Q:2,vol:.1,when:.07});
+            break;
+        case'shield': // 护盾：水晶"叮"长音
+            tone({f0:1180,f1:1160,dur:.4,vol:.15,lp:4000});
+            tone({f0:2360,f1:2360,dur:.18,vol:.05,lp:4000});
+            break;
+        case'multi': // 倍率触发：上行琶音 + 高频闪光
+            [523,659,784,1047].forEach((f,i)=>tone({f0:f,f1:f,dur:.13,vol:.16,lp:3600,when:i*.055}));
+            noise({dur:.3,fq:5200,Q:2,vol:.06,when:.2});
+            break;
+        case'whirl': // 漩涡吞没：大水轰鸣——更响更长更低沉（噪声下卷 + 深低鸣 + 闷雷底）
+            noise({dur:1,fq:700,fq1:140,Q:1.4,vol:.34});
+            tone({f0:240,f1:55,dur:.9,type:'triangle',vol:.24,lp:400});
+            noise({dur:.5,ftype:'lowpass',fq:180,vol:.2,when:.2});
+            break;
+        case'event': // 事件触发：柔和提示"叮-咚"
+            tone({f0:740,f1:720,dur:.16,vol:.15,lp:3200});
+            tone({f0:988,f1:960,dur:.26,vol:.14,lp:3200,when:.11});
+            break;
+        case'heal': // 爱心回血：温暖上行"噜"
+            tone({f0:440,f1:660,dur:.2,vol:.17,lp:2600});
+            tone({f0:660,f1:880,dur:.24,vol:.14,lp:2600,when:.08});
+            break;
+        case'magnet': // 磁铁：磁吸"嗞-叮"
+            noise({dur:.14,fq:2200,Q:3,vol:.1});
+            tone({f0:760,f1:1180,dur:.16,vol:.13,lp:3400,when:.04});
+            break;
+    }
+}
 document.getElementById('help-btn').onclick=()=>document.getElementById('help').classList.toggle('show');
 // 调试模式：开关面板 + 立即触发指定事件 + 在附近生成物品 + 修改生命分数
 // 通过 <meta name="env" content="MODE=dev"> 决定是否显示调试按钮，避免外部 fetch
@@ -744,6 +828,37 @@ document.getElementById('dbg-apply').onclick=()=>{
 const canvas=document.getElementById('c');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+// ===== 漩涡吸入屏幕滤镜：后处理全屏 quad（涡旋扭曲 + 旋转模糊 + 暗角收拢，随 sinkFx 淡入淡出） =====
+const swirlRT=new THREE.WebGLRenderTarget(innerWidth,innerHeight);
+const swirlCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const swirlScene=new THREE.Scene();
+const swirlMat=new THREE.ShaderMaterial({
+    uniforms:{tD:{value:swirlRT.texture},fx:{value:0},asp:{value:innerWidth/innerHeight}},
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+    fragmentShader:`
+        uniform sampler2D tD;uniform float fx;uniform float asp;varying vec2 vUv;
+        void main(){
+            vec2 p=vUv-.5;p.x*=asp;
+            float r=length(p),a=atan(p.y,p.x);
+            // 柔缓的涡旋扭转（平滑衰减，优雅的大弧线而非狂暴搅动）
+            float tw=fx*4.5*smoothstep(.95,.1,r);
+            // 轻微向中心吸入的缩放（被温柔卷进去）
+            float zm=1.-fx*.18*smoothstep(.9,.2,r);
+            // 旋转模糊：沿扭转弧 10 次采样（丝绸般的弧线拖影）
+            vec3 col=vec3(0.);
+            for(int i=0;i<10;i++){
+                float o=(float(i)/9.-.5)*fx*.7*smoothstep(.9,.1,r);
+                vec2 q=vec2(cos(a+tw+o),sin(a+tw+o))*r*zm;q.x/=asp;
+                col+=texture2D(tD,q+.5).rgb;
+            }
+            col/=10.;
+            // 中心柔光（隧道尽头的一点亮）+ 边缘海水蓝暗角（不要死黑，要优雅的水下感）
+            col*=1.+fx*.3*smoothstep(.45,.0,r);
+            col=mix(col,vec3(.03,.1,.2),fx*smoothstep(.3,.95,r)*.75);
+            gl_FragColor=vec4(col,1.);
+        }`
+});
+swirlScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),swirlMat));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -844,23 +959,23 @@ const cloudGroup=new THREE.Group();
 const cloudTexs=[mkCloudTexture(0),mkCloudTexture(1),mkCloudTexture(2)];
 const clouds=[];
 {
-    const N=26;
+    const N=32;
     for(let i=0;i<N;i++){
         const mat=new THREE.SpriteMaterial({map:cloudTexs[i%3],transparent:true,opacity:.92,fog:false,depthWrite:false});
         const s=new THREE.Sprite(mat);
-        const w=18+Math.random()*26;
+        const w=20+Math.random()*20;
         s.scale.set(w,w*.62,1);
-        // 分层均匀：26 朵云按角度均分固定槽位 + 三个距离带（近/中/远）+ 随机抖动
-        // 槽位固定在云对象上，回收时回到自己的槽位附近，分布始终保持均匀
+        // 分层均匀：32 朵云按角度均分固定槽位 + 三个距离带（近/中/远）+ 随机抖动
+        // 槽位固定在云对象上，回收时按最大空隙法重定位，分布始终保持均匀
         const slot=i/N*Math.PI*2;
         const rad0=70+(i%3)*90+40;
         const ang=slot+(Math.random()-.5)*.5;
-        const rad=rad0+(Math.random()-.5)*60;
-        s.position.set(Math.cos(ang)*rad,28+Math.random()*65,Math.sin(ang)*rad);
+        const rad=rad0+(Math.random()-.5)*40;
+        s.position.set(Math.cos(ang)*rad,24+Math.random()*48,Math.sin(ang)*rad);
         cloudGroup.add(s);
         // baseMap/baseW/baseH：中午动物云替换后恢复用
         // 所有云同一速度：相对位置恒定，快的不会追上慢的 → 分布长期保持均匀
-        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:6.2,baseMap:mat.map,baseW:w,baseH:w*.62,creature:false,slot,rad0});
+        clouds.push({s,vx:0,vz:0,bob:Math.random()*6,spd:6.2,baseMap:mat.map,baseW:w,baseH:w*.62,creature:false,slot,rad0,morph:0,morphT:0,morphDelay:0,baseOp:.92});
     }
     // 统一风向缓慢漂移（速度提高，让缓慢移动更明显）
     const wa=Math.random()*Math.PI*2;
@@ -876,12 +991,40 @@ function updateClouds(dt){
         p.y+=Math.sin(gameClock*.4+c.bob)*dt*.6;
         const dx=p.x-cx,dz=p.z-cz;
         if(dx*dx+dz*dz>430*430){
-            // 漂远的云回到自己的固定槽位附近，保持环绕分布始终均匀
-            const base=c.slot+(Math.random()-.5)*.6;
-            const rad=c.rad0+(Math.random()-.5)*60;
-            p.x=cx+Math.cos(base)*rad;p.z=cz+Math.sin(base)*rad;
-            p.y=28+Math.random()*65;
+            // 回收：找当前云层环绕分布中的最大角度空隙，把云放到空隙中间（±小幅抖动）
+            // 直线漂移会让云逐渐偏向一侧，固定槽位无法纠正瞬时扎堆；最大空隙法保证任意时刻都均匀
+            let bestA=Math.random()*Math.PI*2,bestGap=-1;
+            const angs=[];
+            for(const o of clouds)if(o!==c)angs.push(Math.atan2(o.s.position.z-cz,o.s.position.x-cx));
+            angs.sort((a,b)=>a-b);
+            for(let i=0;i<angs.length;i++){
+                const a0=angs[i],a1=i===angs.length-1?angs[0]+Math.PI*2:angs[i+1];
+                const gap=a1-a0;
+                if(gap>bestGap){bestGap=gap;bestA=a0+gap/2}
+            }
+            const ang2=bestA+(Math.random()-.5)*Math.min(.4,bestGap*.25);
+            const rad=c.rad0+(Math.random()-.5)*40;
+            p.x=cx+Math.cos(ang2)*rad;p.z=cz+Math.sin(ang2)*rad;
+            p.y=24+Math.random()*48;
         }
+        // 中午动物云缓慢变形：各朵云带随机错开延迟，先缓缓消散（淡出+缩小），
+        // 在完全透明的中点换成鲸鱼贴图，再缓缓凝聚成形（淡入+放大），单朵约4秒、整批十几秒
+        if(c.morphDelay>0)c.morphDelay-=dt;
+        else if(c.morph!==c.morphT){
+            const dir=c.morphT>c.morph?1:-1;
+            c.morph=Math.min(1,Math.max(0,c.morph+dir*dt/4));
+        }
+        if(c.morph>0||c.morphT===1){
+            const m=c.morph,whale=m>=.5;
+            const vis=whale?(m-.5)*2:1-m*2; // 中点完全透明，此刻换贴图不可见
+            const map=whale?creatureTexs[0]:c.baseMap;
+            if(c.s.material.map!==map)c.s.material.map=map;
+            const bw=whale?c.baseW*2.6:c.baseW,bh=whale?c.baseW*2.6*.56:c.baseH;
+            const k=.55+.45*vis;
+            c.s.scale.set(bw*k,bh*k,1);
+            c.s.material.opacity=c.baseOp*vis;
+        }
+        if(c.morph===0&&c.morphT===0&&c.creature)c.creature=false; // 完全变回后清除鲸鱼标记
     }
 }
 
@@ -1223,14 +1366,14 @@ let waveEventTimer=10+Math.random()*15,waveEventActive=false,waveEventDir={x:0,z
 // 凌晨深蓝 → 日出金橙 → 上午蔚蓝 → 中午亮蓝 → 下午暖蓝 → 日落橘红 → 晚霞粉紫 → 夜晚深蓝
 // 红色只压在地平线低空色带（晚霞），天顶保持紫蓝，不会整片发红
 const SKY_KEYS=[ // [小时, 天顶色, 中带色, 地平线色]
-    [0,0x07071c,0x0d0d2a,0x141434],[2.5,0x0a0a28,0x121236,0x1a1a44],
+    [0,0x030308,0x060612,0x0a0a18],[2.5,0x03030c,0x060616,0x0a0a1a],
     [4.5,0x1c1c46,0x353058,0x55406e],
     [5.5,0x3a4a82,0x9a7a90,0xf2ab7e],[6.5,0x4472ac,0xe0a498,0xf2d6ac],
     [8,0x2f7fc8,0x6fb2e4,0x9adcf5],[11,0x2a7ed2,0x74b8ec,0xaae0f8],
     [13,0x2f84ce,0x72b4e8,0xa6d8f2],[15.5,0x3a7ec2,0x7ab0dc,0xaad2ec],
-    [17,0x5568a4,0xbd9199,0xf2bb92],[17.8,0x6a639a,0xcc8f96,0xf2a184],
-    [18.6,0x4c406e,0xa17688,0xe0939e],[19.4,0x24244a,0x4c3a60,0x6a4c76],
-    [20.5,0x0c0c2e,0x131336,0x191942],[22,0x0a0a2a,0x101032,0x15153a]
+    [17,0x4a5c9e,0xa88ca6,0xeab898],[17.8,0x5a5a9e,0xac8aa6,0xe6a48c],
+    [18.6,0x444070,0x8d7394,0xcc8ea0],[19.4,0x0e0e22,0x1c1a34,0x282338],
+    [20.5,0x040410,0x080818,0x0c0c1e],[22,0x03030c,0x060614,0x0a0a18]
 ];
 const _skyKeyA=new THREE.Color(),_skyKeyB=new THREE.Color(),_skyKeyC=new THREE.Color();
 function sampleSky(h,topOut,midOut,horOut){
@@ -1350,11 +1493,13 @@ let cloudCreature=false;       // 中午动物云状态标记
 function mkCreatureCloudTex(){
     return mkTex(512,288,(x)=>{
         x.translate(256,150);
-        // 鲸鱼轮廓 = 一组大重叠 puff（长身体 + 尾鳍 + 胸鳍 + 头顶喷气水花）
-        const puffs=[[-115,16,58],[-52,6,74],[20,0,76],[92,4,62],[148,10,44],
-            [184,-22,30],[196,12,26],
-            [-26,62,24],
-            [-128,-56,14],[-110,-70,11],[-146,-42,12]];
+        // 鲸鱼轮廓 = 一组大重叠 puff：圆润头部 + 流畅长身 + 收窄尾柄 + 上扬分叉尾鳍 + 腹部胸鳍
+        // （去掉了原来的头顶喷水柱——不像云、很突兀）
+        const puffs=[[-118,24,46],[-84,12,60],[-36,2,74],[18,-2,78],[72,-6,66],
+            [116,-14,50],[148,-26,34],
+            [172,-46,24],[190,-60,15],
+            [176,-14,21],
+            [-24,58,26],[6,62,18]];
         const puff=(px,py,pr,c0,c1)=>{
             const g=x.createRadialGradient(px,py,pr*.06,px,py,pr);
             g.addColorStop(0,c0);g.addColorStop(.62,c1);g.addColorStop(1,'rgba(255,255,255,0)');
@@ -1369,28 +1514,42 @@ function mkCreatureCloudTex(){
     });
 }
 const creatureTexs=[mkCreatureCloudTex()];
-// ---- 凌晨极光：两条波浪帘幕（顶点正弦波动 + 贴图流动） ----
+// ---- 凌晨极光：流体感帘幕（自然极光配色：翠绿主体 + 紫红裙边 + 蓝紫顶部，宽幅柔和大褶皱，无竖直细条纹） ----
+// 贴图方向：canvas y=0 → 圆柱顶部，y=128 → 圆柱底部；自然极光最亮处在帘幕下缘
 function mkAuroraTex(hue){
     const t=mkTex(512,128,(x)=>{
         const lg=x.createLinearGradient(0,0,0,128);
-        if(hue===0){ // 翠绿主帘：底部就带绿光（地平线整圈发亮）→ 顶部渐隐
-            lg.addColorStop(0,'rgba(20,255,130,.34)');
-            lg.addColorStop(.18,'rgba(20,255,130,.95)');
-            lg.addColorStop(.55,'rgba(0,235,190,.75)');
-            lg.addColorStop(.85,'rgba(0,190,230,.3)');
-            lg.addColorStop(1,'rgba(0,170,230,0)');
-        }else{ // 青蓝副帘：青色为主带一点绿
-            lg.addColorStop(0,'rgba(30,230,255,.26)');
-            lg.addColorStop(.2,'rgba(30,230,255,.85)');
-            lg.addColorStop(.6,'rgba(0,255,180,.6)');
-            lg.addColorStop(1,'rgba(0,210,170,0)');
+        if(hue===0){ // 主帘：翠绿主体（极高饱和）+ 紫红裙边 + 蓝紫顶部
+            lg.addColorStop(0,'rgba(160,80,255,0)');
+            lg.addColorStop(.22,'rgba(120,90,255,.45)');
+            lg.addColorStop(.48,'rgba(20,245,155,.78)');
+            lg.addColorStop(.7,'rgba(20,255,80,1)');
+            lg.addColorStop(.88,'rgba(120,255,130,1)');
+            lg.addColorStop(.95,'rgba(255,50,215,.85)');
+            lg.addColorStop(1,'rgba(255,50,215,0)');
+        }else{ // 副帘：蓝紫青主体（极高饱和）
+            lg.addColorStop(0,'rgba(130,70,255,0)');
+            lg.addColorStop(.28,'rgba(150,90,255,.48)');
+            lg.addColorStop(.55,'rgba(45,125,255,.75)');
+            lg.addColorStop(.78,'rgba(20,240,185,.9)');
+            lg.addColorStop(.9,'rgba(100,255,230,1)');
+            lg.addColorStop(1,'rgba(100,255,230,0)');
         }
         x.fillStyle=lg;x.fillRect(0,0,512,128);
-        // 帘幕竖条纹（明暗交替，模拟极光褶皱）
+        // 宽幅柔和褶皱（宽 50-120 的软边明暗带，随贴图流动 → 像河面波光一样的流体折叠）
+        // 每条带画两次（x 与 x-512），保证横跨环绕接缝处连续、无竖直硬边
         x.globalCompositeOperation='destination-out';
-        for(let i=0;i<26;i++){const sx0=i*20+Math.random()*8;const g2=x.createLinearGradient(sx0,0,sx0+12,0);
-            g2.addColorStop(0,'rgba(0,0,0,0)');g2.addColorStop(.5,'rgba(0,0,0,'+(.18+Math.random()*.28)+')');g2.addColorStop(1,'rgba(0,0,0,0)');
-            x.fillStyle=g2;x.fillRect(sx0,0,12,128)}
+        const band=(sx0,w,a)=>{
+            for(const ox of[0,-512]){
+                const g2=x.createLinearGradient(sx0+ox,0,sx0+ox+w,0);
+                g2.addColorStop(0,'rgba(0,0,0,0)');g2.addColorStop(.5,'rgba(0,0,0,'+a+')');g2.addColorStop(1,'rgba(0,0,0,0)');
+                x.fillStyle=g2;x.fillRect(sx0+ox,0,w,128);
+            }
+        };
+        for(let i=0;i<6;i++)band(Math.random()*512,50+Math.random()*70,.16+Math.random()*.22);
+        // 大型幕段明暗（有的方位整段很暗 → 帘幕一段一段、此起彼伏，不再是完整一圈围栏）
+        for(let i=0;i<3;i++)band(Math.random()*512,110+Math.random()*130,.35+Math.random()*.3);
+        x.globalCompositeOperation='source-over';
     });
     t.wrapS=THREE.RepeatWrapping;return t;
 }
@@ -1405,19 +1564,19 @@ function mkAuroraRing(tex,rad,h,y,rep){
     m.userData.base=geo.attributes.position.array.slice();
     auroraGroup.add(m);return m;
 }
-const aurora1=mkAuroraRing(mkAuroraTex(0),255,80,30,4); // 翠绿主帘（外圈，4 次环绕重复）
-const aurora2=mkAuroraRing(mkAuroraTex(1),222,60,24,3); // 青蓝副帘（内圈）
+const aurora1=mkAuroraRing(mkAuroraTex(0),255,80,44,2); // 翠绿主帘（外圈，2 次环绕重复——大结构幕段）——抬高让紫红裙边刚好露出地平线
+const aurora2=mkAuroraRing(mkAuroraTex(1),222,60,38,2); // 蓝紫副帘（内圈）
 auroraGroup.visible=false;scene.add(auroraGroup);
-function updateAuroraRing(m,dt,f,ph){
+function updateAuroraRing(m,dt,f,ph,spd){
     const p=m.geometry.attributes.position,base=m.userData.base,t=gameClock;
     for(let i=0;i<p.count;i++){
         const bx=base[i*3],bz=base[i*3+2];
-        const az=Math.atan2(bz,bx); // 按方位角做波浪，整圈帘幕起伏
-        p.setY(i,base[i*3+1]+Math.sin(az*4+t*.8+ph)*8+Math.sin(az*7-t*.5+ph)*5);
+        const az=Math.atan2(bz,bx); // 按方位角做波浪，整圈帘幕起伏（三个谐波叠加，更不像规则围栏）
+        p.setY(i,base[i*3+1]+Math.sin(az*4+t*.8+ph)*9+Math.sin(az*7-t*.5+ph)*5+Math.sin(az*2+t*.3+ph*2)*6);
     }
     p.needsUpdate=true;
-    m.material.map.offset.x+=dt*.015;
-    m.material.opacity=f*(.75+Math.sin(t*.5+ph)*.15);
+    m.material.map.offset.x+=dt*spd; // 内外两层反向流动 → 流体干涉感
+    m.material.opacity=f*(.8+Math.sin(t*.4+ph)*.2);
 }
 // ---- 夜晚流星：黄色亮头 + 白色拖尾（光晕照亮周围天空），沿速度方向划过 ----
 const meteorTex=mkTex(224,112,(x)=>{
@@ -1517,33 +1676,44 @@ function updateGulls(dt){
     }
 }
 // ---- 彩虹祝福：天空中的七彩拱门（连续光谱色带 + 软边，背离太阳方向，跟随玩家） ----
-const rainbowTex=mkTex(512,288,(x)=>{
-    const cx=256,cy=282,R0=150,R1=228; // 彩虹带内外半径
-    // 连续光谱：逐半径画细弧，色相从外侧红(0°)连续过渡到内侧紫(275°)，边缘正弦淡出 → 真实彩虹色带
+const rainbowTex=mkTex(640,320,(x)=>{
+    const cx=320,cy=312;
+    // 主虹：逐半径连续光谱弧，外红(0°)内紫(275°)，正弦软边
+    const R0=168,R1=238;
     for(let r=R0;r<=R1;r+=1.2){
         const t=(r-R0)/(R1-R0);
         const hue=t*275;
-        const a=Math.sin(Math.pow(t,.85)*Math.PI)*.75;
-        x.strokeStyle='hsla('+hue+',95%,55%,'+a+')';
+        const a=Math.sin(Math.pow(t,.85)*Math.PI)*.62;
+        x.strokeStyle='hsla('+hue+',92%,56%,'+a+')';
         x.lineWidth=3;
         x.beginPath();x.arc(cx,cy,r,Math.PI,0);x.stroke();
     }
-    // 色带内侧天空微微泛亮（真实彩虹效应：虹内天空比虹外亮）
+    // 霓（副虹）：更大半径、颜色反转（外紫内红）、亮度约主虹45%，中间自然形成暗带
+    const S0=272,S1=316;
+    for(let r=S0;r<=S1;r+=1.4){
+        const t=(r-S0)/(S1-S0);
+        const hue=275-t*275;
+        const a=Math.sin(t*Math.PI)*.28;
+        x.strokeStyle='hsla('+hue+',85%,60%,'+a+')';
+        x.lineWidth=3;
+        x.beginPath();x.arc(cx,cy,r,Math.PI,0);x.stroke();
+    }
+    // 主虹内侧天空微微泛亮（真实彩虹效应：虹内天空比虹外亮）
     const inner=x.createRadialGradient(cx,cy,20,cx,cy,R0);
     inner.addColorStop(0,'rgba(255,255,255,.10)');inner.addColorStop(1,'rgba(255,255,255,0)');
     x.fillStyle=inner;x.beginPath();x.arc(cx,cy,R0,Math.PI,0);x.fill();
     // 径向+垂直渐隐，让彩虹柔和融入天空（两端溶于地平线）
     x.globalCompositeOperation='destination-in';
-    const g=x.createRadialGradient(cx,cy,60,cx,cy,265);
-    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(.42,'rgba(0,0,0,.75)');g.addColorStop(.72,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=g;x.fillRect(0,0,512,288);
-    const gv=x.createLinearGradient(0,0,0,288);
+    const g=x.createRadialGradient(cx,cy,80,cx,cy,330);
+    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(.45,'rgba(0,0,0,.85)');g.addColorStop(.8,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.fillRect(0,0,640,320);
+    const gv=x.createLinearGradient(0,0,0,320);
     gv.addColorStop(0,'rgba(0,0,0,1)');gv.addColorStop(.82,'rgba(0,0,0,.92)');gv.addColorStop(1,'rgba(0,0,0,0)');
-    x.fillStyle=gv;x.fillRect(0,0,512,288);
+    x.fillStyle=gv;x.fillRect(0,0,640,320);
     x.globalCompositeOperation='source-over';
 });
 const rainbowSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:rainbowTex,transparent:true,opacity:0,fog:false,depthWrite:false}));
-rainbowSpr.scale.set(400,225,1);rainbowSpr.visible=false;scene.add(rainbowSpr);
+rainbowSpr.scale.set(470,235,1);rainbowSpr.visible=false;scene.add(rainbowSpr);
 // ---- 屏幕氛围画布：日出晨雾 + 刮风风线 ----
 const skyFxCv=document.getElementById('sky-fx');
 const skyFxCtx=skyFxCv.getContext('2d');
@@ -1552,40 +1722,72 @@ function sizeSkyFx(){const dpr=Math.min(devicePixelRatio,2);skyFxW=innerWidth;sk
 sizeSkyFx();addEventListener('resize',sizeSkyFx);
 const mistPuffs=[];for(let i=0;i<16;i++)mistPuffs.push({x:Math.random(),y:.3+Math.random()*.65,r:.22+Math.random()*.3,vx:.008+Math.random()*.02,ph:Math.random()*6});
 const windStreaks=[];for(let i=0;i<18;i++)windStreaks.push({x:Math.random(),y:Math.random(),v:.55+Math.random()*.6,l:.05+Math.random()*.1,a:.16+Math.random()*.26});
-// 中午镜头光晕：太阳在画面中时的主光晕 + 水平眩光 + 鬼影光斑串
-const _sunV=new THREE.Vector3();
+// 中午镜头光晕（全动态拟真）：实时跟踪太阳投影位置，视角转动时光晕/光圈/鬼影全部跟着变
+// 强度随太阳离画面中心的角距离衰减；太阳在头顶时从顶部渗入，在背后时消退（接近真实镜头）
+const _sunV=new THREE.Vector3(),_cf=new THREE.Vector3();
 function drawLensFlare(x,W,H,nf){
     _sunV.copy(sunGroup.position).project(camera);
-    let sx,sy;
-    if(_sunV.z>=1){sx=W/2;sy=H*.07} // 中午太阳在头顶/背后：光晕从屏幕顶部洒落
-    else{ // 太阳在画面中：跟踪太阳真实位置（钳制在屏幕边缘内）
-        sx=Math.max(W*.12,Math.min(W*.88,(_sunV.x*.5+.5)*W));
-        sy=Math.max(H*.06,Math.min(H*.75,(-_sunV.y*.5+.5)*H));
-    }
     const R=Math.max(W,H);
-    // 主光晕（柔和金白大光斑）
-    let g=x.createRadialGradient(sx,sy,0,sx,sy,R*.16);
-    g.addColorStop(0,'rgba(255,250,225,'+(.55*nf)+')');g.addColorStop(.3,'rgba(255,235,180,'+(.26*nf)+')');g.addColorStop(1,'rgba(255,225,160,0)');
-    x.fillStyle=g;x.fillRect(sx-R*.16,sy-R*.16,R*.32,R*.32);
-    // 光圈环（明显的环形光晕，围绕太阳一圈）
-    g=x.createRadialGradient(sx,sy,R*.09,sx,sy,R*.2);
-    g.addColorStop(0,'rgba(255,250,220,0)');
-    g.addColorStop(.62,'rgba(255,244,200,'+(.4*nf)+')');
-    g.addColorStop(.78,'rgba(255,228,150,'+(.34*nf)+')');
-    g.addColorStop(1,'rgba(255,220,140,0)');
-    x.fillStyle=g;x.beginPath();x.arc(sx,sy,R*.2,0,Math.PI*2);x.fill();
-    // 水平眩光带
-    g=x.createLinearGradient(sx-R*.4,sy,sx+R*.4,sy);
-    g.addColorStop(0,'rgba(255,240,200,0)');g.addColorStop(.5,'rgba(255,245,215,'+(.18*nf)+')');g.addColorStop(1,'rgba(255,240,200,0)');
-    x.fillStyle=g;x.fillRect(sx-R*.4,sy-2,R*.8,4);
-    // 鬼影光斑（太阳→屏幕中心连线的对称延长线上，一串彩色小圆斑）
+    let sx,sy,vis;
+    if(sunGroup.position.y>420){
+        // 正午：太阳近天顶，屏幕投影不可靠。改为按"太阳方位角 vs 相机朝向"动态定位：
+        // 朝太阳方位看 → 光从顶部中央洒落；转头 → 光斑沿顶部横移（sin(dAz) 即屏幕右方投影）；背对 → 消退
+        camera.getWorldDirection(_cf);
+        const sunAz=Math.atan2(sunGroup.position.z,sunGroup.position.x);
+        const camAz=Math.atan2(_cf.z,_cf.x);
+        let dAz=sunAz-camAz;while(dAz>Math.PI)dAz-=Math.PI*2;while(dAz<-Math.PI)dAz+=Math.PI*2;
+        vis=Math.max(0,Math.cos(dAz))*.55;
+        if(vis<=0)return;
+        sx=W/2+Math.sin(dAz)*W*.5;sy=-H*.03;
+    }else if(_sunV.z<1){
+        // 太阳在相机前方：真实屏幕位置（可能在画面外）
+        sx=(_sunV.x*.5+.5)*W;sy=(-_sunV.y*.5+.5)*H;
+        // 离屏越近越亮：屏内=1，屏外按边缘距离衰减（最大 H*.45 处熄灭）
+        const outX=Math.max(0,Math.max(-sx,sx-W)),outY=Math.max(0,Math.max(-sy,sy-H));
+        const outD=Math.hypot(outX,outY);
+        vis=Math.max(0,1-outD/(H*.45));
+    }else{return}
+    // 呼吸微闪（自然的亮度波动）
+    vis*=nf*(.9+Math.sin(gameClock*3.7)*.1);
+    if(vis<=0.02)return;
+    // 光晕锚点：钳制到屏幕内（屏外太阳 → 光从最近边缘渗入）
+    const fx=Math.max(W*.08,Math.min(W*.92,sx)),fy=Math.max(H*.05,Math.min(H*.8,sy));
     const cx2=W/2,cy2=H/2;
-    const ghosts=[[.25,.02,'255,200,120'],[.5,.03,'180,220,255'],[.8,.042,'255,220,160'],[1.15,.058,'200,255,220'],[1.5,.075,'255,190,150']];
+    // 主光晕（大而柔和的金白光晕，边缘完全晕开，无任何硬边/线条）
+    let g=x.createRadialGradient(fx,fy,0,fx,fy,R*.22);
+    g.addColorStop(0,'rgba(255,252,235,'+(.62*vis)+')');g.addColorStop(.4,'rgba(255,240,190,'+(.3*vis)+')');g.addColorStop(1,'rgba(255,225,160,0)');
+    x.fillStyle=g;x.fillRect(fx-R*.22,fy-R*.22,R*.44,R*.44);
+    // 柔亮核心（大半径低透明度，圆润滑散，不是硬圆盘）
+    g=x.createRadialGradient(fx,fy,0,fx,fy,R*.07);
+    g.addColorStop(0,'rgba(255,255,250,'+(.85*vis)+')');g.addColorStop(.5,'rgba(255,248,220,'+(.35*vis)+')');g.addColorStop(1,'rgba(255,250,220,0)');
+    x.fillStyle=g;x.beginPath();x.arc(fx,fy,R*.07,0,Math.PI*2);x.fill();
+    // 光圈环（宽而淡的环形晕带，柔和无棱角）
+    g=x.createRadialGradient(fx,fy,R*.08,fx,fy,R*.2);
+    g.addColorStop(0,'rgba(255,250,220,0)');
+    g.addColorStop(.55,'rgba(255,244,200,'+(.32*vis)+')');
+    g.addColorStop(.78,'rgba(255,228,150,'+(.22*vis)+')');
+    g.addColorStop(1,'rgba(255,220,140,0)');
+    x.fillStyle=g;x.beginPath();x.arc(fx,fy,R*.2,0,Math.PI*2);x.fill();
+    // 水平眩光带：椭圆径向渐变压扁而成，整条都是晕开的光，看不见"线"
+    x.save();x.translate(fx,fy);x.scale(1,.07);
+    g=x.createRadialGradient(0,0,0,0,0,R*.45);
+    g.addColorStop(0,'rgba(255,248,220,'+(.28*vis)+')');g.addColorStop(.6,'rgba(255,242,200,'+(.12*vis)+')');g.addColorStop(1,'rgba(255,240,200,0)');
+    x.fillStyle=g;x.beginPath();x.arc(0,0,R*.45,0,Math.PI*2);x.fill();
+    x.restore();
+    // 圆形彩色鬼影：沿"太阳锚点→画面中心"连线排布的柔和光斑（纯径向渐变，圆润晕开，无描边无棱角）
+    const ghosts=[[.25,.026,'255,170,140'],[.45,.036,'255,220,170'],[.65,.048,'180,230,255'],[.85,.06,'200,255,220'],[1.05,.075,'255,200,180']];
     for(const[t,gr,col]of ghosts){
-        const gx=cx2+(cx2-sx)*t,gy=cy2+(cy2-sy)*t,rr=gr*R;
-        g=x.createRadialGradient(gx,gy,rr*.2,gx,gy,rr);
-        g.addColorStop(0,'rgba('+col+','+(.1*nf)+')');g.addColorStop(.8,'rgba('+col+','+(.05*nf)+')');g.addColorStop(1,'rgba('+col+',0)');
+        const gx=fx+(cx2-fx)*t,gy=fy+(cy2-fy)*t,rr=gr*R;
+        g=x.createRadialGradient(gx,gy,0,gx,gy,rr);
+        g.addColorStop(0,'rgba('+col+','+(.2*vis)+')');g.addColorStop(.55,'rgba('+col+','+(.09*vis)+')');g.addColorStop(1,'rgba('+col+',0)');
         x.fillStyle=g;x.beginPath();x.arc(gx,gy,rr,0,Math.PI*2);x.fill();
+    }
+    // 大彩虹环鬼影：放在锚点的中心对称点；超宽超低透明度 → 几乎只剩一圈淡淡的彩色雾气
+    const rx=2*cx2-fx,ry=2*cy2-fy,rr2=R*.12;
+    for(let k=0;k<24;k++){
+        x.strokeStyle='hsla('+(k*15)+',90%,70%,'+(.09*vis)+')';
+        x.lineWidth=R*.032;
+        x.beginPath();x.arc(rx,ry,rr2,k/24*Math.PI*2,(k+1)/24*Math.PI*2);x.stroke();
     }
 }
 function updateSkyFx(dt){
@@ -1632,7 +1834,7 @@ function updateSkyAmbience(dt){
     auroraGroup.visible=af>0.01;
     if(af>0.01){
         if(duckModel){auroraGroup.position.x=duckModel.position.x;auroraGroup.position.z=duckModel.position.z}
-        updateAuroraRing(aurora1,dt,af,0);updateAuroraRing(aurora2,dt,af,2.1);
+        updateAuroraRing(aurora1,dt,af,0,.03);updateAuroraRing(aurora2,dt,af,2.1,-.022);
     }
     updateMeteors(dt);
     updateGulls(dt);
@@ -1651,22 +1853,19 @@ function updateSkyAmbience(dt){
             const tx=duckModel.position.x+Math.cos(az)*290,tz=duckModel.position.z+Math.sin(az)*290;
             rainbowSpr.position.x+=(tx-rainbowSpr.position.x)*Math.min(1,dt*.8);
             rainbowSpr.position.z+=(tz-rainbowSpr.position.z)*Math.min(1,dt*.8);
-            rainbowSpr.position.y=42;
+            rainbowSpr.position.y=56;
         }
     }
-    // 中午动物云：进入/离开中午时段时替换/恢复云朵贴图
+    // 中午动物云：进入/离开中午时段时只设定变形目标和随机错开延迟，实际形变在 updateClouds 中缓慢进行
     const wantCreature=timeFx.noon>.5;
     if(wantCreature!==cloudCreature){
         cloudCreature=wantCreature;
         for(const c of clouds){
             if(cloudCreature){
                 c.creature=Math.random()<.22; // 约1/5的云变成大鲸鱼（好几朵普通云的大小）
-                if(c.creature){
-                    c.s.material.map=creatureTexs[0];
-                    const w=c.baseW*2.6;c.s.scale.set(w,w*.56,1);
-                }
+                if(c.creature){c.morphT=1;c.morphDelay=Math.random()*12} // 12秒内陆续开始变形
             }else if(c.creature){
-                c.s.material.map=c.baseMap;c.s.scale.set(c.baseW,c.baseH,1);c.creature=false;
+                c.morphT=0;c.morphDelay=Math.random()*8; // 8秒内陆续变回普通云
             }
         }
     }
@@ -1676,9 +1875,9 @@ window.__skyTest={
     timeFx:()=>JSON.parse(JSON.stringify(timeFx)),
     meteors:()=>meteors.map(m=>({v:m.s.visible,o:+m.s.material.opacity.toFixed(2)})),
     gulls:()=>gulls.map(g=>({v:g.s.visible,y:+g.s.position.y.toFixed(0)})),
-    creature:()=>({on:cloudCreature,n:clouds.filter(c=>c.creature).length}),
+    creature:()=>({on:cloudCreature,n:clouds.filter(c=>c.creature).length,m:clouds.filter(c=>c.creature||c.morph>0).map(c=>+c.morph.toFixed(2))}),
     aurora:()=>({vis:auroraGroup.visible,op:+aurora1.material.opacity.toFixed(2)}),
-    clouds:()=>clouds.slice(0,3).map(c=>({x:+c.s.position.x.toFixed(1),z:+c.s.position.z.toFixed(1),vx:+c.vx.toFixed(2)}))
+    clouds:()=>clouds.map(c=>({a:+Math.atan2(c.s.position.z-(duckModel?duckModel.position.z:0),c.s.position.x-(duckModel?duckModel.position.x:0)).toFixed(2),cr:c.creature?1:0,o:+c.s.material.opacity.toFixed(2)})),
 };
 
 
@@ -1877,7 +2076,7 @@ function trackStreak(type){
 }
 function updateStreakUI(){const hud=document.getElementById('streak-hud');for(let i=0;i<3;i++){const el=document.getElementById('s'+i);if(i<streakItems.length){el.className='si active';el.innerHTML=`<i class="fa-solid ${STREAK_ICONS[streakItems[i]]||'fa-circle'}"></i>`;el.style.color=STREAK_COLORS[streakItems[i]]||'#fff'}else{el.className='si';el.innerHTML='●';el.style.color='rgba(255,255,255,.3)'}}hud.style.display='flex'}
 function activateStreak(kind,itemType){streakActive=true;streakTimer=10;streakType=kind;
-if(kind==='same'){scoreMultiplier=10;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-fire"></i> ×10 连胜！';playSFX('shield')}else{scoreMultiplier=5;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-star"></i> ×5 连胜！';playSFX('shield')}
+if(kind==='same'){scoreMultiplier=10;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-fire"></i> ×10 连胜！';playSFX('multi')}else{scoreMultiplier=5;document.getElementById('multi-text').innerHTML='<i class="fa-solid fa-star"></i> ×5 连胜！';playSFX('multi')}
 document.getElementById('multi-text').classList.add('show');setTimeout(()=>document.getElementById('multi-text').classList.remove('show'),3000);
 document.getElementById('combo-border').classList.add('active');
 // 鸭子变大4倍+无敌3s+积分倍率 全部持续10秒
@@ -2061,18 +2260,17 @@ const duckScale=duckModel.scale.x/.72;const duckRadius=0.6*duckScale;const hitR=
 if(hDist<hitR){
 // 无敌状态：跳过岩石碰撞，但可以收集物品
 if(invincible>0&&it.type==='rock')continue;
-switch(it.type){case'rock':{const kb=dp.clone().sub(it.mesh.position).normalize().multiplyScalar(2);takeDamage(1);duckVel.add(kb);
+switch(it.type){case'rock':{const kb=dp.clone().sub(it.mesh.position).normalize().multiplyScalar(2);takeDamage(1,'rock');duckVel.add(kb);
 // 保护机制：撞击后石头粉碎销毁，避免连续扣血
 const rockScale=it.mesh.scale.x;
 spawnRockShatter(it.mesh.position.clone(),rockScale);
-it.coll=true;scene.remove(it.mesh); // 立即从场景移除，下一帧由 despawn 逻辑清理 items
-playSFX('hit');
-break;}
-case'flower':addScore(2);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +2','p');playSFX('collect');trackStreak('flower');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,-.02,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
-case'grass':addScore(1);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-seedling"></i> +1','p');playSFX('collect');trackStreak('grass');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,0,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
+    it.coll=true;scene.remove(it.mesh); // 立即从场景移除，下一帧由 despawn 逻辑清理 items
+    break;}
+case'flower':addScore(2);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +2','p');playSFX('flower');trackStreak('flower');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,-.02,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
+case'grass':addScore(1);if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-seedling"></i> +1','p');playSFX('grass');trackStreak('grass');it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,0,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},2000);break;
 case'lily':if(!it.coll){addScore(3);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-spa" style="color:#ff9ec7"></i> 荷叶','p');playSFX('collect');trackStreak('lily');activateShield();it.coll=true;it.mesh.visible=false;setTimeout(()=>{const _ra=Math.random()*Math.PI*2,_rd=10+Math.random()*15;it.mesh.position.set(duckModel.position.x+Math.cos(_ra)*_rd,.01,duckModel.position.z+Math.sin(_ra)*_rd);it.mesh.visible=true;it.coll=false},3000)}break;
-case'heart':heal(1);trackStreak('heart');it.coll=true;scene.remove(it.mesh);spawnHeartParticles(it.mesh.position.clone());break;
-case'magnet':activateMagnet();trackStreak('magnet');it.coll=true;scene.remove(it.mesh);break}}}}
+    case'heart':heal(1);playSFX('heal');trackStreak('heart');it.coll=true;scene.remove(it.mesh);spawnHeartParticles(it.mesh.position.clone());break;
+    case'magnet':activateMagnet();playSFX('magnet');trackStreak('magnet');it.coll=true;scene.remove(it.mesh);break}}}}
 
 // 更新鸭子
 let duckYaw=0; // 鸭子面朝方向（弧度，自动跟随移动方向）
@@ -2081,7 +2279,7 @@ const DUCK_MAX_SPEED=4.0,DUCK_ACCEL=5.0,DUCK_DECEL=6.0;
 // GLB 模型初始朝向修正：经典 Rubber Duck 模型面朝 -Z，需旋转 Math.PI 使其面朝 +Z
 const DUCK_ROT_OFFSET=Math.PI;
 // 拨水尾迹 + 尾部水花：随鸭子的速度周期性生成（节流，避免每帧过多特效）
-let duckWakeTimer=0,duckSplashTimer=0,_paddleSfxTimer=0;
+let duckWakeTimer=0,duckSplashTimer=0,_paddleSfxTimer=0,_magnetSfxTimer=0;
 // 鸭子尾迹：不规则涟漪环（顶点扰动）+ 多层延迟扩散，模拟真实水波纹
 // 制作不规则环：用 RingGeometry，对每个顶点施加随机径向扰动，形成自然水波边缘
 function makeIrregularRing(innerR,outerR,segments,jitter){
@@ -2151,22 +2349,21 @@ function spawnDuckWake(pos,yaw,speed,scaleFactor){
         );
         const offX=(Math.cos(yaw)*.4*side-Math.sin(yaw)*.3)*scaleFactor;
         const offZ=(-Math.sin(yaw)*.4*side-Math.cos(yaw)*.3)*scaleFactor;
-        m.position.set(pos.x+offX,baseY+.22*scaleFactor,pos.z+offZ);
+        m.position.set(pos.x+offX,baseY+.05*scaleFactor,pos.z+offZ);
         m.renderOrder=1000;
         scene.add(m);
         const driftAng=yaw+Math.PI+(side*.5);
         const sp=(.4+speed*.15)*scaleFactor;
         transientFx.push({
-            m,vx:Math.sin(driftAng)*sp,vy:.3*scaleFactor,vz:Math.cos(driftAng)*sp,
+            m,vx:Math.sin(driftAng)*sp,vy:.16*scaleFactor,vz:Math.cos(driftAng)*sp,
             life:.7,max:.7,gravity:1.5
         });
     }
 }
 function spawnTailSplash(pos,yaw,speed,scaleFactor){
     scaleFactor=scaleFactor||1;
-    // 尾部水花：5-7 颗蓝白渐变水珠向后向上飞溅，呈现拨水跳跃感
-    // 关键：起始 y 抬到 waveHeight+0.35（确保高于波浪峰值），depthTest:false 防遮挡
-    // 大鸭子：尾部后移、水珠数量更多更粗、初速度提升，呈现"大脚拨水"的厚重感
+    // 尾部水花：5-7 颗蓝白渐变水珠贴着水面向后飞溅
+    // 关键：起始 y 只高出波面一点（.12），初速低、重力大，水花低矮贴水才自然
     const backOff=.5*scaleFactor;
     const backX=pos.x-Math.sin(yaw)*backOff,backZ=pos.z-Math.cos(yaw)*backOff;
     const baseY=waveHeight(backX,backZ,waveClock);
@@ -2175,28 +2372,28 @@ function spawnTailSplash(pos,yaw,speed,scaleFactor){
         // 高质量球体（12 段）+ 蓝白渐变色 + 不参与深度测试；半径随体型放大
         const isTop=Math.random()<.4;
         const m=new THREE.Mesh(
-            new THREE.SphereGeometry((.07+Math.random()*.05)*scaleFactor,12,10),
+            new THREE.SphereGeometry((.06+Math.random()*.04)*scaleFactor,12,10),
             new THREE.MeshBasicMaterial({
                 color:isTop?0xffffff:0xb8e3ff,
                 transparent:true,opacity:.95,fog:false,
                 depthWrite:false,depthTest:false
             })
         );
-        // 起始位置：尾部水面之上 0.3-0.45，加少量横向偏移；偏移量随体型放大
+        // 起始位置：尾部水面之上 0.1-0.18，加少量横向偏移；偏移量随体型放大
         const sideOff=(Math.random()-.5)*.4*scaleFactor;
         m.position.set(
             backX+Math.cos(yaw)*sideOff,
-            baseY+(.35+Math.random()*.1)*scaleFactor,
+            baseY+(.1+Math.random()*.08)*scaleFactor,
             backZ-Math.sin(yaw)*sideOff
         );
         m.renderOrder=1001;
         scene.add(m);
-        // 后向飞溅：与鸭子朝向相反，加少量侧向扰动；初速度随体型提升，水花跳得更高更远
+        // 后向飞溅：与鸭子朝向相反，加少量侧向扰动；初速低+重力大 → 低矮抛物线贴水面
         const spread=(Math.random()-.5)*.7;
         const backAng=yaw+Math.PI+spread;
         const sp=(1.6+Math.random()*1.8+speed*.25)*Math.min(scaleFactor,1.6);
-        const vy0=(2.2+Math.random()*1.4)*Math.min(scaleFactor,1.5);  // 大鸭子水花跳得更高
-        transientFx.push({m,vx:Math.sin(backAng)*sp,vy:vy0,vz:Math.cos(backAng)*sp,life:.85,max:.85,gravity:7});
+        const vy0=(1.1+Math.random()*.7)*Math.min(scaleFactor,1.5);
+        transientFx.push({m,vx:Math.sin(backAng)*sp,vy:vy0,vz:Math.cos(backAng)*sp,life:.7,max:.7,gravity:9});
     }
 }
 function updateDuck(dt){if(!duckModel)return;if(!gameActive)return;
@@ -2318,13 +2515,18 @@ if(invincible>0){
     if(hasShield)shieldHud.style.display='flex'; // 恢复护盾显示
 }
 // 磁铁激活：吸引附近所有可收集道具（花/草/荷叶/血瓶/磁铁）向鸭子靠近，石头不吸引
-if(magnetActive&&duckModel){const dp=duckModel.position;for(const it of items){if(it.coll||it.type==='rock')continue;const dx=dp.x-it.mesh.position.x,dz=dp.z-it.mesh.position.z;const d=Math.sqrt(dx*dx+dz*dz);if(d<MAGNET_RANGE&&d>0.1){
+if(magnetActive&&duckModel){const dp=duckModel.position;let attracting=false;for(const it of items){if(it.coll||it.type==='rock')continue;const dx=dp.x-it.mesh.position.x,dz=dp.z-it.mesh.position.z;const d=Math.sqrt(dx*dx+dz*dz);if(d<MAGNET_RANGE&&d>0.1){
 // 吸引动画：越近吸力越强（指数加速）；道具轻微浮起+旋转，表现被磁场牵引
 const t=1-d/MAGNET_RANGE; // 0=远，1=近
 const f=(0.5+t*t*8)*dt; // 近距离加速
 it.mesh.position.x+=dx/d*f;it.mesh.position.z+=dz/d*f;
 it.magT=Math.min(1,(it.magT||0)+dt*3);
-}}}
+attracting=true;
+}}
+// 有道具正被吸附时周期性播放轻微吸附声
+_magnetSfxTimer-=dt;
+if(attracting&&_magnetSfxTimer<=0){playSFX('pull');_magnetSfxTimer=.4}
+}
 updateMagnet(dt);
 spawnAround(duckModel.position.x,duckModel.position.z);checkHit()}
 
@@ -2357,14 +2559,15 @@ const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.s
 let hearts=3;const MAX_HEARTS=5;let gameActive=false;playStartTime=Date.now(); // gameActive 由"开始冒险"按钮点击后置 true
 function updateHeartsUI(){const el=document.getElementById('hearts-hud');if(!el)return;let html='';for(let i=0;i<MAX_HEARTS;i++){html+=`<span class="hp ${i<hearts?'':'empty'}"><i class="fa-solid fa-heart"></i></span>`}el.innerHTML=html}
 function screenFlash(){const f=document.getElementById('red-flash');if(!f)return;f.classList.add('show');setTimeout(()=>f.classList.remove('show'),40)}
-function takeDamage(amount=1){
+let screenShakeT=0; // 无护盾受伤时的画面抖动剩余时长（护盾挡住/无敌不抖，借此区分）
+function takeDamage(amount=1,sfx='hit'){
     if(!gameActive)return;
     if(invincible>0)return; // 无敌期间免伤（连胜只在触发后3秒内无敌）
-    if(hasShield){hasShield=false;shieldTimer=0;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;toast('<i class="fa-solid fa-shield-halved"></i> 护盾挡住了','s');playSFX('hit');invincible=.5;return}
+    if(hasShield){hasShield=false;shieldTimer=0;document.getElementById('shield-hud').style.display='none';shieldMesh.visible=false;toast('<i class="fa-solid fa-shield-halved"></i> 护盾挡住了','s');playSFX('shieldbreak');invincible=.5;return}
     hearts=Math.max(0,hearts-amount);
     updateHeartsUI();
     toast('-'+amount+' <i class="fa-solid fa-heart"></i>','m');
-    screenFlash();playSFX('hit');invincible=.6;
+    screenFlash();playSFX(sfx);invincible=.6;screenShakeT=.35;
     if(hearts<=0)gameOver();
 }
 function heal(amount=1){
@@ -2838,7 +3041,7 @@ window.confirmName=async function(){
 };
 async function gameOver(){
     if(!gameActive)return;gameActive=false;
-    playSFX('hit');
+    playSFX('die');
     const pt=Math.floor((Date.now()-playStartTime)/1000);
     pendingScore=score;pendingPlayTime=pt;
     try{await Leaderboard.load()}catch(e){console.warn('等待排行榜加载失败',e)}
@@ -3199,14 +3402,14 @@ function updateWhirlpools(dt){
         const ws=w.scale||1;       // 漩涡缩放倍数
         const R=12*ws;              // 影响半径（大幅扩大，让鸭子更易进入吸力范围）
         const SINK_R=1.0*ws;       // 进入中心阈值：到达此处触发沉没动画
-        // 圆盘贴图每帧贴合浪面 + 有序微抬（.26/.30/.34），高于 waveMesh 漏斗处最大插值偏差，
-        // 贴图不再被浪面或自身浪花顶穿；polygonOffset 作为深度测试双保险
-        w.disk.userData.update(w.x,w.z,ws,.26);
-        w.foam.userData.update(w.x,w.z,ws,.30);
-        w.core.userData.update(w.x,w.z,ws,.34);
+        // 圆盘贴图每帧贴合浪面 + 有序抬高（.42/.47/.52），高于 waveMesh 漏斗+巨浪事件下的
+        // 最大插值偏差（~0.38）：贴图任何情况下都不被浪面顶出不规则破洞，只剩均匀圆形间隙
+        w.disk.userData.update(w.x,w.z,ws,.42);
+        w.foam.userData.update(w.x,w.z,ws,.47);
+        w.core.userData.update(w.x,w.z,ws,.52);
         // 浪花环/引力圈逐帧贴合浪面（世界坐标采样，不再被海浪盖住一半）
-        w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.30);
-        w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.16);
+        w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.40);
+        w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.20);
         // 漩涡贴图随昼夜变暗（MeshBasicMaterial 自发光，否则夜晚亮得突兀）
         w.disk.material.color.setScalar(envBright);w.foam.material.color.setScalar(envBright);
         w.core.material.color.setScalar(envBright);w.rim.material.color.setScalar(envBright);
@@ -3229,6 +3432,7 @@ function updateWhirlpools(dt){
                     duckSink.state='sinking';duckSink.t=0;duckSink.whirl=w;
                     duckSink.startY=duckModel.position.y;duckSink.startX=duckModel.position.x;duckSink.startZ=duckModel.position.z;
                     duckVel.set(0,0,0);
+                    playSFX('suck'); // 被吸入瞬间的卷水声
                 }
             }
         }
@@ -3247,12 +3451,14 @@ function updateWhirlpools(dt){
 }
 // 鸭子被漩涡吸入沉没动画：下沉→旋转→消失→扣心→重生
 const duckSink={state:'none',t:0,whirl:null,startY:0,startX:0,startZ:0};
+let sinkFx=0; // 吸入画面扭曲强度（0-1，updateSkyFx 暗角螺旋 + canvas 扭转用）
 function updateDuckSink(dt){
     if(duckSink.state==='none')return;
     duckSink.t+=dt;
     const D=duckSink,DUR=1.2;
     if(D.state==='sinking'){
         const k=Math.min(1,D.t/DUR);
+        sinkFx=k*k*(3-2*k); // 后处理涡旋滤镜强度（smoothstep 缓入缓出，淡入褪去都优雅）
         // 跟随漩涡中心轻微旋转 + 沉入水下
         const ang=k*Math.PI*2.5;
         const sinkR=.5*(1-k);
@@ -3263,11 +3469,12 @@ function updateDuckSink(dt){
         duckModel.scale.setScalar(.72*(1-k*.4));   // 微缩
         if(k>=1){
             // 完成沉没：直接扣心（绕过 takeDamage，护盾无法挡，只有 invincible 能在触发前挡）
-            hearts=Math.max(0,hearts-1);updateHeartsUI();screenFlash();playSFX('hit');
+            hearts=Math.max(0,hearts-1);updateHeartsUI();screenFlash();playSFX('whirl');
             if(hearts<=0){D.state='none';gameOver();return}
-            // 重生到安全位置（原点附近）
+            // 重生到安全位置（原点附近）；吃掉鸭子的漩涡随之消散（防止重生后被同一漩涡反复吞没）
             duckModel.position.set(0,.05,0);duckVel.set(0,0,0);
             duckModel.scale.setScalar(.72);duckModel.rotation.y=0;
+            if(D.whirl)D.whirl.life=0;
             invincible=2;
             toast('<i class="fa-solid fa-water"></i> 被漩涡吸入 -1 <i class="fa-solid fa-heart"></i>','m');
             D.state='none';D.whirl=null;
@@ -3462,7 +3669,7 @@ function startEvent(key){
     activeEvent=key;
     // 事件持续时间随难度延长：满级时 +60%（开局保持原配置）
     activeEventTime=EVENTS[key].d*(1+0.6*difficultyFactor());
-    showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');
+    showEventHud(EVENTS[key]);toast('<i class="fa-solid '+EVENTS[key].ic+'"></i> '+EVENTS[key].n,'s');playSFX('event');
     windActive=false;windSpeedMul=1;stormActive=false;rainbowActive=false;eventRockBoost=0;eventWaveTarget=1;waveSpeedTarget=1;
     document.getElementById('rain-overlay').classList.remove('show');
     document.getElementById('rainbow-overlay').classList.remove('show');
@@ -3584,8 +3791,21 @@ it.magT=Math.max(0,(it.magT||0)-dt*1.5);const mLift=it.magT*it.magT*.55,itSpin=i
 if(it.type==='lily'){it.mesh.position.y=floatY+.04+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='flower'){it.mesh.position.y=floatY-.02+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05;it.mesh.rotation.y+=itSpin}else if(it.type==='grass'){it.mesh.position.y=floatY-.06+mLift;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+mLift+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65+mLift;it.mesh.rotation.y=gameClock*1.2+it.magT*2}}
 // 连胜边框柔和呼吸
 if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('combo-border').style.opacity=s}
-controls.update();renderer.render(scene,camera)})();
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+controls.update();
+// 画面抖动：无护盾受伤时相机随机偏移，幅度随时长衰减（每帧在 controls 之后应用，不累积）
+if(screenShakeT>0){screenShakeT-=dt;const sk=Math.max(0,screenShakeT)/.35;camera.position.x+=(Math.random()-.5)*.3*sk;camera.position.y+=(Math.random()-.5)*.22*sk}
+// 吸入结束后滤镜继续旋转着褪去（sinkFx 衰减到 0）
+if(duckSink.state==='none'&&sinkFx>0)sinkFx=Math.max(0,sinkFx-dt*.9);
+// 漩涡吸入时走后处理滤镜（涡旋+模糊+暗角），平时直渲
+if(sinkFx>0.004){
+    swirlMat.uniforms.fx.value=sinkFx;
+    renderer.setRenderTarget(swirlRT);renderer.render(scene,camera);
+    renderer.setRenderTarget(null);renderer.render(swirlScene,swirlCam);
+}else{
+    renderer.render(scene,camera);
+}
+})();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);swirlRT.setSize(innerWidth,innerHeight);swirlMat.uniforms.asp.value=innerWidth/innerHeight});
 </script>
 </body>
 </html>
