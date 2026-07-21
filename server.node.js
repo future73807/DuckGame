@@ -21,12 +21,16 @@ if (isHotFe) {
     // ===== 热铁盒云函数模式 =====
     if (req.method === 'POST') {
         var data = req.body;
-        if (typeof data === 'string') data = JSON.parse(data);
-        if (!data || !Array.isArray(data.entries)) {
-            res.json({ ok: false, error: 'Invalid format' });
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch(e) { data = null; }
         }
-        fs.writeFileSync('leaderboard.json', JSON.stringify(data, null, 2));
-        res.json({ ok: true });
+        if (!data || !Array.isArray(data.entries)) {
+            res.status(400);
+            res.json({ ok: false, error: 'Invalid format' });
+        } else {
+            fs.writeFileSync('leaderboard.json', JSON.stringify(data, null, 2));
+            res.json({ ok: true });
+        }
     } else {
         if (fs.existsSync('leaderboard.json')) {
             var content = fs.readFileSync('leaderboard.json');
