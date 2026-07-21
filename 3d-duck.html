@@ -160,7 +160,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 @keyframes rainbowGlow{0%,100%{filter:brightness(1) saturate(1)}50%{filter:brightness(1.22) saturate(1.15)}}
 #storm-fx{position:fixed;inset:0;pointer-events:none;z-index:104;opacity:0}
 #sky-fx{position:fixed;inset:0;pointer-events:none;z-index:102;opacity:0;transition:opacity .8s}
-#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:16px}
+#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:16px;overflow-y:auto}
 #gameover.show{display:flex}
 #gameover h1{font-size:24px;color:#ff6b6b;margin-bottom:3px;text-shadow:0 0 20px rgba(255,80,80,.5)}
 #gameover .go-score{font-size:15px;margin:3px 0}
@@ -219,10 +219,19 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 #share-modal .sm-btn{padding:10px 28px;background:transparent;color:#e8c878;border:1px solid rgba(212,175,100,.5);border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:2px;transition:all .2s}
 #share-modal .sm-btn:hover{background:rgba(212,175,100,.1);border-color:rgba(212,175,100,.8)}
 #share-modal .sm-btn.outline{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
-/* 手机端：预览区域矮一点，给按钮留空间 */
+/* 手机端：宽高都由 JS 动态设置（showShareModal 里按 3:2 比例计算），CSS 不约束 */
 @media(max-width:768px){
-    #share-modal{justify-content:center;padding:50px 16px 24px;gap:16px}
-    #share-modal .sm-card{width:78vw;max-width:78vw;flex-shrink:0}
+    #share-modal{position:fixed;top:0;left:0;right:0;bottom:auto;height:100vh;height:100dvh;justify-content:flex-start;align-items:center;padding:45px 12px 20px;gap:14px;overflow:hidden;box-sizing:border-box}
+    /* 重置 sm-card 的 width/max-width/overflow，让 JS 设的图片尺寸生效 */
+    #share-modal .sm-card{width:auto;max-width:none;flex-shrink:0;background:transparent;box-shadow:none;overflow:visible;border-radius:0;padding:0;box-sizing:border-box}
+    /* 重置图片的 width:100%/height:auto，让 JS 设的 inline 样式生效 */
+    #share-modal .sm-card #share-preview-img{
+        display:block;
+        width:auto;
+        height:auto;
+        border-radius:6px;
+        box-shadow:0 12px 48px rgba(0,0,0,.6)
+    }
     #share-modal .sm-btns{margin-top:0;flex-shrink:0}
     #share-modal .sm-btn{padding:11px 28px;font-size:13px}
 }
@@ -311,7 +320,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
         </div>
     </div>
     <div id="share-modal">
-        <button class="close-x" onclick="document.getElementById('share-modal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
+        <button class="close-x" onclick="document.getElementById('share-modal').classList.remove('show');_cachedShareDataURLPromise=null"><i class="fa-solid fa-xmark"></i></button>
         <div class="sm-card">
             <img id="share-preview-img" alt="分享卡片预览">
         </div>
@@ -3162,24 +3171,65 @@ function generateQRDataURL(text,size){
         }catch(e){document.body.removeChild(holder);resolve(null)}
     });
 }
-let _cachedShareDataURL=null;  // 缓存生成的卡片 dataURL，确保预览和下载一致
+let _cachedShareDataURLPromise=null;  // Promise 缓存：预览和下载共用同一次生成，杜绝并发生成导致不一致
+function getShareCardDataURL(){
+    if(!_cachedShareDataURLPromise){
+        _cachedShareDataURLPromise=generateShareCardDataURL().catch(e=>{
+            _cachedShareDataURLPromise=null;  // 失败时重置，允许重试
+            throw e;
+        });
+    }
+    return _cachedShareDataURLPromise;
+}
 async function showShareModal(){
     document.getElementById('share-modal').classList.add('show');
+    // JS 动态计算实际可视高度，设置图片高度（比 CSS dvh 更可靠，兼容所有手机）
+    // 按宽高比 3:2 (W:H=1.5) 自适应：取宽高约束下能装下的最大尺寸（不留多余空白）
+    // padding(45+20)+gap(14)+按钮(50)+缓冲(15) = 144
+    const vw=window.innerWidth, vh=window.innerHeight;
+    const maxW=vw-24;                     // 宽度上限：屏宽 - 两侧 12px 边距
+    const maxH=vh-144;                    // 高度上限
+    // 两个约束算出的宽度取较小者：min(maxW, maxH*1.5)
+    const imgW=Math.min(maxW, maxH*1.5);
+    const imgH=imgW/1.5;
     const img=document.getElementById('share-preview-img');
+    img.style.width=imgW+'px';
+    img.style.height=imgH+'px';
     img.style.opacity='0.4';
     try{
-        _cachedShareDataURL=await generateShareCardDataURL();
-        img.src=_cachedShareDataURL;
+        const dataURL=await getShareCardDataURL();
+        console.log('[ShareCard] generated, length:',dataURL?dataURL.length:0,'vw:',vw,'vh:',vh,'imgW:',imgW,'imgH:',imgH);
+        img.src=dataURL;
         img.style.opacity='1';
     }catch(e){
-        console.error('showShareModal error:',e);
+        console.error('[ShareCard] showShareModal error:',e);
         img.alt='卡片生成失败：'+e.message;
         img.style.opacity='1';
     }
 }
+// 手机端：地址栏显示/隐藏会改变可见高度，监听 resize 重新计算图片高度
+let _shareResizeHandler=null;
+function _bindShareResize(){
+    if(_shareResizeHandler)return;
+    _shareResizeHandler=()=>{
+        const modal=document.getElementById('share-modal');
+        if(!modal||!modal.classList.contains('show'))return;
+        const img=document.getElementById('share-preview-img');
+        if(!img)return;
+        const vw=window.innerWidth, vh=window.innerHeight;
+        const maxW=vw-24;
+        const maxH=vh-144;
+        const imgW=Math.min(maxW, maxH*1.5);
+        const imgH=imgW/1.5;
+        img.style.width=imgW+'px';
+        img.style.height=imgH+'px';
+    };
+    window.addEventListener('resize',_shareResizeHandler);
+    window.addEventListener('orientationchange',_shareResizeHandler);
+}
+_bindShareResize();
 // 生成分享卡片 dataURL（预览和下载共用，确保一模一样）
 async function generateShareCardDataURL(){
-    const best=Leaderboard.best();
     const myBest=Leaderboard.myBest();
     const myName=Leaderboard.getCachedName()||'勇敢鸭鸭';
     const url=location.href.split('?')[0];
@@ -3310,7 +3360,7 @@ async function generateShareCardDataURL(){
     ctx.fillStyle='rgba(255,210,140,.65)';ctx.font='400 18px sans-serif';
     drawSpacedTextLeft(ctx,'M Y   B E S T',LX,midCenterY-90,3);
     // 大分数（对应 sm-score，自适应字号）
-    const scoreStr=formatScore(myBest||best);
+    const scoreStr=formatScore(myBest);
     const scoreLen=scoreStr.length;
     const scoreFontSize=scoreLen<=4?140:scoreLen<=5?115:95;
     ctx.fillStyle='#fff';ctx.font='900 '+scoreFontSize+'px "Georgia","Times New Roman",serif';
@@ -3385,16 +3435,14 @@ async function generateShareCardDataURL(){
     // 返回 dataURL（预览和下载共用）
     return canvas.toDataURL('image/png');
 }
-// 下载分享卡片（优先用缓存的预览图，确保和预览一模一样）
+// 下载分享卡片（与预览共用同一 Promise，确保完全一致）
 async function downloadShareCard(){
     try{
-        let dataURL=_cachedShareDataURL;
-        if(!dataURL)dataURL=await generateShareCardDataURL();
-        const best=Leaderboard.best();
+        const dataURL=await getShareCardDataURL();
         const myBest=Leaderboard.myBest();
         const a=document.createElement('a');
         a.href=dataURL;
-        a.download='duck_best_score_'+(myBest||best)+'.png';
+        a.download='duck_best_score_'+(myBest||0)+'.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
