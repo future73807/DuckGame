@@ -2,14 +2,16 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="env" content="MODE=dev">
 <title>小黄鸭漂流记</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cg transform='scale(-1,1) translate(-512,0)'%3E%3Cpath fill='%23FFDE76' d='M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z'/%3E%3Cpath fill='%23FFB641' d='M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z'/%3E%3Cpath fill='%23FFB641' d='M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z'/%3E%3Cpath fill='%23FFB641' d='M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z'/%3E%3Cpath fill='%2338484A' d='M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
 <style>
+:root{color-scheme:dark;--overlay-bg:rgba(7,10,16,.48);--panel-bg:rgba(15,19,28,.68);--panel-solid:#111722;--panel-border:rgba(255,255,255,.11);--panel-border-soft:rgba(255,255,255,.07);--panel-shadow:0 24px 72px rgba(0,0,0,.42);--text-main:#f7f8fa;--text-muted:rgba(247,248,250,.58);--text-faint:rgba(247,248,250,.38);--surface:rgba(255,255,255,.045);--surface-strong:rgba(255,255,255,.085);--safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px)}
 *{margin:0;padding:0;box-sizing:border-box}
-body{overflow:hidden;background:#000;font-family:-apple-system,sans-serif;touch-action:none;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;height:100dvh}
+body{overflow:hidden;background:#000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;touch-action:none;-webkit-user-select:none;user-select:none;color:var(--text-main);text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
 canvas{display:block}
 #loader{position:fixed;inset:0;background:#1a2a5e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;transition:opacity 1s}
 #loader.done{opacity:0;pointer-events:none}
@@ -58,70 +60,76 @@ canvas{display:block}
 #multi-text{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,200,0,.8),0 0 40px rgba(255,100,0,.5);pointer-events:none;z-index:115;opacity:0;transition:all .5s cubic-bezier(.175,.885,.32,1.275)}
 #multi-text.show{opacity:1;transform:translate(-50%,-50%) scale(1.2)}
 #clock{position:absolute;top:12px;right:48px;height:28px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:0 10px;border-radius:8px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.06);pointer-events:auto;z-index:110}
-.btn{position:absolute;width:32px;height:32px;background:linear-gradient(135deg,rgba(40,45,75,.7),rgba(20,22,40,.7));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#d8d8e8;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s cubic-bezier(.4,0,.2,1);pointer-events:auto;z-index:110;box-shadow:0 2px 8px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.08)}
-.btn:hover{transform:translateY(-1px);background:linear-gradient(135deg,rgba(60,68,105,.85),rgba(30,33,55,.85));border-color:rgba(143,224,255,.35);color:#8fe0ff;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 1px rgba(143,224,255,.15),inset 0 1px 0 rgba(255,255,255,.12)}
-.btn:active{transform:scale(.92)}
-.btn.active{background:linear-gradient(135deg,rgba(143,224,255,.3),rgba(100,180,255,.15));border-color:rgba(143,224,255,.6);color:#8fe0ff;box-shadow:0 0 16px rgba(143,224,255,.4),inset 0 1px 0 rgba(255,255,255,.2)}
+.btn{position:absolute;width:32px;height:32px;background:rgba(12,17,27,.58);-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);border:1px solid rgba(255,255,255,.13);border-radius:10px;color:rgba(255,255,255,.86);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color .15s,border-color .15s,color .15s;pointer-events:auto;z-index:110;box-shadow:0 6px 20px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.06)}
+.btn:hover{background:rgba(24,31,45,.72);border-color:rgba(255,255,255,.24);color:#fff}
+.btn:active{background:rgba(255,255,255,.12)}
+.btn.active{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.1)}
 #fs-btn{top:12px;left:12px}#music-btn{top:12px;left:48px}
 #pause-btn{top:12px;left:84px}
+#ach-btn{top:12px;left:120px}
 #lb-btn-top{top:12px;right:12px}
-#help-btn{bottom:16px;right:16px;width:30px;height:30px;border-radius:50%;font-size:13px}
-#dbg-btn{bottom:16px;right:52px;width:30px;height:30px;border-radius:50%;font-size:12px;background:rgba(80,40,120,.7);border:1px solid rgba(180,120,255,.4);color:#ddb6ff}
-#dbg-btn:hover{background:rgba(100,60,150,.85)}
-#dbg-panel{position:absolute;bottom:60px;right:16px;background:rgba(20,8,40,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:18px 16px;border-radius:14px;width:240px;display:none;border:1px solid rgba(180,120,255,.3);box-shadow:0 8px 32px rgba(80,40,120,.5);z-index:120;font-size:12px;max-height:80vh;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
+#settings-btn{bottom:16px;right:16px;border-radius:50%;background:none;border-color:transparent;box-shadow:none;color:#fff;transition:none}
+#settings-btn:hover,#settings-btn:active{background:none;border-color:transparent;box-shadow:none;color:#fff;transform:none}
+#help-btn{bottom:16px;right:54px;border-radius:50%;font-size:13px}
+#dbg-btn{bottom:16px;right:92px;border-radius:50%;font-size:12px}
+#dbg-panel{position:absolute;bottom:60px;right:16px;background:rgba(13,17,28,.72);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);color:#fff;padding:18px 16px;border-radius:16px;width:240px;display:none;border:1px solid rgba(255,255,255,.1);box-shadow:0 16px 48px rgba(0,0,0,.4);z-index:120;font-size:12px;max-height:80vh;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
 #dbg-panel::-webkit-scrollbar{display:none;width:0;height:0}
 #dbg-panel.show{display:block}
-#dbg-panel h3{font-size:13px;margin-bottom:10px;color:#cc99ff;display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(180,120,255,.2);padding-bottom:6px}
-#dbg-panel .dbg-sec-title{color:#bb99dd;margin-bottom:5px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-#dbg-panel .dbg-divider{height:0;border-bottom:1px solid rgba(180,120,255,.2);margin:10px 0}
+#dbg-panel h3{font-size:13px;margin-bottom:10px;color:#fff;display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:6px}
+#dbg-panel .dbg-sec-title{color:rgba(255,255,255,.55);margin-bottom:5px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+#dbg-panel .dbg-divider{height:0;border-bottom:1px solid rgba(255,255,255,.1);margin:10px 0}
 #dbg-panel .dbg-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-#dbg-panel select{width:100%;padding:8px 12px;background:linear-gradient(135deg,rgba(60,30,90,.7),rgba(40,20,70,.7));color:#fff;border:1px solid rgba(180,120,255,.4);border-radius:6px;font-size:12px;margin-bottom:6px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='%23cc99ff'><path d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:9px;padding-right:28px;transition:border-color .15s,box-shadow .15s}
-#dbg-panel select:hover{border-color:rgba(220,170,255,.8);box-shadow:0 2px 8px rgba(180,120,255,.15)}
-#dbg-panel select:focus{outline:none;border-color:rgba(220,170,255,1);box-shadow:0 0 0 3px rgba(180,120,255,.2)}
+#dbg-panel select{width:100%;padding:8px 12px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:7px;font-size:12px;margin-bottom:6px;cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:28px}
+#dbg-panel select:focus{outline:none;border-color:rgba(255,255,255,.35)}
 /* 自定义下拉（绕过 <option> 原生渲染限制） */
 #dbg-panel .dbg-csel{position:relative;margin-bottom:6px}
-#dbg-panel .dbg-csel-btn{width:100%;padding:5px 10px;background:linear-gradient(135deg,rgba(60,30,90,.7),rgba(40,20,70,.7));color:#fff;border:1px solid rgba(180,120,255,.4);border-radius:6px;font-size:11px;cursor:pointer;text-align:left;position:relative;padding-right:24px;transition:border-color .15s,box-shadow .15s;list-style:none}
-#dbg-panel .dbg-csel-btn::after{content:"";position:absolute;right:10px;top:50%;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #cc99ff;transform:translateY(-25%);pointer-events:none}
-#dbg-panel .dbg-csel-btn:hover{border-color:rgba(220,170,255,.8);box-shadow:0 2px 8px rgba(180,120,255,.15)}
-#dbg-panel .dbg-csel.open .dbg-csel-btn{border-color:rgba(220,170,255,1);box-shadow:0 0 0 3px rgba(180,120,255,.2)}
-#dbg-panel .dbg-csel-list{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow-y:auto;background:#2a1850;border:1px solid rgba(180,120,255,.4);border-radius:6px;padding:3px;z-index:99999;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);-ms-overflow-style:none;scrollbar-width:none}
+#dbg-panel .dbg-csel-btn{width:100%;padding:5px 10px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:7px;font-size:11px;cursor:pointer;text-align:left;position:relative;padding-right:24px;list-style:none}
+#dbg-panel .dbg-csel-btn::after{content:"";position:absolute;right:10px;top:50%;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #fff;transform:translateY(-25%);pointer-events:none}
+#dbg-panel .dbg-csel.open .dbg-csel-btn{border-color:rgba(255,255,255,.35)}
+#dbg-panel .dbg-csel-list{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow-y:auto;background:#171d2a;border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:3px;z-index:99999;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);-ms-overflow-style:none;scrollbar-width:none}
 #dbg-panel .dbg-csel-list::-webkit-scrollbar{display:none;width:0;height:0}
 #dbg-panel .dbg-csel.open .dbg-csel-list{display:block}
-body>.dbg-csel-list{position:fixed;z-index:999999;display:none;overflow-y:auto;background:#2a1850;border:1px solid rgba(180,120,255,.4);border-radius:6px;padding:3px;box-shadow:0 8px 24px rgba(0,0,0,.4);-ms-overflow-style:none;scrollbar-width:none}
-body>.dbg-csel-list .dbg-csel-opt{padding:5px 10px;border-radius:5px;border:1px solid rgba(180,120,255,.15);color:#fff;font-size:11px;cursor:pointer;margin-bottom:2px;background:#2a1850;transition:background .12s,border-color .12s}
+body>.dbg-csel-list{position:fixed;z-index:999999;display:none;overflow-y:auto;background:#171d2a;border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:3px;box-shadow:0 8px 24px rgba(0,0,0,.4);-ms-overflow-style:none;scrollbar-width:none}
+body>.dbg-csel-list .dbg-csel-opt{padding:5px 10px;border-radius:5px;border:1px solid rgba(255,255,255,.06);color:#fff;font-size:11px;cursor:pointer;margin-bottom:2px;background:#171d2a}
 body>.dbg-csel-list .dbg-csel-opt:last-child{margin-bottom:0}
-body>.dbg-csel-list .dbg-csel-opt:hover{background:#3a2070;border-color:rgba(220,170,255,.5)}
-body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,#7733cc);border-color:rgba(220,170,255,.7)}
-#dbg-panel .dbg-csel-opt{padding:5px 10px;border-radius:5px;border:1px solid rgba(180,120,255,.15);color:#fff;font-size:11px;cursor:pointer;margin-bottom:2px;background:#2a1850;transition:background .12s,border-color .12s}
+body>.dbg-csel-list .dbg-csel-opt:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18)}
+body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+#dbg-panel .dbg-csel-opt{padding:5px 10px;border-radius:5px;border:1px solid rgba(255,255,255,.06);color:#fff;font-size:11px;cursor:pointer;margin-bottom:2px;background:#171d2a}
 #dbg-panel .dbg-csel-opt:last-child{margin-bottom:0}
-#dbg-panel .dbg-csel-opt:hover{background:#3a2070;border-color:rgba(220,170,255,.5)}
-#dbg-panel .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,#7733cc);border-color:rgba(220,170,255,.7)}
+#dbg-panel .dbg-csel-opt:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18)}
+#dbg-panel .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
 #dbg-panel .dbg-sec{margin-bottom:14px}
 #dbg-panel .dbg-sec:last-child{margin-bottom:0}
 #dbg-apply{margin-top:14px}
-#dbg-panel button{width:100%;padding:7px;background:linear-gradient(135deg,#aa66ff,#7733cc);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:transform .12s,background .15s}
-#dbg-panel button:hover{background:linear-gradient(135deg,#bb77ff,#8844dd);transform:translateY(-1px)}
-#dbg-panel button:active{transform:translateY(0)}
-#dbg-panel .dbg-btn-sm{padding:5px 8px;font-size:11px;background:linear-gradient(135deg,rgba(80,40,140,.7),rgba(50,25,90,.7));border:1px solid rgba(180,120,255,.3)}
-#dbg-panel .dbg-btn-sm:hover{background:linear-gradient(135deg,rgba(110,55,170,.85),rgba(70,35,120,.85))}
-#dbg-panel .dbg-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:#bb99dd}
-#dbg-panel .dbg-row span:last-child{color:#ffd700;font-weight:600}
-#dbg-panel input[type=number]{width:50px;padding:4px 6px;background:rgba(0,0,0,.4);color:#ffd700;border:1px solid rgba(180,120,255,.3);border-radius:5px;font-size:11px;text-align:center}
-#dbg-panel input[type=number]:focus{outline:none;border-color:rgba(220,170,255,.8)}
-#dbg-panel input[type=text]{width:80px;padding:4px 6px;background:rgba(0,0,0,.4);color:#ffd700;border:1px solid rgba(180,120,255,.3);border-radius:5px;font-size:11px;text-align:center}
-#dbg-panel input[type=text]:focus{outline:none;border-color:rgba(220,170,255,.8)}
+#dbg-panel button{width:100%;padding:7px;background:rgba(255,255,255,.92);color:#111;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+#dbg-panel button:hover{background:#fff}
+#dbg-panel .dbg-btn-sm{padding:5px 8px;font-size:11px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.14)}
+#dbg-panel .dbg-btn-sm:hover{background:rgba(255,255,255,.1)}
+#dbg-panel .dbg-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:rgba(255,255,255,.6)}
+#dbg-panel .dbg-row span:last-child{color:#fff;font-weight:600}
+#dbg-panel input[type=number]{width:50px;padding:4px 6px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:5px;font-size:11px;text-align:center}
+#dbg-panel input[type=number]:focus{outline:none;border-color:rgba(255,255,255,.35)}
+#dbg-panel input[type=text]{width:80px;padding:4px 6px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:5px;font-size:11px;text-align:center}
+#dbg-panel input[type=text]:focus{outline:none;border-color:rgba(255,255,255,.35)}
 #dbg-panel .dbg-stepper{display:flex;align-items:center;gap:6px}
-#dbg-panel .dbg-step{width:24px;height:24px;padding:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(80,40,140,.7),rgba(50,25,90,.7));border:1px solid rgba(180,120,255,.3);border-radius:6px;color:#cc99ff;font-size:14px;font-weight:700;cursor:pointer}
-#dbg-panel .dbg-step:hover{background:linear-gradient(135deg,rgba(110,55,170,.85),rgba(70,35,120,.85))}
-#dbg-panel #dbg-set-hearts{min-width:18px;text-align:center;color:#ffd700;font-weight:600;font-size:13px}
-#help{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,12,28,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:18px 20px;border-radius:16px;max-width:280px;width:calc(100vw - 40px);max-height:calc(100vh - 80px);overflow-y:auto;text-align:center;font-size:12px;line-height:1.7;display:none;border:1px solid rgba(255,255,255,.08);-ms-overflow-style:none;scrollbar-width:none}
-#help::-webkit-scrollbar{display:none;width:0;height:0}
-#help.show{display:block}
-#help h2{font-size:16px;margin-bottom:6px;color:#ffd700;display:inline-flex;align-items:center;justify-content:center}
-#help .help-close{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:rgba(255,215,0,.18);border:1px solid rgba(255,215,0,.5);color:#ffd700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;z-index:1}
-#help .help-close:hover{background:rgba(255,215,0,.4);transform:rotate(90deg)}
-#help .help-close:active{transform:scale(.9)}
-#help .cb{margin-top:12px;padding:7px 22px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+#dbg-panel .dbg-step{width:24px;height:24px;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:6px;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#dbg-panel .dbg-step:hover{background:rgba(255,255,255,.1)}
+#dbg-panel #dbg-set-hearts{min-width:18px;text-align:center;color:#fff;font-weight:600;font-size:13px}
+#help{position:fixed;inset:0;background:rgba(5,8,16,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:440;display:none;align-items:center;justify-content:center;color:#fff;padding:16px}
+#help.show{display:flex}
+#help .help-box{width:400px;max-width:94vw;max-height:calc(100vh - 40px);padding:26px 24px 22px;text-align:center;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
+#help .help-box::-webkit-scrollbar{display:none;width:0;height:0}
+#help h2{font-size:19px;margin-bottom:4px;color:#fff;display:inline-flex;align-items:center;justify-content:center;letter-spacing:2px;font-weight:700}
+#help .help-sub{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+#help .help-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
+#help .help-close:hover{background:rgba(255,255,255,.12);color:#fff}
+#help .help-sec{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 14px;margin-top:9px;text-align:left}
+#help .help-sec-t{font-size:11px;color:rgba(255,255,255,.75);letter-spacing:1.5px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+#help .help-sec-t i{color:#fff}
+#help .help-row{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.8);line-height:1.9}
+#help .help-row i{width:16px;text-align:center;color:#fff}
+#help .help-row .hr-tag{margin-left:auto;font-size:11px;color:rgba(255,255,255,.45)}
+#help .kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:6px;font-size:11px;font-weight:700;color:#fff;font-family:inherit}
 .toast{position:fixed;bottom:16px;left:50%;transform:translate(-50%,20px) scale(.5);opacity:0;transition:all .3s cubic-bezier(.175,.885,.32,1.275);pointer-events:none;z-index:200}
 .toast.show{opacity:1;transform:translate(-50%,0) scale(1)}
 .toast-inner{padding:5px 12px;border-radius:10px;font-size:13px;font-weight:600;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:6px;max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -163,174 +171,148 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 @keyframes rainbowGlow{0%,100%{filter:brightness(1) saturate(1)}50%{filter:brightness(1.22) saturate(1.15)}}
 #storm-fx{position:fixed;inset:0;pointer-events:none;z-index:104;opacity:0}
 #sky-fx{position:fixed;inset:0;pointer-events:none;z-index:102;opacity:0;transition:opacity .8s}
-#gameover{position:fixed;inset:0;background:rgba(5,10,25,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:16px;overflow-y:auto}
+/* 统一毛玻璃面板（无光环/无底纹/无发光） */
+.glass-box{position:relative;background:rgba(13,17,28,.58);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.1);border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.4)}
+.glass-box>*{position:relative;z-index:1}
+#gameover{position:fixed;inset:0;background:rgba(5,8,16,.55);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:16px;overflow-y:auto}
 #gameover.show{display:flex}
-#gameover h1{font-size:24px;color:#ff6b6b;margin-bottom:3px;text-shadow:0 0 20px rgba(255,80,80,.5)}
-#gameover .go-score{font-size:15px;margin:3px 0}
-#gameover .go-score b{color:#ffd700;font-size:20px}
-#gameover .go-best{font-size:11px;color:#aaa;margin-bottom:8px}
-#gameover .go-name{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;text-align:center;width:170px;outline:none}
-#gameover .go-name:focus{border-color:#ffd700}
-#gameover .go-pwd{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:13px;text-align:center;width:170px;outline:none}
-#gameover .go-pwd:focus{border-color:#8fe0ff}
-#gameover .go-pwd-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
-#gameover .go-pwd-wrap .greeting{font-size:11px;color:#8fe0ff;margin-bottom:4px}
-#gameover .go-name-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
-#gameover .go-name-wrap .greeting{font-size:11px;color:#8fe0ff;margin-bottom:4px}
+#gameover .go-box{width:360px;max-width:94vw;max-height:calc(100vh - 32px);padding:24px 24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
+#gameover .go-box::-webkit-scrollbar{display:none;width:0;height:0}
+#gameover h1{font-size:22px;color:#ff8a8a;margin-bottom:3px;letter-spacing:2px;font-weight:700}
+#gameover .go-score{font-size:14px;margin:3px 0;color:rgba(255,255,255,.75)}
+#gameover .go-score b{color:#fff;font-size:22px;font-weight:800}
+#gameover .go-best{font-size:11px;color:rgba(255,255,255,.45);margin-bottom:10px}
+#gameover .go-name{padding:7px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;font-size:13px;text-align:center;width:160px;outline:none}
+#gameover .go-name:focus{border-color:rgba(255,255,255,.5)}
+#gameover .go-name-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px}
+#gameover .go-name-wrap .greeting{font-size:11px;color:rgba(255,255,255,.55);margin-bottom:5px;line-height:1.6}
 #gameover .go-name-row{display:flex;gap:6px;align-items:center}
-#gameover .go-name-ok{padding:6px 12px;border-radius:8px;border:none;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;font-weight:700;cursor:pointer;font-size:12px}
-#gameover .go-name-ok:active{transform:scale(.95)}
-#gameover .go-btn{padding:7px 28px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px}
-#gameover .go-btn:active{transform:scale(.95)}
-.lb{width:280px;max-width:90vw;background:rgba(0,0,0,.3);border-radius:12px;padding:8px 10px;border:1px solid rgba(255,255,255,.08)}
-.lb h3{font-size:13px;color:#ffd700;text-align:center;margin-bottom:6px}
-.lb-list{max-height:30vh;overflow-y:auto;padding-bottom:6px}
+#gameover .go-name-ok{padding:7px 14px;border-radius:9px;border:none;background:rgba(255,255,255,.92);color:#111;font-weight:700;cursor:pointer;font-size:12px}
+#gameover .go-name-ok:hover{background:#fff}
+#gameover .go-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#gameover .go-btn{padding:9px 24px;background:rgba(255,255,255,.92);color:#111;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:6px}
+#gameover .go-btn:hover{background:#fff}
+#gameover .go-btn.share{background:transparent;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.22)}
+#gameover .go-btn.share:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+.lb{width:100%;background:rgba(255,255,255,.04);border-radius:12px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);margin-top:4px}
+.lb h3{font-size:13px;color:#fff;text-align:center;margin-bottom:6px;letter-spacing:1px;font-weight:700}
+.lb-list{max-height:26vh;overflow-y:auto;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none}
+.lb-list::-webkit-scrollbar{display:none;width:0;height:0}
 .lb-item{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:6px;font-size:11px}
 .lb-item:nth-child(odd){background:rgba(255,255,255,.04)}
-.lb-item.me{background:rgba(255,215,0,.18);border:1px solid rgba(255,215,0,.4)}
-.lb-item .rk{width:20px;color:#fff;font-weight:bold;text-align:center;opacity:.7}
-.lb-item.top1 .rk{color:#ffd700;opacity:1}.lb-item.top2 .rk{color:#dfe6ee;opacity:1}.lb-item.top3 .rk{color:#e0a066;opacity:1}
-.lb-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lb-item .sc{color:#ffd700;font-weight:bold}
+.lb-item.me{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25)}
+.lb-item .rk{width:20px;color:rgba(255,255,255,.6);font-weight:bold;text-align:center}
+.lb-item.top1 .rk{color:#ffd700}.lb-item.top2 .rk{color:#dfe6ee}.lb-item.top3 .rk{color:#e0a066}
+.lb-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.lb-item .sc{color:#fff;font-weight:700}
 .lb-empty{text-align:center;color:#888;font-size:11px;padding:10px}
 /* 无敌显示 - 与护盾同位置 */
 #invincible-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#44ddff;padding:3px 10px;border-radius:8px;font-size:11px;display:none;align-items:center;gap:5px;border:1px solid rgba(68,221,255,.4);pointer-events:none;box-shadow:0 0 16px rgba(68,221,255,.3)}
 #invincible-hud .inv-time{color:#ffd700;font-weight:bold;font-size:13px}
 /* 详情弹窗 */
-#detail-modal,#share-modal{position:fixed;inset:0;background:rgba(5,10,25,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;overflow-y:auto}
+#detail-modal,#share-modal{position:fixed;inset:0;background:rgba(5,8,16,.55);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;overflow-y:auto}
 /* 关闭叉号（弹窗右上角） */
-.close-x{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:501;transition:all .15s}
-.close-x:hover{background:rgba(255,80,80,.6);transform:rotate(90deg)}
-.close-x:active{transform:scale(.9)}
+.close-x{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:501}
+.close-x:hover{background:rgba(255,80,80,.3);color:#fff}
 #detail-modal.show,#share-modal.show{display:flex}
-#detail-modal .dm-box{width:380px;max-width:90vw;background:rgba(0,0,0,.6);border-radius:16px;padding:20px;border:1px solid rgba(255,255,255,.1)}
-#detail-modal .dm-title{font-size:18px;color:#ffd700;text-align:center;margin-bottom:12px}
-#detail-modal .dm-list{max-height:50vh;overflow-y:auto;margin-bottom:12px}
+#detail-modal .dm-box{width:400px;max-width:92vw;padding:22px 20px 18px}
+#detail-modal .dm-title{font-size:17px;color:#fff;text-align:center;margin-bottom:12px;letter-spacing:1px;font-weight:700}
+#detail-modal .dm-list{max-height:52vh;overflow-y:auto;margin-bottom:12px;-ms-overflow-style:none;scrollbar-width:none}
+#detail-modal .dm-list::-webkit-scrollbar{display:none;width:0;height:0}
 #detail-modal .dm-item{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05)}
 #detail-modal .dm-item .rk{width:24px;font-weight:bold;text-align:center;opacity:.7}
 #detail-modal .dm-item.top1 .rk{color:#ffd700}
-#detail-modal .dm-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#detail-modal .dm-item .sc{color:#ffd700;font-weight:bold}
+#detail-modal .dm-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+#detail-modal .dm-item .sc{color:#fff;font-weight:700}
 #detail-modal .dm-item .pt{color:#888;font-size:11px;min-width:50px;text-align:right}
 #detail-modal .dm-item .ts{color:#666;font-size:11px;min-width:60px;text-align:right}
-#detail-modal .dm-btn{padding:10px 32px;background:linear-gradient(135deg,#ffd700,#f0a000);color:#000;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin:4px}
+#detail-modal .dm-btn{padding:10px 32px;background:rgba(255,255,255,.92);color:#111;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin:4px}
 #detail-modal .dm-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-/* 分享卡片：预览直接显示 canvas 生成的图片，确保和下载的 PNG 一模一样 */
-#share-modal .sm-card{width:600px;max-width:90vw;background:#0a1428;border-radius:6px;padding:0;display:block;box-shadow:0 12px 48px rgba(0,0,0,.6);position:relative;overflow:hidden;box-sizing:border-box}
-#share-modal .sm-card #share-preview-img{display:block;width:100%;height:auto;border-radius:6px}
-#share-modal .sm-btns{display:flex;gap:8px;justify-content:center;margin-top:16px}
-#share-modal .sm-btn{padding:10px 28px;background:transparent;color:#e8c878;border:1px solid rgba(212,175,100,.5);border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:2px;transition:all .2s}
-#share-modal .sm-btn:hover{background:rgba(212,175,100,.1);border-color:rgba(212,175,100,.8)}
-/* 暂停功能 */
-#pause-overlay{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(20,25,55,.85),rgba(5,8,20,.92));-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);z-index:450;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff}
-#pause-overlay.show{display:flex;animation:modalFade .3s ease}
-#pause-overlay .pause-box{position:relative;width:340px;max-width:90vw;background:linear-gradient(160deg,rgba(32,38,72,.96),rgba(18,20,42,.96));border:1px solid rgba(143,224,255,.25);border-radius:24px;padding:32px 28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.55),0 0 0 1px rgba(143,224,255,.06),inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden}
-#pause-overlay .pause-box::before{content:"";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent 0deg,rgba(143,224,255,.12) 80deg,transparent 160deg,transparent 220deg,rgba(255,215,0,.08) 300deg,transparent 360deg);animation:tutAura 10s linear infinite;pointer-events:none;opacity:.6}
-#pause-overlay .pause-box::after{content:"";position:absolute;inset:1px;border-radius:23px;background:linear-gradient(160deg,rgba(32,38,72,.96),rgba(18,20,42,.96));z-index:0}
-#pause-overlay .pause-box>*{position:relative;z-index:1}
-#pause-overlay .pause-icon{width:72px;height:72px;margin:0 auto 14px;border-radius:50%;background:linear-gradient(135deg,rgba(143,224,255,.22),rgba(100,180,255,.08));border:1px solid rgba(143,224,255,.45);display:flex;align-items:center;justify-content:center;font-size:28px;color:#8fe0ff;animation:pauseIconPulse 2.6s ease-in-out infinite;box-shadow:0 0 24px rgba(143,224,255,.25),inset 0 0 16px rgba(143,224,255,.1)}
-@keyframes pauseIconPulse{0%,100%{transform:scale(1);box-shadow:0 0 24px rgba(143,224,255,.25),inset 0 0 16px rgba(143,224,255,.1)}50%{transform:scale(1.05);box-shadow:0 0 36px rgba(143,224,255,.45),inset 0 0 20px rgba(143,224,255,.18)}}
-#pause-overlay h1{font-size:26px;color:#fff;margin-bottom:6px;text-shadow:0 0 18px rgba(143,224,255,.55);letter-spacing:3px;font-weight:800}
-#pause-overlay .pause-sub{font-size:11px;color:#7a8db5;letter-spacing:2px;margin-bottom:18px;text-transform:uppercase}
-#pause-overlay .pause-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:20px;min-width:280px}
-#pause-overlay .ps-item{position:relative;background:linear-gradient(135deg,rgba(143,224,255,.06),rgba(255,255,255,.02));border:1px solid rgba(143,224,255,.15);border-radius:12px;padding:10px 12px;overflow:hidden;transition:all .2s}
-#pause-overlay .ps-item::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(143,224,255,.4),transparent)}
-#pause-overlay .ps-item:hover{transform:translateY(-1px);border-color:rgba(143,224,255,.3)}
-#pause-overlay .ps-lbl{font-size:10px;color:#7a8db5;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:4px;justify-content:center}
-#pause-overlay .ps-val{font-size:20px;color:#8fe0ff;font-weight:800;margin-top:3px;text-shadow:0 0 10px rgba(143,224,255,.4)}
-#pause-overlay .pause-btns{display:flex;flex-direction:column;gap:9px}
-#pause-overlay .pause-btn{padding:12px 32px;background:linear-gradient(135deg,#4ade80,#22c55e);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1.5px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(74,222,128,.3),inset 0 1px 0 rgba(255,255,255,.25)}
-#pause-overlay .pause-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(74,222,128,.45),inset 0 1px 0 rgba(255,255,255,.25)}
-#pause-overlay .pause-btn:active{transform:scale(.97)}
-#pause-overlay .pause-btn.resume{background:linear-gradient(135deg,#4ade80,#22c55e)}
-#pause-overlay .pause-btn.quit{background:linear-gradient(135deg,rgba(255,107,107,.18),rgba(192,57,43,.12));color:#ffb4b4;border:1px solid rgba(255,107,107,.35);box-shadow:none}
-#pause-overlay .pause-btn.quit:hover{background:linear-gradient(135deg,rgba(255,107,107,.28),rgba(192,57,43,.18));border-color:rgba(255,107,107,.5)}
-/* 今日祝福 HUD */
-#blessing-hud{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(255,215,0,.22),rgba(255,140,0,.12));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#ffd700;padding:5px 14px 5px 10px;border-radius:14px;font-size:12px;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,215,0,.4);pointer-events:none;z-index:106;animation:blessingPulse 2.4s ease-in-out infinite;box-shadow:0 4px 14px rgba(255,180,50,.18),inset 0 1px 0 rgba(255,255,255,.15)}
-@keyframes blessingPulse{0%,100%{box-shadow:0 4px 14px rgba(255,180,50,.18),inset 0 1px 0 rgba(255,255,255,.15)}50%{box-shadow:0 4px 22px rgba(255,180,50,.45),0 0 0 1px rgba(255,215,0,.3),inset 0 1px 0 rgba(255,255,255,.15)}}
-#blessing-hud .blessing-icon{font-size:15px;filter:drop-shadow(0 0 6px rgba(255,215,0,.7))}
-#blessing-hud .blessing-name{font-weight:600}
+/* 分享卡片弹窗：纯 CSS 自适应，横竖屏通吃 */
+#share-modal{z-index:520;padding:0;overflow:hidden}
+#share-modal .sm-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:14px;padding:52px 14px 22px;box-sizing:border-box}
+#share-modal .sm-stage{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+#share-modal .sm-card{display:block;position:relative;line-height:0;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.65)}
+#share-modal .sm-card #share-preview-img{display:block;width:auto;height:auto;max-width:min(94vw,680px);max-height:calc(100dvh - 160px);border-radius:10px}
+#share-modal .sm-hint{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;flex-shrink:0;display:none}
+#share-modal .sm-btns{display:flex;gap:10px;justify-content:center;flex-shrink:0}
+#share-modal .sm-btn{padding:10px 26px;background:rgba(255,255,255,.92);color:#111;border:1px solid transparent;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;display:inline-flex;align-items:center;gap:7px}
+#share-modal .sm-btn:hover{background:#fff}
+@media(hover:none){#share-modal .sm-hint{display:block}}
+/* 暂停功能（简洁毛玻璃，无动画） */
+#pause-overlay{position:fixed;inset:0;background:rgba(5,8,16,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:450;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+#pause-overlay.show{display:flex}
+#pause-overlay .pause-box{position:relative;width:340px;max-width:90vw;background:rgba(13,17,28,.6);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:26px 26px 22px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.4)}
+#pause-overlay .pause-icon{width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
+#pause-overlay h1{font-size:22px;color:#fff;margin-bottom:4px;letter-spacing:2px;font-weight:700}
+#pause-overlay .pause-sub{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;margin-bottom:16px}
+#pause-overlay .pause-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;min-width:280px}
+#pause-overlay .ps-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:9px 12px}
+#pause-overlay .ps-lbl{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:1px;display:flex;align-items:center;gap:4px;justify-content:center}
+#pause-overlay .ps-val{font-size:18px;color:#fff;font-weight:700;margin-top:2px}
+#pause-overlay .pause-btns{display:flex;flex-direction:column;gap:8px}
+#pause-overlay .pause-btn{padding:11px 32px;background:rgba(255,255,255,.92);color:#111;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px}
+#pause-overlay .pause-btn:hover{background:#fff}
+#pause-overlay .pause-btn.quit{background:transparent;color:rgba(255,255,255,.65);border:1px solid rgba(255,255,255,.16)}
+#pause-overlay .pause-btn.quit:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.3);color:#fff}
+/* 今日祝福 HUD 已移至设置面板 */
 #pause-hud{background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:3px 10px;border-radius:8px;font-size:11px;display:none;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.06);pointer-events:none}
 #pause-hud .pause-time{color:#ffd700;font-weight:bold;font-size:13px}
-/* 成就按钮 */
-#ach-btn{top:12px;left:120px}
-#ach-btn.has-new{animation:achBtnPulse 1.4s ease-in-out infinite}
-@keyframes achBtnPulse{0%,100%{box-shadow:0 2px 8px rgba(0,0,0,.25),0 0 0 rgba(255,180,50,0);border-color:rgba(255,215,0,.5);color:#ffd700}50%{box-shadow:0 2px 8px rgba(0,0,0,.25),0 0 18px rgba(255,180,50,.85),0 0 0 1px rgba(255,200,80,.6);border-color:rgba(255,200,80,1);color:#ffd700;background:linear-gradient(135deg,rgba(255,215,0,.25),rgba(255,140,0,.15))}}
-/* 成就面板 */
-#ach-modal{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(30,22,55,.85),rgba(5,8,20,.92));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;overflow-y:auto}
-#ach-modal.show{display:flex;animation:modalFade .3s ease}
+/* 成就面板（简洁毛玻璃） */
+#ach-modal{position:fixed;inset:0;background:rgba(5,8,16,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;overflow-y:auto}
+#ach-modal.show{display:flex}
 @keyframes modalFade{from{opacity:0}to{opacity:1}}
-#ach-modal .ach-box{position:relative;width:460px;max-width:92vw;max-height:86vh;background:linear-gradient(160deg,rgba(35,28,62,.97),rgba(18,14,38,.97));border-radius:22px;padding:0;border:1px solid rgba(255,215,0,.3);box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 80px rgba(255,180,50,.1),inset 0 1px 0 rgba(255,255,255,.08);display:flex;flex-direction:column;overflow:hidden}
-#ach-modal .ach-box::before{content:"";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent 0deg,rgba(255,215,0,.15) 60deg,transparent 130deg,transparent 230deg,rgba(143,224,255,.1) 310deg,transparent 360deg);animation:tutAura 12s linear infinite;pointer-events:none;opacity:.5}
-#ach-modal .ach-box::after{content:"";position:absolute;inset:1px;border-radius:21px;background:linear-gradient(160deg,rgba(35,28,62,.97),rgba(18,14,38,.97));z-index:0}
+#ach-modal .ach-box{position:relative;width:460px;max-width:92vw;max-height:86vh;background:rgba(13,17,28,.6);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border-radius:18px;padding:0;border:1px solid rgba(255,255,255,.1);box-shadow:0 16px 48px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden}
 #ach-modal .ach-box>*{position:relative;z-index:1}
-#ach-modal .ach-header{display:flex;align-items:center;gap:12px;margin:0;padding:22px 22px 14px;border-bottom:1px solid rgba(255,215,0,.15)}
-#ach-modal .ach-header .ach-trophy{font-size:34px;filter:drop-shadow(0 0 10px rgba(255,200,50,.7));animation:achTrophyBob 3s ease-in-out infinite}
-@keyframes achTrophyBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}
-#ach-modal .ach-header h2{font-size:21px;color:#ffd700;letter-spacing:2px;text-shadow:0 0 14px rgba(255,200,0,.45);margin:0;font-weight:800}
-#ach-modal .ach-header .ach-sub{font-size:11px;color:#9a8fc4;margin-top:3px;letter-spacing:.5px}
-#ach-modal .ach-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:14px 22px 10px}
-#ach-modal .ach-sum-item{position:relative;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,255,255,.02));border:1px solid rgba(255,215,0,.18);border-radius:11px;padding:8px 6px;text-align:center;overflow:hidden}
-#ach-modal .ach-sum-item::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.5),transparent)}
-#ach-modal .ach-sum-item .lbl{font-size:9px;color:#9a8fc4;text-transform:uppercase;letter-spacing:.5px}
-#ach-modal .ach-sum-item .val{font-size:17px;color:#ffd700;font-weight:800;margin-top:3px;text-shadow:0 0 8px rgba(255,215,0,.4)}
-#ach-modal .ach-sum-item .val small{font-size:10px;color:#9a8fc4;font-weight:normal}
-#ach-modal .ach-list{flex:1;overflow-y:auto;padding:4px 18px 12px;display:flex;flex-direction:column;gap:9px;-ms-overflow-style:none;scrollbar-width:thin;scrollbar-color:rgba(255,215,0,.3) transparent}
-#ach-modal .ach-list::-webkit-scrollbar{width:5px}
-#ach-modal .ach-list::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(255,215,0,.4),rgba(255,140,0,.3));border-radius:3px}
-#ach-modal .ach-card{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:13px;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.07);transition:all .25s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
-#ach-modal .ach-card:hover{transform:translateX(2px);border-color:rgba(143,224,255,.3);background:linear-gradient(135deg,rgba(143,224,255,.06),rgba(255,255,255,.02))}
-#ach-modal .ach-card.unlocked{background:linear-gradient(135deg,rgba(255,215,0,.14),rgba(255,140,0,.06));border-color:rgba(255,200,80,.5);box-shadow:0 2px 14px rgba(255,180,50,.12),inset 0 1px 0 rgba(255,255,255,.06)}
-#ach-modal .ach-card.unlocked::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#ffd700,#ff8c00);box-shadow:0 0 8px rgba(255,200,0,.6)}
-#ach-modal .ach-icon{font-size:24px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:linear-gradient(135deg,rgba(0,0,0,.4),rgba(0,0,0,.2));flex-shrink:0;filter:grayscale(1) opacity(.45);transition:all .25s;border:1px solid rgba(255,255,255,.05)}
-#ach-modal .ach-card.unlocked .ach-icon{filter:none;background:linear-gradient(135deg,rgba(255,215,0,.25),rgba(255,140,0,.12));animation:achIconGlow 2.5s ease-in-out infinite;border-color:rgba(255,200,80,.4)}
-@keyframes achIconGlow{0%,100%{box-shadow:0 0 0 rgba(255,200,50,0)}50%{box-shadow:0 0 14px rgba(255,200,50,.5)}}
+#ach-modal .ach-header{display:flex;align-items:center;gap:12px;margin:0;padding:20px 22px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+#ach-modal .ach-header .ach-trophy{font-size:22px;color:#fff}
+#ach-modal .ach-header h2{font-size:19px;color:#fff;letter-spacing:1px;margin:0;font-weight:700}
+#ach-modal .ach-header .ach-sub{font-size:11px;color:rgba(255,255,255,.45);margin-top:3px}
+#ach-modal .ach-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 22px 10px}
+#ach-modal .ach-sum-item{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 6px;text-align:center}
+#ach-modal .ach-sum-item .lbl{font-size:9px;color:rgba(255,255,255,.45)}
+#ach-modal .ach-sum-item .val{font-size:16px;color:#fff;font-weight:700;margin-top:2px}
+#ach-modal .ach-sum-item .val small{font-size:10px;color:rgba(255,255,255,.45);font-weight:normal}
+#ach-modal .ach-list{flex:1;overflow-y:auto;padding:4px 18px 12px;display:flex;flex-direction:column;gap:8px;-ms-overflow-style:none;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+#ach-modal .ach-list::-webkit-scrollbar{width:4px}
+#ach-modal .ach-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
+#ach-modal .ach-card{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)}
+#ach-modal .ach-card.unlocked{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+#ach-modal .ach-icon{font-size:18px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(255,255,255,.05);flex-shrink:0;filter:grayscale(1) opacity(.4);border:1px solid rgba(255,255,255,.06)}
+#ach-modal .ach-card.unlocked .ach-icon{filter:none;background:rgba(255,255,255,.1)}
 #ach-modal .ach-body{flex:1;min-width:0}
-#ach-modal .ach-name{font-size:13px;font-weight:700;color:#e8e8f0;display:flex;align-items:center;gap:6px}
-#ach-modal .ach-card.unlocked .ach-name{color:#ffd700}
-#ach-modal .ach-name .ach-check{color:#4ade80;font-size:11px;filter:drop-shadow(0 0 4px rgba(74,222,128,.6))}
-#ach-modal .ach-desc{font-size:11px;color:#9a8fc4;margin-top:2px}
-#ach-modal .ach-reward{font-size:10px;color:#8fe0ff;margin-top:4px;display:inline-flex;align-items:center;gap:3px;background:rgba(143,224,255,.08);padding:2px 7px;border-radius:7px;border:1px solid rgba(143,224,255,.18)}
+#ach-modal .ach-name{font-size:13px;font-weight:600;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:6px}
+#ach-modal .ach-card.unlocked .ach-name{color:#fff}
+#ach-modal .ach-name .ach-check{color:#4ade80;font-size:11px}
+#ach-modal .ach-desc{font-size:11px;color:rgba(255,255,255,.45);margin-top:2px}
+#ach-modal .ach-reward{font-size:10px;color:rgba(255,255,255,.6);margin-top:4px;display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.06);padding:2px 7px;border-radius:7px;border:1px solid rgba(255,255,255,.1)}
 #ach-modal .ach-progress{margin-top:6px;display:flex;align-items:center;gap:7px}
-#ach-modal .ach-bar{flex:1;height:6px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,.05);position:relative}
-#ach-modal .ach-bar-fill{height:100%;background:linear-gradient(90deg,#8fe0ff,#5ab8e0);border-radius:3px;transition:width .6s cubic-bezier(.175,.885,.32,1.275);box-shadow:0 0 8px rgba(143,224,255,.5);position:relative}
-#ach-modal .ach-bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:achBarShine 2s ease-in-out infinite}
-@keyframes achBarShine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-#ach-modal .ach-card.unlocked .ach-bar-fill{background:linear-gradient(90deg,#4ade80,#22c55e);box-shadow:0 0 8px rgba(74,222,128,.5)}
-#ach-modal .ach-prog-text{font-size:10px;color:#9a8fc4;min-width:58px;text-align:right;white-space:nowrap}
-#ach-modal .ach-close{position:absolute;top:16px;right:16px;z-index:2}
-#ach-modal .ach-footer{margin:0 22px 16px;padding-top:12px;border-top:1px solid rgba(255,215,0,.12);text-align:center;font-size:11px;color:#9a8fc4;letter-spacing:.5px}
-/* 成就解锁全屏特效 */
-#ach-unlock-fx{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.5);z-index:480;pointer-events:none;opacity:0;transition:all .5s cubic-bezier(.175,.885,.32,1.275);text-align:center}
-#ach-unlock-fx.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-#ach-unlock-fx .fx-glow{position:absolute;inset:-80px;border-radius:50%;background:radial-gradient(circle,rgba(255,200,50,.45),transparent 70%);animation:achGlowPulse 1.5s ease-in-out infinite}
-@keyframes achGlowPulse{0%,100%{transform:scale(.9);opacity:.6}50%{transform:scale(1.15);opacity:1}}
-#ach-unlock-fx .fx-rays{position:absolute;inset:-40px;pointer-events:none}
-#ach-unlock-fx .fx-rays::before,#ach-unlock-fx .fx-rays::after{content:"";position:absolute;inset:0;background:conic-gradient(from 0deg,transparent,rgba(255,200,50,.25),transparent 30deg,transparent 60deg,rgba(255,200,50,.2),transparent 90deg,transparent 120deg,rgba(255,200,50,.25),transparent 150deg,transparent 180deg,rgba(255,200,50,.2),transparent 210deg,transparent 240deg,rgba(255,200,50,.25),transparent 270deg,transparent 300deg,rgba(255,200,50,.2),transparent 330deg);border-radius:50%;animation:tutAura 6s linear infinite;opacity:.5}
-#ach-unlock-fx .fx-rays::after{animation-direction:reverse;animation-duration:8s;opacity:.3}
-#ach-unlock-fx .fx-icon{font-size:72px;filter:drop-shadow(0 0 24px rgba(255,200,50,.95));position:relative;animation:achIconBounce .7s cubic-bezier(.175,.885,.32,1.275)}
-@keyframes achIconBounce{0%{transform:scale(0) rotate(-180deg)}60%{transform:scale(1.3) rotate(10deg)}100%{transform:scale(1) rotate(0)}}
-#ach-unlock-fx .fx-title{font-size:13px;color:#ffd700;letter-spacing:4px;margin-top:10px;position:relative;text-shadow:0 0 12px rgba(255,200,0,.7);text-transform:uppercase;font-weight:700}
-#ach-unlock-fx .fx-name{font-size:26px;color:#fff;font-weight:800;margin-top:6px;position:relative;text-shadow:0 0 18px rgba(255,200,50,.85);letter-spacing:1px}
-#ach-unlock-fx .fx-reward{font-size:12px;color:#8fe0ff;margin-top:8px;position:relative;background:rgba(143,224,255,.1);padding:4px 12px;border-radius:10px;border:1px solid rgba(143,224,255,.3);display:inline-block}
-/* 今日祝福翻牌弹窗 */
-#blessing-splash{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(40,28,10,.7),rgba(5,8,20,.85));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:470;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;pointer-events:none}
-#blessing-splash.show{display:flex;animation:modalFade .4s ease}
-#blessing-splash .bs-card{position:relative;width:320px;max-width:88vw;background:linear-gradient(160deg,rgba(48,35,15,.97),rgba(25,18,40,.97));border:1px solid rgba(255,215,0,.55);border-radius:22px;padding:30px 24px 26px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.55),0 0 80px rgba(255,180,50,.25),inset 0 1px 0 rgba(255,255,255,.1);transform:rotateY(90deg) scale(.8);transition:transform .7s cubic-bezier(.175,.885,.32,1.275),opacity .4s;opacity:0;overflow:hidden}
-#blessing-splash.show .bs-card{transform:rotateY(0) scale(1);opacity:1}
-#blessing-splash .bs-card::before{content:"";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent 0deg,rgba(255,215,0,.18) 60deg,transparent 130deg,transparent 230deg,rgba(255,140,0,.12) 310deg,transparent 360deg);animation:tutAura 9s linear infinite;pointer-events:none;opacity:.6}
-#blessing-splash .bs-card::after{content:"";position:absolute;inset:1px;border-radius:21px;background:linear-gradient(160deg,rgba(48,35,15,.97),rgba(25,18,40,.97));z-index:0}
-#blessing-splash .bs-card>*{position:relative;z-index:1}
-#blessing-splash .bs-shine{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 35%,rgba(255,255,255,.14) 50%,transparent 65%);animation:bsShine 2.8s ease-in-out infinite;z-index:0;pointer-events:none}
-@keyframes bsShine{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
-#blessing-splash .bs-label{display:inline-block;font-size:10px;color:#ffd700;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,140,0,.08));border:1px solid rgba(255,215,0,.35);padding:4px 12px;border-radius:10px}
-#blessing-splash .bs-holiday{font-size:12px;color:#ff9ec7;margin-top:10px;font-weight:600;display:none}
-#blessing-splash .bs-icon{font-size:68px;margin:14px 0 6px;filter:drop-shadow(0 0 22px rgba(255,200,50,.8));animation:bsFloat 2.4s ease-in-out infinite}
-@keyframes bsFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-8px) rotate(5deg)}}
-#blessing-splash .bs-name{font-size:24px;font-weight:800;color:#ffd700;text-shadow:0 0 14px rgba(255,200,0,.55);letter-spacing:1px}
-#blessing-splash .bs-desc{font-size:13px;color:#e8d8ff;margin-top:8px;line-height:1.6}
-#blessing-splash .bs-mult{display:inline-block;margin-top:12px;padding:4px 14px;background:linear-gradient(135deg,rgba(255,140,0,.22),rgba(255,100,0,.1));border:1px solid rgba(255,140,0,.55);border-radius:11px;font-size:12px;color:#ffb347;font-weight:700;letter-spacing:1px;box-shadow:0 0 12px rgba(255,140,0,.25)}
-#blessing-splash .bs-hint{margin-top:16px;padding-top:14px;border-top:1px dashed rgba(255,215,0,.18);font-size:10px;color:#9a8fc4;letter-spacing:1px}
+#ach-modal .ach-bar{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+#ach-modal .ach-bar-fill{height:100%;background:rgba(255,255,255,.5);border-radius:3px}
+#ach-modal .ach-card.unlocked .ach-bar-fill{background:#4ade80}
+#ach-modal .ach-prog-text{font-size:10px;color:rgba(255,255,255,.45);min-width:58px;text-align:right;white-space:nowrap}
+#ach-modal .ach-close{position:absolute;top:14px;right:14px;z-index:2}
+#ach-modal .ach-footer{margin:0 22px 14px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);text-align:center;font-size:10px;color:rgba(255,255,255,.4)}
+/* 成就解锁提示（简洁 toast） */
+#ach-unlock-fx{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:480;pointer-events:none;opacity:0;text-align:center;background:rgba(13,17,28,.85);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:22px 34px;box-shadow:0 16px 48px rgba(0,0,0,.5)}
+#ach-unlock-fx.show{opacity:1}
+#ach-unlock-fx .fx-glow{display:none}
+#ach-unlock-fx .fx-rays{display:none}
+#ach-unlock-fx .fx-icon{font-size:40px}
+#ach-unlock-fx .fx-title{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:3px;margin-top:8px;text-transform:uppercase;font-weight:600}
+#ach-unlock-fx .fx-name{font-size:20px;color:#fff;font-weight:700;margin-top:4px;letter-spacing:1px}
+#ach-unlock-fx .fx-reward{font-size:11px;color:rgba(255,255,255,.65);margin-top:8px;background:rgba(255,255,255,.06);padding:3px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.1);display:inline-block}
+/* 今日祝福翻牌弹窗（简洁毛玻璃） */
+#blessing-splash{position:fixed;inset:0;background:rgba(5,8,16,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:470;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;pointer-events:none}
+#blessing-splash.show{display:flex}
+#blessing-splash .bs-card{position:relative;width:250px;max-width:82vw;background:rgba(13,17,28,.72);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:20px 18px 17px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.45)}
+#blessing-splash .bs-label{display:inline-block;font-size:10px;color:rgba(255,255,255,.5);letter-spacing:4px;text-transform:uppercase}
+#blessing-splash .bs-holiday{font-size:11px;color:rgba(255,255,255,.65);margin-top:8px;font-weight:600;display:none}
+#blessing-splash .bs-icon{font-size:25px;margin:8px 0 4px;color:#fff}
+#blessing-splash .bs-name{font-size:18px;font-weight:700;color:#fff;letter-spacing:1px}
+#blessing-splash .bs-desc{font-size:12px;color:rgba(255,255,255,.65);margin-top:6px;line-height:1.6}
+#blessing-splash .bs-mult{display:inline-block;margin-top:10px;padding:3px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:9px;font-size:11px;color:rgba(255,255,255,.8);font-weight:600}
+#blessing-splash .bs-hint{margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.4);letter-spacing:1px}
 /* FPS 监控 */
 #fps-hud{position:absolute;top:48px;left:12px;background:linear-gradient(135deg,rgba(20,30,25,.7),rgba(10,15,12,.7));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#4ade80;padding:4px 10px 4px 8px;border-radius:10px;font-size:11px;font-family:'SF Mono',Consolas,monospace;display:none;align-items:center;gap:6px;border:1px solid rgba(74,222,128,.3);pointer-events:none;z-index:109;box-shadow:0 2px 10px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);letter-spacing:.5px}
 #fps-hud.show{display:flex;animation:fpsFadeIn .3s ease}
@@ -341,69 +323,214 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 #fps-hud.warn .fps-val{text-shadow:0 0 6px rgba(251,191,36,.5)}
 #fps-hud.bad{color:#f87171;border-color:rgba(248,113,113,.4);background:linear-gradient(135deg,rgba(35,18,18,.7),rgba(20,10,10,.7))}
 #fps-hud.bad .fps-val{text-shadow:0 0 6px rgba(248,113,113,.5)}
-/* 新手教程 */
-#tutorial{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(20,25,55,.82),rgba(5,8,20,.9));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);z-index:460;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;pointer-events:auto}
-#tutorial.show{display:flex;animation:modalFade .4s ease}
-#tutorial .tut-card{position:relative;width:380px;max-width:92vw;background:linear-gradient(160deg,rgba(28,35,62,.98),rgba(15,18,38,.98));border:1px solid rgba(143,224,255,.35);border-radius:22px;padding:0;box-shadow:0 12px 60px rgba(0,0,0,.55),0 0 0 1px rgba(143,224,255,.08),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
-#tutorial .tut-card::before{content:"";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent 0deg,rgba(143,224,255,.15) 60deg,transparent 120deg,transparent 240deg,rgba(255,215,0,.12) 300deg,transparent 360deg);animation:tutAura 8s linear infinite;pointer-events:none;opacity:.7}
-#tutorial .tut-card::after{content:"";position:absolute;inset:1px;border-radius:21px;background:linear-gradient(160deg,rgba(28,35,62,.98),rgba(15,18,38,.98));z-index:0}
-#tutorial .tut-card>*{position:relative;z-index:1}
+/* 新手教程（毛玻璃，保留动画 — 设备识别引导） */
+#tutorial{position:fixed;inset:0;background:rgba(5,8,16,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:460;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;pointer-events:auto}
+#tutorial.show{display:flex;animation:modalFade .3s ease}
+#tutorial .tut-card{position:relative;width:380px;max-width:92vw;background:rgba(13,17,28,.6);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:0;box-shadow:0 16px 48px rgba(0,0,0,.4)}
 @keyframes tutAura{to{transform:rotate(360deg)}}
-#tutorial .tut-header{display:flex;align-items:center;justify-content:center;gap:12px;padding:22px 22px 0;margin-bottom:8px}
-#tutorial .tut-header .tut-duck{font-size:38px;filter:drop-shadow(0 0 12px rgba(255,215,0,.5));animation:tutDuckBob 2.4s ease-in-out infinite}
-@keyframes tutDuckBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-4px) rotate(3deg)}}
-#tutorial .tut-header h2{font-size:20px;color:#fff;letter-spacing:2px;text-shadow:0 0 14px rgba(143,224,255,.55);margin:0}
-#tutorial .tut-header .tut-badge{font-size:11px;color:#8fe0ff;background:rgba(143,224,255,.12);border:1px solid rgba(143,224,255,.3);padding:2px 8px;border-radius:10px;letter-spacing:1px;margin-left:auto}
-#tutorial .tut-progress{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 22px 0;font-size:11px;color:#7a8db5;letter-spacing:1px}
-#tutorial .tut-progress .tut-cur{color:#ffd700;font-weight:bold;font-size:13px}
-#tutorial .tut-step{display:none;padding:8px 26px 4px;min-height:160px}
-#tutorial .tut-step.active{display:flex;flex-direction:column;align-items:center;animation:tutStepIn .45s cubic-bezier(.175,.885,.32,1.275)}
-@keyframes tutStepIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
-#tutorial .tut-step .tut-icon{font-size:54px;text-align:center;margin:4px 0 12px;filter:drop-shadow(0 0 18px rgba(255,215,0,.45));animation:tutIconPop .6s cubic-bezier(.175,.885,.32,1.275)}
-@keyframes tutIconPop{0%{transform:scale(.4) rotate(-15deg);opacity:0}60%{transform:scale(1.15) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0)}}
-#tutorial .tut-step .tut-title{font-size:17px;font-weight:bold;color:#ffd700;text-align:center;margin-bottom:8px;letter-spacing:1px;text-shadow:0 0 10px rgba(255,215,0,.3)}
-#tutorial .tut-step .tut-text{font-size:13.5px;color:#d8d8e8;line-height:1.8;text-align:center;max-width:300px}
-#tutorial .tut-step .tut-text b{color:#fff;background:linear-gradient(135deg,rgba(143,224,255,.18),rgba(255,215,0,.12));padding:1px 7px;border-radius:6px;border:1px solid rgba(143,224,255,.25)}
-#tutorial .tut-dots{display:flex;gap:8px;justify-content:center;margin:12px 0 14px}
-#tutorial .tut-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.18);transition:all .35s cubic-bezier(.4,0,.2,1);border:1px solid rgba(255,255,255,.1)}
-#tutorial .tut-dot.active{background:#ffd700;transform:scale(1.4);box-shadow:0 0 12px rgba(255,215,0,.7),0 0 24px rgba(255,215,0,.3);border-color:transparent}
-#tutorial .tut-dot.done{background:rgba(143,224,255,.5)}
-#tutorial .tut-btns{display:flex;gap:10px;justify-content:center;padding:0 22px 20px}
-#tutorial .tut-btn{flex:1;padding:11px 18px;background:linear-gradient(135deg,#ffd700,#ffa500);color:#1a1000;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:all .18s;box-shadow:0 4px 14px rgba(255,180,0,.35),inset 0 1px 0 rgba(255,255,255,.4);letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:6px}
-#tutorial .tut-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(255,180,0,.5),inset 0 1px 0 rgba(255,255,255,.4)}
-#tutorial .tut-btn:active{transform:scale(.96)}
-#tutorial .tut-btn.skip{flex:0 0 auto;padding:11px 16px;background:transparent;color:#7a8db5;border:1px solid rgba(143,224,255,.2);box-shadow:none;font-size:13px}
-#tutorial .tut-btn.skip:hover{color:#8fe0ff;border-color:rgba(143,224,255,.4);background:rgba(143,224,255,.06);transform:none}
-#tutorial .tut-deco{position:absolute;font-size:18px;opacity:.35;pointer-events:none;animation:tutFloat 5s ease-in-out infinite}
-#tutorial .tut-deco.d1{top:18px;left:18px;animation-delay:0s}
-#tutorial .tut-deco.d2{top:18px;right:18px;animation-delay:-1.5s}
-#tutorial .tut-deco.d3{bottom:18px;left:18px;animation-delay:-3s}
-#tutorial .tut-deco.d4{bottom:18px;right:18px;animation-delay:-4s}
-@keyframes tutFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(8deg)}}
-@media(max-width:480px){
-    #tutorial .tut-card{width:94vw}
-    #tutorial .tut-step .tut-icon{font-size:46px}
-    #tutorial .tut-btn{font-size:13px;padding:10px 14px}
+#tutorial .tut-header{display:flex;align-items:center;justify-content:center;gap:10px;padding:20px 22px 0;margin-bottom:4px}
+#tutorial .tut-header .tut-duck{font-size:30px}
+#tutorial .tut-header h2{font-size:18px;color:#fff;letter-spacing:2px;margin:0;font-weight:700}
+#tutorial .tut-progress{display:flex;align-items:center;justify-content:center;gap:6px;padding:4px 22px 0;font-size:11px;color:rgba(255,255,255,.45);letter-spacing:1px}
+#tutorial .tut-progress .tut-cur{color:#fff;font-weight:700;font-size:13px}
+#tutorial .tut-step{display:none;padding:6px 26px 2px;min-height:150px}
+#tutorial .tut-step.active{display:flex;flex-direction:column;align-items:center;animation:tutStepIn .35s ease}
+@keyframes tutStepIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#tutorial .tut-step .tut-icon{font-size:28px;color:#fff;text-align:center;margin:4px 0 10px}
+#tutorial .tut-step .tut-title{font-size:16px;font-weight:700;color:#fff;text-align:center;margin-bottom:8px;letter-spacing:1px}
+#tutorial .tut-step .tut-text{font-size:13px;color:rgba(255,255,255,.75);line-height:1.8;text-align:center;max-width:300px;margin:0 auto}
+#tutorial .tut-step .tut-body{width:100%;text-align:center}
+#tutorial .tut-step .tut-text b{color:#fff;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:6px;border:1px solid rgba(255,255,255,.14)}
+#tutorial .tut-dots{display:flex;gap:8px;justify-content:center;margin:10px 0 12px}
+#tutorial .tut-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18);transition:all .3s}
+#tutorial .tut-dot.active{background:#fff;transform:scale(1.25)}
+#tutorial .tut-dot.done{background:rgba(255,255,255,.45)}
+#tutorial .tut-btns{display:flex;gap:10px;justify-content:center;padding:0 22px 18px}
+#tutorial .tut-btn{flex:1;padding:11px 18px;background:rgba(255,255,255,.92);color:#111;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;transition:all .18s;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:6px}
+#tutorial .tut-btn:hover{background:#fff;transform:translateY(-1px)}
+#tutorial .tut-btn:active{transform:scale(.97)}
+#tutorial .tut-btn.skip{flex:0 0 auto;padding:11px 16px;background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.16)}
+#tutorial .tut-btn.skip:hover{color:#fff;border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.06);transform:none}
+/* 教程增强：设备徽章 / 键帽 / 示意图 */
+#tutorial .tut-device{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.55);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);padding:3px 10px;border-radius:10px;letter-spacing:1px;margin-top:4px}
+#tutorial .tut-device i{color:#fff}
+#tutorial .tut-kbd-row{display:flex;gap:7px;justify-content:center;margin:8px 0 4px}
+#tutorial .tut-kbd{min-width:32px;height:32px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;border-radius:7px;font-size:13px;font-weight:700;color:#fff}
+#tutorial .tut-demo{display:flex;align-items:center;justify-content:center;gap:18px;margin:8px 0 2px}
+#tutorial .tut-joy-demo{position:relative;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.22)}
+#tutorial .tut-joy-demo .knob{position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.85);top:50%;left:50%;animation:tutJoyMove 2.4s ease-in-out infinite}
+@keyframes tutJoyMove{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(-85%,-50%)}50%{transform:translate(-50%,-85%)}75%{transform:translate(-15%,-50%)}}
+#tutorial .tut-swipe-demo{position:relative;width:64px;height:64px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.18);overflow:hidden}
+#tutorial .tut-swipe-demo .finger{position:absolute;font-size:18px;color:#fff;animation:tutSwipe 2.4s ease-in-out infinite}
+@keyframes tutSwipe{0%,100%{left:14%;top:56%;opacity:.45}50%{left:60%;top:32%;opacity:1}}
+#tutorial .tut-demo-cap{font-size:10px;color:rgba(255,255,255,.45);text-align:center;margin-top:2px;letter-spacing:1px}
+#tutorial .tut-items{display:flex;justify-content:center;gap:7px;margin:8px 0 2px;flex-wrap:wrap}
+#tutorial .tut-item{display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:7px 8px;min-width:46px}
+#tutorial .tut-item .ti-i{font-size:14px;color:#fff}
+#tutorial .tut-item .ti-v{font-size:10px;color:rgba(255,255,255,.7);font-weight:600}
+#tutorial .tut-item.bad .ti-v{color:rgba(255,140,140,.9)}
+#tutorial .tut-combo{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0}
+#tutorial .tut-combo .tc-orb{width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.25)}
+#tutorial .tut-combo .tc-arrow{color:rgba(255,255,255,.4);font-size:12px}
+#tutorial .tut-combo .tc-mult{font-size:15px;font-weight:800;color:#fff}
+/* ===== 设置面板（简洁毛玻璃，无动画） ===== */
+#settings-modal{position:fixed;inset:0;background:rgba(5,8,16,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:530;display:none;align-items:center;justify-content:center;color:#fff;padding:16px}
+#settings-modal.show{display:flex}
+#settings-modal .set-box{width:360px;max-width:94vw;max-height:calc(100vh - 36px);padding:0;display:flex;flex-direction:column}
+#settings-modal .set-close{position:absolute;top:12px;right:12px;z-index:2}
+#settings-modal .set-header{display:flex;align-items:center;gap:10px;padding:18px 20px 10px}
+#settings-modal .set-header .set-gear{font-size:17px;color:#fff}
+#settings-modal .set-header h2{font-size:17px;color:#fff;letter-spacing:1px;margin:0;font-weight:700}
+#settings-modal .set-header .set-sub{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:1.5px;margin-top:2px}
+#settings-modal .set-body{flex:1;overflow-y:auto;padding:0 16px 4px;-ms-overflow-style:none;scrollbar-width:none}
+#settings-modal .set-body::-webkit-scrollbar{display:none;width:0;height:0}
+#settings-modal .set-blessing{margin:0 2px 12px;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+#settings-modal .set-blessing .sb-icon{font-size:18px;color:#fff;flex-shrink:0;width:22px;text-align:center}
+#settings-modal .set-blessing .sb-body{flex:1;min-width:0}
+#settings-modal .set-blessing .sb-tag{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase}
+#settings-modal .set-blessing .sb-name{font-size:13px;font-weight:700;color:#fff;margin-top:1px}
+#settings-modal .set-blessing .sb-desc{font-size:11px;color:rgba(255,255,255,.6);margin-top:1px;line-height:1.4}
+#settings-modal .set-blessing .sb-mult{flex-shrink:0;font-size:11px;font-weight:600;color:rgba(255,255,255,.75);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);padding:2px 8px;border-radius:8px;white-space:nowrap}
+#settings-modal .set-sec-t{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase;margin:4px 4px 8px}
+#settings-modal .set-row{display:flex;align-items:center;gap:11px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;margin-bottom:7px}
+#settings-modal .set-row .sr-icon{font-size:13px;color:#fff;width:18px;text-align:center;flex-shrink:0}
+#settings-modal .set-row .sr-body{flex:1;min-width:0}
+#settings-modal .set-row .sr-name{font-size:13px;font-weight:600;color:rgba(255,255,255,.9)}
+#settings-modal .set-row .sr-desc{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px}
+#settings-modal .set-switch{position:relative;width:40px;height:23px;border-radius:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.12);cursor:pointer;flex-shrink:0}
+#settings-modal .set-switch::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff}
+#settings-modal .set-switch.on{background:rgba(74,222,128,.45)}
+#settings-modal .set-switch.on::after{left:19px}
+#settings-modal .set-seg{display:flex;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:2px;gap:2px;flex-shrink:0}
+#settings-modal .set-seg .seg-opt{padding:4px 10px;font-size:11px;color:rgba(255,255,255,.5);border-radius:7px;cursor:pointer;font-weight:600}
+#settings-modal .set-seg .seg-opt:hover{color:rgba(255,255,255,.8)}
+#settings-modal .set-seg .seg-opt.sel{background:rgba(255,255,255,.88);color:#111}
+#settings-modal .set-slider{-webkit-appearance:none;appearance:none;width:100px;height:4px;border-radius:2px;background:rgba(255,255,255,.16);outline:none;cursor:pointer;flex-shrink:0}
+#settings-modal .set-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer}
+#settings-modal .set-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:none;cursor:pointer}
+#settings-modal .set-slider-val{font-size:11px;color:rgba(255,255,255,.8);font-weight:600;min-width:30px;text-align:right;flex-shrink:0}
+#settings-modal .set-footer{display:flex;gap:8px;padding:8px 16px 16px}
+#settings-modal .set-foot-btn{flex:1;padding:9px 8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.8);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+#settings-modal .set-foot-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+/* 密码弹窗 */
+#pwd-modal{position:fixed;inset:0;background:rgba(5,8,16,.5);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);z-index:600;display:none;align-items:center;justify-content:center;padding:16px}
+#pwd-modal.show{display:flex}
+#pwd-modal .pwd-box{width:330px;max-width:92vw;padding:26px 24px 22px;text-align:center}
+#pwd-modal h3{color:#fff;font-size:17px;margin:0 0 8px;letter-spacing:1px;font-weight:700}
+#pwd-modal .pwd-desc{color:rgba(255,255,255,.5);font-size:12px;margin:0 0 16px;line-height:1.6}
+#pwd-modal input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);color:#fff;font-size:14px;outline:none;margin-bottom:8px;box-sizing:border-box;text-align:center}
+#pwd-modal input:focus{border-color:rgba(255,255,255,.45)}
+#pwd-modal .pwd-error{color:#ff8a8a;font-size:12px;margin-bottom:8px;display:none}
+#pwd-modal .pwd-btns{display:flex;gap:8px;justify-content:center}
+#pwd-modal .pwd-cancel{padding:10px 20px;background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);border-radius:10px;font-size:13px;cursor:pointer}
+#pwd-modal .pwd-cancel:hover{border-color:rgba(255,255,255,.4);color:#fff}
+#pwd-modal .pwd-ok{padding:10px 26px;background:rgba(255,255,255,.92);color:#111;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer}
+#pwd-modal .pwd-ok:hover{background:#fff}
+/* 统一视觉系统：克制的中性毛玻璃、细边框与稳定层级 */
+#help,#gameover,#detail-modal,#share-modal,#pause-overlay,#ach-modal,#blessing-splash,#settings-modal,#pwd-modal{background:var(--overlay-bg);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.glass-box,#pause-overlay .pause-box,#ach-modal .ach-box,#blessing-splash .bs-card,#tutorial .tut-card,#dbg-panel{background:var(--panel-bg);-webkit-backdrop-filter:blur(28px) saturate(1.25);backdrop-filter:blur(28px) saturate(1.25);border-color:var(--panel-border);box-shadow:var(--panel-shadow)}
+#help .help-sec,.lb,#pause-overlay .ps-item,#ach-modal .ach-sum-item,#ach-modal .ach-card,#settings-modal .set-row,#settings-modal .set-blessing{background:var(--surface);border-color:var(--panel-border-soft)}
+#ach-modal .ach-card.unlocked{background:var(--surface-strong);border-color:rgba(255,255,255,.15)}
+.close-x,#help .help-close{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.11);color:rgba(255,255,255,.72)}
+.close-x:hover,#help .help-close:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#fff}
+#help .help-sub,#pause-overlay .pause-sub,#ach-modal .ach-header .ach-sub,#settings-modal .set-header .set-sub{color:var(--text-faint)}
+/* 手机横屏 / 矮屏：利用宽度换高度，避免长面板和嵌套滚动 */
+@media(max-height:540px){
+    #help,#gameover,#detail-modal,#pause-overlay,#ach-modal,#tutorial,#settings-modal,#pwd-modal{padding:8px max(8px,var(--safe-right)) 8px max(8px,var(--safe-left))}
+    .close-x,#help .help-close{top:8px;right:8px}
+    #settings-modal .set-box{width:min(560px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));max-height:calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));border-radius:15px}
+    #settings-modal .set-header{padding:11px 16px 7px;gap:8px}
+    #settings-modal .set-header h2{font-size:15px}
+    #settings-modal .set-header .set-sub{display:none}
+    #settings-modal .set-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0 12px 2px}
+    #settings-modal .set-blessing{grid-column:1/-1;padding:7px 10px;margin:0;gap:8px}
+    #settings-modal .set-blessing .sb-name{font-size:12px;margin-top:0}
+    #settings-modal .set-blessing .sb-desc{font-size:10px;margin-top:0}
+    #settings-modal .set-blessing .sb-tag{display:none}
+    #settings-modal .set-sec-t{grid-column:1/-1;margin:2px 2px 0}
+    #settings-modal .set-row{padding:7px 9px;margin:0;min-height:46px;border-radius:10px}
+    #settings-modal .set-row .sr-desc{display:none}
+    #settings-modal #set-joy-row{grid-column:1/-1}
+    #settings-modal .set-footer{padding:6px 12px 11px}
+    #settings-modal .set-foot-btn{padding:8px;min-height:36px}
+    #help .help-box{width:min(760px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));max-width:none;max-height:calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));padding:12px 14px 11px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px;border-radius:15px}
+    #help h2,#help .help-sub{grid-column:1/-1}
+    #help h2{font-size:17px;margin:0}
+    #help h2 svg{width:24px;height:24px}
+    #help .help-sub{margin:0 0 1px;font-size:9px}
+    #help .help-sec{margin:0;padding:7px 10px;border-radius:10px}
+    #help .help-sec-t{font-size:10px;margin-bottom:3px}
+    #help .help-row{font-size:11px;line-height:1.65;gap:6px}
+    #help .help-row .hr-tag{font-size:10px}
+    #tutorial .tut-card{max-height:calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));display:flex;flex-direction:column;width:min(560px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));border-radius:15px}
+    #tutorial .tut-header{padding:11px 18px 0;margin-bottom:1px}
+    #tutorial .tut-header .tut-duck{font-size:24px}
+    #tutorial .tut-header h2{font-size:16px}
+    #tutorial .tut-device{padding:2px 8px;font-size:9px}
+    #tutorial .tut-progress{padding-top:2px;font-size:10px}
+    #tutorial #tut-steps{flex:1 1 auto;min-height:0;overflow-y:hidden}
+    #tutorial .tut-step{min-height:0;padding:0 20px 2px}
+    #tutorial .tut-step .tut-icon{display:block;font-size:18px;margin:0 0 2px}
+    #tutorial .tut-step .tut-title{font-size:13px;margin-bottom:2px}
+    #tutorial .tut-step .tut-text{font-size:11px;line-height:1.45;max-width:460px}
+    #tutorial .tut-kbd-row{margin:2px 0}
+    #tutorial .tut-kbd{min-width:28px;height:25px;font-size:11px}
+    #tutorial .tut-items{gap:5px;margin:4px 0 3px;flex-wrap:nowrap}
+    #tutorial .tut-item{padding:5px 7px;min-width:43px;border-radius:8px}
+    #tutorial .tut-combo{margin:5px 0}
+    #tutorial .tut-dots{margin:5px 0 7px}
+    #tutorial .tut-btns{padding:0 18px 11px;gap:8px}
+    #tutorial .tut-btn{padding:8px 14px;min-height:36px;font-size:12px}
+    #tutorial .tut-demo{margin:3px 0 0}
+    #tutorial .tut-demo-cap{display:none}
+    #tutorial .tut-joy-demo,#tutorial .tut-swipe-demo{width:42px;height:42px}
+    #tutorial .tut-joy-demo .knob{width:18px;height:18px}
+    #pause-overlay .pause-box{width:min(620px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));padding:14px 16px 13px;border-radius:15px}
+    #pause-overlay .pause-icon{width:38px;height:38px;margin-bottom:6px;font-size:15px}
+    #pause-overlay h1{font-size:18px;margin-bottom:2px}
+    #pause-overlay .pause-sub{margin-bottom:9px}
+    #pause-overlay .pause-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;min-width:0;margin-bottom:10px}
+    #pause-overlay .ps-item{padding:6px 7px;border-radius:9px}
+    #pause-overlay .ps-val{font-size:15px}
+    #pause-overlay .pause-btns{flex-direction:row;gap:7px}
+    #pause-overlay .pause-btn{flex:1;padding:8px 14px;min-height:38px;font-size:12px}
+    #ach-modal .ach-box{width:min(720px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));max-width:none;max-height:calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));border-radius:15px}
+    #ach-modal .ach-header{padding:11px 16px 8px}
+    #ach-modal .ach-header h2{font-size:16px}
+    #ach-modal .ach-summary{margin:7px 14px 6px;gap:5px}
+    #ach-modal .ach-sum-item{padding:5px 4px}
+    #ach-modal .ach-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:6px;padding:3px 12px 9px}
+    #ach-modal .ach-card{padding:7px 9px;gap:8px;border-radius:10px}
+    #ach-modal .ach-icon{width:34px;height:34px;font-size:15px;border-radius:8px}
+    #ach-modal .ach-name{font-size:11px}
+    #ach-modal .ach-desc{font-size:9px}
+    #ach-modal .ach-reward{font-size:9px;margin-top:2px;padding:1px 5px}
+    #ach-modal .ach-progress{margin-top:4px}
+    #ach-modal .ach-footer{display:none}
+    #gameover .go-box{width:min(680px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));max-width:none;max-height:calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));padding:14px 16px 12px;border-radius:15px}
+    #gameover h1{font-size:18px;margin-bottom:1px}
+    #gameover .go-best{margin-bottom:5px}
+    #gameover .lb{padding:7px 10px}
+    #gameover .lb-list{max-height:24vh}
+    #gameover .go-btn{padding:8px 18px;margin-top:5px}
+    #detail-modal .dm-box{width:min(640px,calc(100vw - 16px - var(--safe-left) - var(--safe-right)));max-width:none;max-height:calc(100dvh - 12px - var(--safe-top) - var(--safe-bottom));padding:14px 16px 12px;border-radius:15px}
+    #detail-modal .dm-title{font-size:15px;margin-bottom:6px}
+    #detail-modal .dm-list{max-height:calc(100dvh - 78px - var(--safe-top) - var(--safe-bottom));margin:0}
+    #detail-modal .dm-item{padding:4px 8px;font-size:11px}
+    #pwd-modal .pwd-box{padding:16px 18px 14px;border-radius:15px}
+    #pwd-modal h3{font-size:15px;margin-bottom:5px}
+    #pwd-modal .pwd-desc{margin-bottom:9px}
 }
-#share-modal .sm-btn.outline{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
-/* 手机端：宽高都由 JS 动态设置（showShareModal 里按 3:2 比例计算），CSS 不约束 */
-@media(max-width:768px){
-    #share-modal{position:fixed;top:0;left:0;right:0;bottom:auto;height:100vh;height:100dvh;justify-content:flex-start;align-items:center;padding:45px 12px 20px;gap:14px;overflow:hidden;box-sizing:border-box}
-    /* 重置 sm-card 的 width/max-width/overflow，让 JS 设的图片尺寸生效 */
-    #share-modal .sm-card{width:auto;max-width:none;flex-shrink:0;background:transparent;box-shadow:none;overflow:visible;border-radius:0;padding:0;box-sizing:border-box}
-    /* 重置图片的 width:100%/height:auto，让 JS 设的 inline 样式生效 */
-    #share-modal .sm-card #share-preview-img{
-        display:block;
-        width:auto;
-        height:auto;
-        border-radius:6px;
-        box-shadow:0 12px 48px rgba(0,0,0,.6)
-    }
-    #share-modal .sm-btns{margin-top:0;flex-shrink:0}
-    #share-modal .sm-btn{padding:11px 28px;font-size:13px}
+@media(max-height:360px){
+    #settings-modal .set-blessing .sb-desc,#pause-overlay .pause-sub,#help .help-sub{display:none}
+    #settings-modal .set-row{min-height:42px;padding-top:5px;padding-bottom:5px}
+    #tutorial .tut-step .tut-icon{display:none}
+    #tutorial .tut-header{padding-top:8px}
+    #ach-modal .ach-summary{display:none}
 }
-/* 游戏结束按钮区 */
-#gameover .go-btn.share{background:linear-gradient(135deg,#4dc9ff,#2a8adf)}
+@media(max-width:620px) and (max-height:540px){
+    #ach-modal .ach-list{grid-template-columns:1fr}
+}
 /* 排行榜按钮区 */
 .lb-btns{display:flex;gap:6px;justify-content:center;margin-top:8px}
 .lb-btn{padding:6px 14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:12px;cursor:pointer}
@@ -425,29 +552,65 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
     #invincible-hud .inv-time{font-size:16px}
     .btn{width:38px;height:38px;font-size:15px}
     #fs-btn{top:32px;left:16px}#music-btn{top:32px;left:60px}
+    #pause-btn{top:32px;left:104px}#ach-btn{top:32px;left:148px}
     #lb-btn-top{top:32px;right:16px}
-    #help-btn{bottom:20px;right:20px;width:38px;height:38px;font-size:15px}
-    #dbg-btn{bottom:20px;right:64px;width:38px;height:38px;font-size:14px}
+    #settings-btn{bottom:20px;right:20px}
+    #help-btn{bottom:20px;right:64px;width:38px;height:38px;font-size:15px}
+    #dbg-btn{bottom:20px;right:108px;width:38px;height:38px;font-size:14px}
     #clock{top:32px;right:60px;height:36px;padding:0 14px;font-size:14px;gap:6px}
-    #gameover h1{font-size:34px;margin-bottom:6px}
-    #gameover .go-score{font-size:19px;margin:6px 0}
-    #gameover .go-score b{font-size:28px}
-    #gameover .go-best{font-size:13px;margin-bottom:12px}
-    #gameover .go-name{padding:9px 14px;font-size:15px;width:210px}
-    #gameover .go-name-wrap .greeting{font-size:14px;margin-bottom:6px}
-    #gameover .go-name-ok{padding:9px 16px;font-size:14px}
-    #gameover .go-btn{padding:10px 40px;font-size:16px;margin-top:10px}
-    .lb{width:330px;padding:12px 14px}
+    #fps-hud{top:76px;left:16px}
+    #gameover .go-box{width:420px;padding:30px 30px 26px}
+    #gameover h1{font-size:28px}
+    #gameover .go-score b{font-size:26px}
+    #gameover .go-name{width:200px}
+    .lb{padding:12px 14px}
     .lb h3{font-size:15px;margin-bottom:8px}
-    .lb-list{max-height:32vh}
+    .lb-list{max-height:30vh}
     .lb-item{padding:5px 8px;gap:10px;font-size:13px}
-    .lb-item .rk{width:24px}
-    .lb-empty{font-size:13px;padding:14px}
-    #help{padding:28px 32px;max-width:320px;width:auto;font-size:14px;line-height:2.2}
-    #help h2{font-size:20px;margin-bottom:8px}
-    #help .cb{margin-top:18px;padding:10px 32px;font-size:15px}
+    #help .help-box{width:460px;padding:32px 30px 26px}
+    #help h2{font-size:22px}
+    #detail-modal .dm-box{width:480px}
+    #settings-modal .set-box{width:400px}
+    #pwd-modal .pwd-box{width:380px}
     .toast-inner{padding:8px 22px;border-radius:14px;font-size:20px;gap:8px;max-width:none}
     .toast{bottom:32px}
+}
+/* 触屏设备：安全区、触控热区与横屏 HUD 间距 */
+@media (hover:none), (pointer:coarse){
+    .btn{width:38px;height:38px;border-radius:11px;font-size:14px;cursor:default}
+    .btn:hover{background:rgba(12,17,27,.58);border-color:rgba(255,255,255,.13);color:rgba(255,255,255,.86)}
+    .btn.active:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff}
+    #fs-btn{top:calc(var(--safe-top) + 8px);left:calc(var(--safe-left) + 8px)}
+    #music-btn{top:calc(var(--safe-top) + 8px);left:calc(var(--safe-left) + 50px)}
+    #pause-btn{top:calc(var(--safe-top) + 8px);left:calc(var(--safe-left) + 92px)}
+    #ach-btn{top:calc(var(--safe-top) + 8px);left:calc(var(--safe-left) + 134px)}
+    #lb-btn-top{top:calc(var(--safe-top) + 8px);right:calc(var(--safe-right) + 8px)}
+    #clock{top:calc(var(--safe-top) + 8px);right:calc(var(--safe-right) + 50px);height:38px;padding:0 11px;font-size:12px}
+    #hud{top:calc(var(--safe-top) + 10px);gap:4px}
+    .hi{padding:4px 8px}
+    #event-hud{top:calc(var(--safe-top) + 54px)}
+    #event-warn{top:calc(var(--safe-top) + 84px)}
+    #fps-hud{top:calc(var(--safe-top) + 54px);left:calc(var(--safe-left) + 8px)}
+    #settings-btn{bottom:calc(var(--safe-bottom) + 10px);right:calc(var(--safe-right) + 10px)}
+    #help-btn{bottom:calc(var(--safe-bottom) + 10px);right:calc(var(--safe-right) + 52px);width:38px;height:38px;font-size:14px}
+    #dbg-btn{bottom:calc(var(--safe-bottom) + 10px);right:calc(var(--safe-right) + 94px);width:38px;height:38px;font-size:13px}
+    #dbg-panel{bottom:calc(var(--safe-bottom) + 54px);right:calc(var(--safe-right) + 10px);max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 70px)}
+    #joy-zone{bottom:var(--safe-bottom);left:var(--safe-left);height:50%}
+    .close-x,#help .help-close{width:40px;height:40px;font-size:15px}
+    #settings-modal .set-switch{width:44px;height:26px;border-radius:14px}
+    #settings-modal .set-switch::after{width:20px;height:20px}
+    #settings-modal .set-switch.on::after{left:20px}
+    #settings-modal .set-seg .seg-opt{min-width:30px;min-height:30px;padding:6px 9px;display:flex;align-items:center;justify-content:center}
+    #settings-modal .set-slider{height:5px}
+    #settings-modal .set-slider::-webkit-slider-thumb{width:20px;height:20px}
+    #settings-modal .set-slider::-moz-range-thumb{width:20px;height:20px}
+    #settings-modal .set-foot-btn,#tutorial .tut-btn,#pause-overlay .pause-btn,#gameover .go-btn,#gameover .go-name-ok,#detail-modal .dm-btn,#share-modal .sm-btn,#pwd-modal .pwd-cancel,#pwd-modal .pwd-ok{min-height:40px}
+    #pwd-modal input,#gameover .go-name{font-size:16px;min-height:40px}
+    #share-modal .close-x{top:calc(var(--safe-top) + 8px);right:calc(var(--safe-right) + 8px)}
+    #share-modal .sm-wrap{padding:calc(var(--safe-top) + 50px) calc(var(--safe-right) + 12px) calc(var(--safe-bottom) + 14px) calc(var(--safe-left) + 12px);gap:10px}
+    #share-modal .sm-card #share-preview-img{max-width:calc(100vw - var(--safe-left) - var(--safe-right) - 24px);max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 132px)}
+    .toast{bottom:calc(var(--safe-bottom) + 12px)}
+    #rotate-hint{padding:calc(var(--safe-top) + 20px) calc(var(--safe-right) + 20px) calc(var(--safe-bottom) + 20px) calc(var(--safe-left) + 20px)}
 }
 </style>
 </head>
@@ -456,7 +619,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
 <div id="rotate-hint"><div class="ri"><i class="fa-solid fa-mobile-screen-button"></i></div><div style="margin-top:16px">请横屏使用</div></div>
 <div id="err-popup"><div><i class="fa-solid fa-triangle-exclamation"></i> 加载失败</div><div class="msg" id="err-msg"></div><button onclick="location.reload()">重试</button></div>
 <div id="ui">
-    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div class="hi" id="invincible-hud"><i class="fa-solid fa-shield-halved"></i> 无敌 <span class="inv-time" id="inv-time">0</span>s</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></span></div><div id="blessing-hud" style="display:none"><span class="blessing-icon"></span><span class="blessing-name"></span></div></div>
+    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div class="hi" id="invincible-hud"><i class="fa-solid fa-shield-halved"></i> 无敌 <span class="inv-time" id="inv-time">0</span>s</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
 
     <div id="combo-border"></div>
     <div id="multi-text"></div>
@@ -468,52 +631,59 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
     <div id="event-hud"><span class="ev-icon"></span><span class="ev-name"></span><span class="ev-fx"></span><span class="ev-time"></span></div>
     <div id="event-warn"><i class="fa-solid fa-triangle-exclamation"></i><span class="warn-txt"></span></div>
     <div id="gameover">
-        <h1>游戏结束</h1>
-        <div class="go-score">本次得分 <b id="go-score">0</b></div>
-        <div class="go-best" id="go-best">历史最高：0</div>
-        <div class="go-name-wrap" id="go-name-wrap"><div class="greeting">请输入昵称</div><div class="go-name-row"><input class="go-name" id="go-name" maxlength="12" placeholder="输入昵称"><button class="go-name-ok" id="go-name-ok" onclick="confirmName()">确定</button></div></div>
-        
-        <div class="lb"><h3><i class="fa-solid fa-trophy"></i> 排行榜 Top 20 <button onclick="showDetailModal()" style="float:right;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,215,0,.4);background:rgba(255,215,0,.1);color:#ffd700;font-size:11px;cursor:pointer"><i class="fa-solid fa-list"></i> 查看详情</button></h3><div class="lb-list" id="lb-list"></div></div>
-        <div class="go-btns">
-            <button class="go-btn" onclick="restartGame()">再来一局</button>
-            <button class="go-btn share" onclick="showShareModal()"><i class="fa-solid fa-share-nodes"></i> 分享</button>
+        <div class="go-box glass-box">
+            <h1>游戏结束</h1>
+            <div class="go-score">本次得分 <b id="go-score">0</b></div>
+            <div class="go-best" id="go-best">历史最高：0</div>
+            <div class="go-name-wrap" id="go-name-wrap"><div class="greeting">请输入昵称</div><div class="go-name-row"><input class="go-name" id="go-name" maxlength="12" placeholder="输入昵称"><button class="go-name-ok" id="go-name-ok" onclick="confirmName()">确定</button></div></div>
+            <div class="lb"><h3><i class="fa-solid fa-medal"></i> 排行榜 Top 20 <button onclick="showDetailModal()" style="float:right;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);font-size:11px;cursor:pointer"><i class="fa-solid fa-list"></i> 详情</button></h3><div class="lb-list" id="lb-list"></div></div>
+            <div class="go-btns">
+                <button class="go-btn" onclick="restartGame()"><i class="fa-solid fa-rotate-right"></i> 再来一局</button>
+                <button class="go-btn share" onclick="showShareModal()"><i class="fa-solid fa-share-nodes"></i> 分享</button>
+            </div>
         </div>
     </div>
     <div id="detail-modal">
-        <div class="dm-box">
+        <div class="dm-box glass-box">
             <button class="close-x" onclick="document.getElementById('detail-modal').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
-            <div class="dm-title"><i class="fa-solid fa-trophy"></i> 排行榜明细</div>
+            <div class="dm-title"><i class="fa-solid fa-medal"></i> 排行榜明细</div>
             <div class="dm-list" id="dm-list"></div>
         </div>
     </div>
     <div id="share-modal">
         <button class="close-x" onclick="document.getElementById('share-modal').classList.remove('show');_cachedShareDataURLPromise=null"><i class="fa-solid fa-xmark"></i></button>
-        <div class="sm-card">
-            <img id="share-preview-img" alt="分享卡片预览">
-        </div>
-        <div class="sm-btns">
-            <button class="sm-btn" onclick="downloadShareCard()"><i class="fa-solid fa-download"></i> 保存卡片</button>
+        <div class="sm-wrap">
+            <div class="sm-stage">
+                <div class="sm-card">
+                    <img id="share-preview-img" alt="分享卡片预览">
+                </div>
+            </div>
+            <div class="sm-hint"><i class="fa-solid fa-hand-pointer"></i> 手机端也可长按图片保存</div>
+            <div class="sm-btns">
+                <button class="sm-btn" onclick="downloadShareCard()"><i class="fa-solid fa-download"></i> 保存卡片</button>
+            </div>
         </div>
     </div>
-    <div id="pwd-modal" style="display:none;position:fixed;inset:0;background:rgba(5,10,25,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);z-index:600;align-items:center;justify-content:center">
-        <div style="width:320px;background:linear-gradient(135deg,#1a2a5e,#2a4a8e);border-radius:20px;padding:24px;border:2px solid rgba(143,224,255,.3);text-align:center">
-            <h3 style="color:#8fe0ff;font-size:18px;margin:0 0 8px"><i class="fa-solid fa-lock"></i> 设置密码</h3>
-            <p style="color:#aaa;font-size:12px;margin:0 0 16px" id="pwd-modal-desc">为你的昵称设置密码，防止他人冒用</p>
-            <input type="password" id="pwd-input" maxlength="20" placeholder="输入密码" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:14px;outline:none;margin-bottom:8px;box-sizing:border-box">
-            <input type="password" id="pwd-input2" maxlength="20" placeholder="再次输入密码" style="display:none;width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:14px;outline:none;margin-bottom:12px;box-sizing:border-box">
-            <div id="pwd-error" style="color:#ff6b6b;font-size:12px;margin-bottom:8px;display:none"></div>
-            <div style="display:flex;gap:8px;justify-content:center">
-                <button onclick="closePwdModal()" style="padding:10px 20px;background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;font-size:14px;cursor:pointer">取消</button>
-                <button id="pwd-ok-btn" onclick="confirmPwdModal()" style="padding:10px 24px;background:linear-gradient(135deg,#4CAF50,#2e7d32);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:bold;cursor:pointer">确认</button>
+    <div id="pwd-modal">
+        <div class="pwd-box glass-box">
+            <h3><i class="fa-solid fa-lock"></i> 设置密码</h3>
+            <p class="pwd-desc" id="pwd-modal-desc">为你的昵称设置密码，防止他人冒用</p>
+            <input type="password" id="pwd-input" maxlength="20" placeholder="输入密码">
+            <input type="password" id="pwd-input2" maxlength="20" placeholder="再次输入密码" style="display:none">
+            <div class="pwd-error" id="pwd-error"></div>
+            <div class="pwd-btns">
+                <button class="pwd-cancel" onclick="closePwdModal()">取消</button>
+                <button class="pwd-ok" id="pwd-ok-btn" onclick="confirmPwdModal()">确认</button>
             </div>
         </div>
     </div>
     <div id="clock" onclick="cycleTime()"><span id="clock-icon"><i class="fa-solid fa-sun"></i></span> <span id="clock-text">中午 12:00</span></div>
-    <div class="btn" id="lb-btn-top" onclick="showDetailModal()" title="查看排行榜明细"><i class="fa-solid fa-trophy"></i></div>
+    <div class="btn" id="lb-btn-top" onclick="showDetailModal()" title="查看排行榜明细"><i class="fa-solid fa-medal"></i></div>
     <div class="btn" id="fs-btn"><i class="fa-solid fa-expand"></i></div>
     <div class="btn" id="music-btn"><i class="fa-solid fa-volume-high"></i></div>
     <div class="btn" id="pause-btn" onclick="togglePause()" title="暂停 (Esc)"><i class="fa-solid fa-pause"></i></div>
-    <div class="btn" id="ach-btn" onclick="showAchievements()" title="成就"><i class="fa-solid fa-medal"></i></div>
+    <div class="btn" id="ach-btn" onclick="showAchievements()" title="成就"><i class="fa-solid fa-trophy"></i></div>
+    <div class="btn" id="settings-btn" title="设置"><i class="fa-solid fa-gear"></i></div>
     <div class="btn" id="help-btn"><i class="fa-solid fa-question"></i></div>
     <div class="btn" id="dbg-btn" title="调试模式"><i class="fa-solid fa-bug"></i></div>
     <div id="fps-hud"><i class="fa-solid fa-gauge-high"></i> <span class="fps-val">60</span> FPS</div>
@@ -550,62 +720,85 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
         </div>
     </div>
     <div id="ach-unlock-fx">
-        <div class="fx-glow"></div>
-        <div class="fx-rays"></div>
-        <div class="fx-icon" id="ach-fx-icon">🏆</div>
+        <div class="fx-icon" id="ach-fx-icon"></div>
         <div class="fx-title">成就解锁</div>
         <div class="fx-name" id="ach-fx-name"></div>
         <div class="fx-reward" id="ach-fx-reward"></div>
     </div>
     <div id="blessing-splash">
         <div class="bs-card">
-            <div class="bs-shine"></div>
             <div class="bs-label">今日祝福</div>
             <div class="bs-holiday" id="bs-holiday"></div>
-            <div class="bs-icon" id="bs-icon">🌟</div>
+            <div class="bs-icon" id="bs-icon"></div>
             <div class="bs-name" id="bs-name"></div>
             <div class="bs-desc" id="bs-desc"></div>
             <div class="bs-mult" id="bs-mult"></div>
             <div class="bs-hint">效果今日全程生效 · 明日刷新</div>
         </div>
     </div>
+    <div id="settings-modal">
+        <div class="set-box glass-box">
+            <button class="close-x set-close" onclick="closeSettings()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="set-header"><div class="set-gear"><i class="fa-solid fa-gear"></i></div><div><h2>设置</h2><div class="set-sub">SETTINGS</div></div></div>
+            <div class="set-body">
+                <div class="set-blessing">
+                    <div class="sb-icon" id="set-sb-icon"></div>
+                    <div class="sb-body"><div class="sb-tag" id="set-sb-tag">今日祝福</div><div class="sb-name" id="set-sb-name"></div><div class="sb-desc" id="set-sb-desc"></div></div>
+                    <div class="sb-mult" id="set-sb-mult"></div>
+                </div>
+                <div class="set-sec-t">通用设置</div>
+                <div class="set-row"><div class="sr-icon"><i class="fa-solid fa-music"></i></div><div class="sr-body"><div class="sr-name">背景音乐</div><div class="sr-desc">轻快 BGM 循环</div></div><div class="set-switch" id="set-music"></div></div>
+                <div class="set-row"><div class="sr-icon"><i class="fa-solid fa-volume-high"></i></div><div class="sr-body"><div class="sr-name">游戏音效</div><div class="sr-desc">收集 / 碰撞 / 环境音效</div></div><div class="set-switch" id="set-sfx"></div></div>
+                <div class="set-row"><div class="sr-icon"><i class="fa-solid fa-display"></i></div><div class="sr-body"><div class="sr-name">画质档位</div><div class="sr-desc">卡顿设备可调低</div></div><div class="set-seg" id="set-quality"><div class="seg-opt" data-q="low">低</div><div class="seg-opt" data-q="mid">中</div><div class="seg-opt" data-q="high">高</div></div></div>
+                <div class="set-row"><div class="sr-icon"><i class="fa-solid fa-gauge-high"></i></div><div class="sr-body"><div class="sr-name">FPS 计数器</div><div class="sr-desc">左上角帧率（快捷键 F3）</div></div><div class="set-switch" id="set-fps"></div></div>
+                <div class="set-row" id="set-joy-row" style="display:none"><div class="sr-icon"><i class="fa-solid fa-gamepad"></i></div><div class="sr-body"><div class="sr-name">摇杆灵敏度</div><div class="sr-desc">手机端摇杆速度</div></div><input type="range" class="set-slider" id="set-joy" min="50" max="150" value="100"><div class="set-slider-val" id="set-joy-val">1.0</div></div>
+            </div>
+            <div class="set-footer"><button class="set-foot-btn" id="set-retut"><i class="fa-solid fa-graduation-cap"></i> 新手引导</button><button class="set-foot-btn" id="set-help"><i class="fa-solid fa-circle-question"></i> 玩法帮助</button></div>
+        </div>
+    </div>
     <div id="tutorial">
         <div class="tut-card">
-            <div class="tut-deco d1">🌊</div>
-            <div class="tut-deco d2">✨</div>
-            <div class="tut-deco d3">🌿</div>
-            <div class="tut-deco d4">⭐</div>
             <div class="tut-header">
                 <div class="tut-duck">🦆</div>
                 <h2>新手引导</h2>
             </div>
+            <div style="text-align:center"><span class="tut-device" id="tut-device"><i class="fa-solid fa-display"></i> 自动适配设备</span></div>
             <div class="tut-progress"><span class="tut-cur" id="tut-cur">1</span> / <span id="tut-total">4</span> 步</div>
-            <div class="tut-step active" data-step="0">
-                <div class="tut-icon">🎮</div>
-                <div class="tut-title">控制小鸭子</div>
-                <div class="tut-text">PC 端：<b>W/S</b> 前进后退，<b>A/D</b> 左右移动<br>鼠标拖动旋转视角<br>手机端：左半屏滑动召唤摇杆，右半屏切换视角</div>
+            <div id="tut-steps">
+                <div class="tut-step active" data-step="0">
+                    <div class="tut-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="tut-title">控制小鸭子</div>
+                    <div class="tut-body">
+                        <div class="tut-kbd-row"><span class="tut-kbd">W</span><span class="tut-kbd">A</span><span class="tut-kbd">S</span><span class="tut-kbd">D</span></div>
+                        <div class="tut-text">电脑使用键盘移动、鼠标拖动视角<br>手机左侧摇杆移动、右侧滑动视角</div>
+                    </div>
+                </div>
+                <div class="tut-step" data-step="1">
+                    <div class="tut-icon"><i class="fa-solid fa-gift"></i></div>
+                    <div class="tut-title">收集与生存</div>
+                    <div class="tut-items">
+                        <div class="tut-item"><i class="fa-solid fa-seedling ti-i"></i><span class="ti-v">水草</span></div>
+                        <div class="tut-item"><i class="fa-solid fa-sun ti-i"></i><span class="ti-v">花朵</span></div>
+                        <div class="tut-item"><i class="fa-solid fa-spa ti-i"></i><span class="ti-v">护盾</span></div>
+                        <div class="tut-item"><i class="fa-solid fa-magnet ti-i"></i><span class="ti-v">磁铁</span></div>
+                        <div class="tut-item"><i class="fa-solid fa-heart ti-i"></i><span class="ti-v">生命</span></div>
+                        <div class="tut-item bad"><i class="fa-solid fa-gem ti-i"></i><span class="ti-v">危险</span></div>
+                    </div>
+                    <div class="tut-text">收集道具获得分数与增益，避开石头、漩涡和鲨鱼</div>
+                </div>
+                <div class="tut-step" data-step="2">
+                    <div class="tut-icon"><i class="fa-solid fa-fire"></i></div>
+                    <div class="tut-title">组合倍率</div>
+                    <div class="tut-combo"><i class="fa-solid fa-circle"></i><i class="fa-solid fa-circle"></i><i class="fa-solid fa-circle"></i><span class="tc-arrow">→</span><span class="tc-mult">×10</span></div>
+                    <div class="tut-text">连续收集 3 个同色道具获得 10 倍积分<br>收集 3 个不同色道具获得 5 倍积分</div>
+                </div>
+                <div class="tut-step" data-step="3">
+                    <div class="tut-icon"><i class="fa-solid fa-trophy"></i></div>
+                    <div class="tut-title">成就与成长</div>
+                    <div class="tut-text">解锁成就可永久提升基础属性<br>今日祝福会在每次出发时提供随机增益</div>
+                </div>
             </div>
-            <div class="tut-step" data-step="1">
-                <div class="tut-icon">🌿</div>
-                <div class="tut-title">收集道具得分</div>
-                <div class="tut-text">水草 +1 · 花朵 +2 · 荷叶=护盾<br>磁铁=磁吸 12 秒 · 血瓶 +1 生命<br>避开石头和漩涡，它们会让你受伤！</div>
-            </div>
-            <div class="tut-step" data-step="2">
-                <div class="tut-icon">🔥</div>
-                <div class="tut-title">组合倍率</div>
-                <div class="tut-text">集齐 3 个同色道具 → <b style="color:#ffd700">10 倍积分</b> 10 秒！<br>集齐 3 个不同色 → <b style="color:#8fe0ff">5 倍积分</b> 10 秒！<br>连续收集触发连胜，分数翻倍。</div>
-            </div>
-            <div class="tut-step" data-step="3">
-                <div class="tut-icon">🏆</div>
-                <div class="tut-title">成就与成长</div>
-                <div class="tut-text">解锁成就可<b style="color:#ffd700">永久提升</b>鸭子基础属性<br>得分加成、速度、护盾时长、生命上限等<br>每天登录还有<b style="color:#ffd700">今日祝福</b>随机 buff 加持！</div>
-            </div>
-            <div class="tut-dots" id="tut-dots">
-                <div class="tut-dot active"></div>
-                <div class="tut-dot"></div>
-                <div class="tut-dot"></div>
-                <div class="tut-dot"></div>
-            </div>
+            <div class="tut-dots" id="tut-dots"><div class="tut-dot active"></div><div class="tut-dot"></div><div class="tut-dot"></div><div class="tut-dot"></div></div>
             <div class="tut-btns">
                 <button class="tut-btn skip" onclick="skipTutorial()">跳过</button>
                 <button class="tut-btn" id="tut-next" onclick="nextTutorialStep()">下一步</button>
@@ -665,10 +858,36 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:linear-gradient(135deg,#aa66ff,
     <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
     <div class="toast" id="toast"><div class="toast-inner" id="toast-text"></div></div>
     <div id="help">
+        <div class="help-box glass-box">
         <button class="help-close" onclick="document.getElementById('help').classList.remove('show')"><i class="fa-solid fa-xmark"></i></button>
         <h2><svg viewBox="29 12 62 62" width="28" height="28" style="display:block;flex-shrink:0;margin-right:2px"><g transform="translate(90.7,12) scale(-0.12,0.12)"><path fill="#FFDE76" d="M433.661,237.837c-4.497-6.214-4.88-14.44-1.225-21.184c11.365-20.967,17.773-45.014,17.651-70.566C449.701,64.869,382.564-1.037,301.352,0.012c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.972c7.753,10.526,7.213,25.1-1.543,34.808c-13.297,14.741-41.935,24.306-102.595-16.277c-6.652-4.45-14.462-6.864-22.465-6.864c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h71.083C466.05,512,516.127,351.801,433.661,237.837z"/><path fill="#FFB641" d="M183.47,268.582c-3.93,4.357-9.202,8.261-16.244,10.552c24.469,5.882,38.82-1.319,47.149-10.552c8.757-9.708,9.296-24.281,1.543-34.808c-17.93-24.342-28.526-54.42-28.526-86.973c0-75.833,57.503-138.226,131.281-145.98c-5.689-0.601-11.467-0.884-17.323-0.809c-80.183,1.036-144.864,66.359-144.864,146.788c0,32.553,10.595,62.63,28.526,86.973C192.766,244.3,192.226,258.873,183.47,268.582z"/><path fill="#FFB641" d="M49.539,279.796c2.137-14.317,11.618-25.942,24.282-31.245c-4.866-2.022-10.091-3.11-15.412-3.11c-19.947,0-36.833,14.628-39.776,34.357C7.889,351.816,6.52,512,206.966,512h30.905C37.425,512,38.794,351.816,49.539,279.796z"/><path fill="#FFB641" d="M80.518,344.336c-8.766,8.656-10.277,22.268-3.598,32.619c19.504,30.227,68.351,86.283,162.372,86.283c57.256,0,117.791-35.809,129.064-95.097c9.31-48.966-19.246-108.821-75.33-106.247c-41.097,1.887-65.135,37.415-99.865,53.841c-24.398,11.54-50.844,18.651-77.687,21.307C102.698,338.306,90.805,334.178,80.518,344.336z"/><path fill="#38484A" d="M388.394,110.833c-3.502,0-6.674-2.396-7.513-5.951l-3.715-15.73c-0.981-4.153,1.591-8.315,5.743-9.295c4.152-0.979,8.315,1.591,9.295,5.743l3.715,15.73c0.981,4.153-1.591,8.315-5.743,9.295C389.58,110.765,388.982,110.833,388.394,110.833z"/><path fill="#FFB641" d="M427.618,68.994c0,0,3.198,45.832-18.033,66.591c-21.231,20.759,14.154,53.314,56.145,22.646c6.032-4.405,12.143-7.204,18.184-8.768c7.777-2.012,13.243-8.967,13.243-16.999c0-7.724-5.031-14.597-12.438-16.786c-4.925-1.456-11.18-2.325-18.516-1.325c0,0,25.393-22.138,19.119-47.753c-2.027-8.28-11.856-11.726-18.836-6.832C457.461,66.094,443.454,72.764,427.618,68.994z"/></g></svg> 小黄鸭漂流记</h2>
-        <div id="hpc"><i class="fa-solid fa-keyboard"></i> W/S 前进后退 ·<br> A/D 左右移动（相对视角）<br>鼠标拖动旋转视角 · 点时钟切换昼夜<br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-spa" style="color:#fff"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
-        <div id="hmobile" style="display:none"><i class="fa-solid fa-hand"></i> 左半边屏幕滑动召唤摇杆 <br><i class="fa-solid fa-hand"></i> 右半边屏幕滑动切换视角 <br><i class="fa-solid fa-seedling"></i> 水草+1 · <i class="fa-solid fa-sun"></i> 花+2 · <br><i class="fa-solid fa-spa" style="color:#fff"></i> 荷叶=护盾+3 · <i class="fa-solid fa-gem"></i> 石头-1 <br><i class="fa-solid fa-magnet"></i> 磁铁=磁吸12秒 · <i class="fa-solid fa-heart"></i> 血瓶+1生命<br><i class="fa-solid fa-fire"></i> 集齐3个同色 → 10倍积分10秒！<br><i class="fa-solid fa-star"></i> 集齐3个不同 → 5倍积分10秒！<br><i class="fa-solid fa-heart"></i> 初始生命×3 · <i class="fa-solid fa-hurricane"></i> 漩涡吸入扣血<br><i class="fa-solid fa-bolt"></i> 每30秒随机事件（提示栏显示效果）</div>
+        <div class="help-sub">DUCK DRIFT · 玩法指南</div>
+        <div class="help-sec" id="help-ops">
+            <div class="help-sec-t"><i class="fa-solid fa-gamepad"></i> 操作方式</div>
+            <div class="help-row"><i class="fa-solid fa-keyboard"></i> 电脑端 <span class="hr-tag"><span class="kbd">WASD</span> 移动 · 鼠标视角</span></div>
+            <div class="help-row"><i class="fa-solid fa-mobile-screen-button"></i> 手机端 <span class="hr-tag">左侧摇杆 · 右侧视角</span></div>
+        </div>
+        <div class="help-sec">
+            <div class="help-sec-t"><i class="fa-solid fa-gift"></i> 道具图鉴</div>
+            <div class="help-row"><i class="fa-solid fa-seedling"></i> 水草 <span class="hr-tag">+1 分</span></div>
+            <div class="help-row"><i class="fa-solid fa-sun"></i> 花朵 <span class="hr-tag">+2 分</span></div>
+            <div class="help-row"><i class="fa-solid fa-spa"></i> 荷叶 <span class="hr-tag">护盾 +3 分</span></div>
+            <div class="help-row"><i class="fa-solid fa-magnet"></i> 磁铁 <span class="hr-tag">磁吸 12 秒</span></div>
+            <div class="help-row"><i class="fa-solid fa-heart"></i> 血瓶 <span class="hr-tag">+1 生命</span></div>
+            <div class="help-row"><i class="fa-solid fa-gem"></i> 石头 <span class="hr-tag">危险 · -1 心</span></div>
+        </div>
+        <div class="help-sec">
+            <div class="help-sec-t"><i class="fa-solid fa-fire"></i> 组合倍率</div>
+            <div class="help-row"><i class="fa-solid fa-fire"></i> 集齐 3 个同色 <span class="hr-tag">×10 积分 10 秒</span></div>
+            <div class="help-row"><i class="fa-solid fa-star"></i> 集齐 3 个异色 <span class="hr-tag">×5 积分 10 秒</span></div>
+        </div>
+        <div class="help-sec">
+            <div class="help-sec-t"><i class="fa-solid fa-shield-halved"></i> 生存法则</div>
+            <div class="help-row"><i class="fa-solid fa-heart"></i> 初始 3 颗心 · 石头/漩涡/鲨鱼扣心</div>
+            <div class="help-row"><i class="fa-solid fa-bolt"></i> 每 30 秒随机事件 · 留意顶部预警</div>
+            <div class="help-row"><i class="fa-solid fa-trophy"></i> 成就永久成长 · 每日祝福 buff 加持</div>
+        </div>
+        </div>
     </div>
 </div>
 <canvas id="c"></canvas>
@@ -687,14 +906,14 @@ const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart'
 function checkO(){if(isMobile&&innerHeight>innerWidth){document.getElementById('rotate-hint').style.display='flex';return false}document.getElementById('rotate-hint').style.display='none';return true}
 checkO();window.addEventListener('resize',checkO);window.addEventListener('orientationchange',()=>setTimeout(checkO,300));
 if(isMobile)document.getElementById('joy-zone').style.display='block';
-if(isMobile){document.getElementById('hmobile').style.display='block';document.getElementById('hpc').style.display='none'}
+document.getElementById('tut-device').innerHTML=isMobile?'<i class="fa-solid fa-mobile-screen-button"></i> 手机触控':'<i class="fa-solid fa-display"></i> 键盘与鼠标';
 
 // 全屏
 document.getElementById('fs-btn').onclick=()=>{const el=document.documentElement;if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen).call(el)}else{(document.exitFullscreen||document.webkitExitFullscreen).call(document)}};
 document.addEventListener('fullscreenchange',()=>{document.querySelector('#fs-btn i').className=document.fullscreenElement?'fa-solid fa-compress':'fa-solid fa-expand';dispatchEvent(new Event('resize'))});
 
 // 音乐
-let audioCtx=null,musicOn=true,musicGain=null,musicOscs=[];
+let audioCtx=null,musicOn=localStorage.getItem('duck_music')!=='0',sfxOn=localStorage.getItem('duck_sfx')!=='0',musicGain=null,musicOscs=[];
 function initAudio(){
     if(audioCtx)return;
     try{
@@ -831,6 +1050,7 @@ document.addEventListener('keydown',autoStartMusic,{once:true});
 document.getElementById('music-btn').onclick=()=>{
     initAudio();
     musicOn=!musicOn;
+    localStorage.setItem('duck_music',musicOn?'1':'0');
     document.querySelector('#music-btn i').className=musicOn?'fa-solid fa-volume-high':'fa-solid fa-volume-xmark';
     if(musicOn){
         if(audioCtx){
@@ -840,9 +1060,10 @@ document.getElementById('music-btn').onclick=()=>{
         }
     }else{stopBGM()}
 };
+document.querySelector('#music-btn i').className=musicOn?'fa-solid fa-volume-high':'fa-solid fa-volume-xmark';
 // ===== 自然音效引擎（去电子音：全部用"快速起音+指数衰减"包络 + 低通滤波 + 噪声成分，不用平稳蜂鸣音） =====
 function playSFX(t,sc){
-    if(!audioCtx)initAudio();if(!audioCtx||!musicOn)return;
+    if(!audioCtx)initAudio();if(!audioCtx||!sfxOn)return;
     const n=audioCtx.currentTime;
     // 包络音调：f0→f1 滑音 + 快速起音指数衰减 + 可选低通（木质/水声质感）
     const tone=({f0,f1=0,dur=.2,type='sine',vol=.2,lp=0,at=.004,when=0})=>{
@@ -2368,7 +2589,7 @@ function addScore(n){
     if(mult>1&&n>0){
         let msg=`<i class="fa-solid fa-fire"></i> +${Math.floor(n*achBonus)}`;
         if(streakActive&&scoreMultiplier>1) msg+=`×${scoreMultiplier}`;
-        if(blessingMult>1) msg+=` 🌟×${blessingMult}`;
+        if(blessingMult>1) msg+=` <i class="fa-solid fa-star"></i> ×${blessingMult}`;
         toast(msg,actual>=0?'p':'m');
     }
 }
@@ -2880,6 +3101,7 @@ if(!isMobile){addEventListener('keydown',e=>{switch(e.code){case'KeyW':case'Arro
 addEventListener('keyup',e=>{switch(e.code){case'KeyW':case'ArrowUp':mv.f=false;break;case'KeyS':case'ArrowDown':mv.b=false;break;case'KeyA':case'ArrowLeft':mv.l=false;break;case'KeyD':case'ArrowRight':mv.r=false;break}})}
 
 // 摇杆（视角相对：推上=朝相机前方移动，推右=朝相机右方移动）
+let joySensitivity=Math.max(.5,Math.min(1.5,Number(localStorage.getItem('duck_joy_sensitivity'))||1));
 if(isMobile){const zone=document.getElementById('joy-zone'),base=document.getElementById('joy-base'),knob=document.getElementById('joy-knob');
 let ja=false,jc={x:0,y:0};
 zone.ontouchstart=e=>{e.preventDefault();e.stopPropagation();const t=e.touches[0];ja=true;
@@ -2894,7 +3116,7 @@ zone.ontouchmove=e=>{e.preventDefault();if(!ja)return;const t=e.touches[0],dx=t.
 const speedRatio=Math.min((dist-dead)/(max-dead),1);
 mv.joyDx=dx/dist; // 右分量
 mv.joyDy=-dy/dist; // 前分量（屏幕Y轴向下，取反）
-mv._joySpeed=speedRatio*DUCK_MAX_SPEED;
+mv._joySpeed=speedRatio*DUCK_MAX_SPEED*joySensitivity;
 }else{mv.f=mv.b=mv.l=mv.r=false;mv.str=0;mv._joySpeed=0;mv.joyDx=0;mv.joyDy=0}};
 const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.str=0;mv._joySpeed=0;mv.joyDx=0;mv.joyDy=0};zone.ontouchend=rst;zone.ontouchcancel=rst}
 
@@ -3077,7 +3299,7 @@ const Leaderboard={
                     const parsed=await r.json();
                     this.cache=(parsed&&Array.isArray(parsed.entries))?parsed:{entries:[]};
                     this.loaded=true;
-                    console.log('%c🏆 排行榜已连接 ['+this._apiMode+'模式] → '+apiURL,'color:#4CAF50;font-weight:bold');
+                    console.log('%c排行榜已连接 ['+this._apiMode+'模式] → '+apiURL,'color:#4CAF50;font-weight:bold');
                     return this.cache;
                 }
             }catch(e){}
@@ -3088,7 +3310,7 @@ const Leaderboard={
                 const parsed=await r.json();
                 this.cache=(parsed&&Array.isArray(parsed.entries))?parsed:{entries:[]};
                 this.loaded=true;
-                console.log('%c⚠️ 排行榜：静态文件模式（只读，无后端）','color:#FF9800;font-weight:bold');
+                console.log('%c排行榜：静态文件模式（只读，无后端）','color:#FF9800;font-weight:bold');
                 return this.cache;
             }
         }catch(e){}
@@ -3097,8 +3319,8 @@ const Leaderboard={
             try{this.cache=JSON.parse(local)}catch(e){}
         }
         this.loaded=true;
-        console.log('%c⚠️ 排行榜：本地缓存模式（数据不共享）','color:#f44336;font-weight:bold');
-        console.log('%c💡 提示：运行 node server.node.js 启动本地服务器，排行榜可同步','color:#2196F3');
+        console.log('%c排行榜：本地缓存模式（数据不共享）','color:#f44336;font-weight:bold');
+        console.log('%c提示：运行 node server.node.js 启动本地服务器，排行榜可同步','color:#2196F3');
         return this.cache;
     },
     // 同步读取（内存缓存）
@@ -3121,7 +3343,7 @@ const Leaderboard={
                 if(r.ok){
                     const result=await r.json();
                     if(result.ok){
-                        console.log('%c💾 排行榜已保存到 ['+this._apiMode+'] '+apiURL,'color:#4CAF50');
+                        console.log('%c排行榜已保存到 ['+this._apiMode+'] '+apiURL,'color:#4CAF50');
                         return true;
                     }
                 }
@@ -3129,7 +3351,7 @@ const Leaderboard={
         }
         try{
             localStorage.setItem('duck_lb_cache',JSON.stringify(d));
-            console.log('%c💾 排行榜已保存到本地缓存','color:#FF9800');
+            console.log('%c排行榜已保存到本地缓存','color:#FF9800');
         }catch(e){}
         return false;
     },
@@ -4326,6 +4548,14 @@ window.quitGame=function(){
 // 键盘暂停快捷键
 addEventListener('keydown',e=>{
     if(e.code==='Escape'||e.code==='KeyP'){
+        if(document.getElementById('settings-modal').classList.contains('show')){
+            if(e.code==='Escape')window.closeSettings();
+            return;
+        }
+        if(document.getElementById('help').classList.contains('show')){
+            if(e.code==='Escape')document.getElementById('help').classList.remove('show');
+            return;
+        }
         // 成就面板打开时，Esc/关闭面板而不是暂停
         if(document.getElementById('ach-modal').classList.contains('show')){
             if(e.code==='Escape')closeAchievements();
@@ -4337,7 +4567,9 @@ addEventListener('keydown',e=>{
     // F3 切换 FPS 监控
     if(e.code==='F3'){
         e.preventDefault();
-        document.getElementById('fps-hud').classList.toggle('show');
+        const fpsHud=document.getElementById('fps-hud');
+        fpsHud.classList.toggle('show');
+        localStorage.setItem('duck_fps',fpsHud.classList.contains('show')?'1':'0');
     }
 });
 
@@ -4345,24 +4577,24 @@ addEventListener('keydown',e=>{
 const Blessings={
     // 每日随机 buff 池
     daily:[
-        {id:'grass_double',name:'水草丰收',desc:'今日水草得分 ×2',icon:'🌿',target:'grass',mult:2},
-        {id:'flower_triple',name:'花季绽放',desc:'今日花朵得分 ×3',icon:'🌸',target:'flower',mult:3},
-        {id:'shield_start',name:'护盾加持',desc:'开局自带 1 层护盾',icon:'🛡️',target:'shield',value:1},
-        {id:'magnet_extend',name:'磁场强化',desc:'磁铁持续时间 +50%',icon:'🧲',target:'magnet',mult:1.5},
-        {id:'speed_boost',name:'疾风步',desc:'移动速度 +20%',icon:'💨',target:'speed',mult:1.2},
-        {id:'heart_cap',name:'生命扩容',desc:'最大生命 +1',icon:'❤️',target:'maxHearts',value:1},
-        {id:'score_bonus',name:'幸运星',desc:'所有得分 +10%',icon:'⭐',target:'score',mult:1.1},
-        {id:'whirl_shield',name:'漩涡护盾',desc:'漩涡吸入不扣心',icon:'🌀',target:'whirl',value:1}
+        {id:'grass_double',name:'水草丰收',desc:'今日水草得分 ×2',icon:'fa-seedling',target:'grass',mult:2},
+        {id:'flower_triple',name:'花季绽放',desc:'今日花朵得分 ×3',icon:'fa-sun',target:'flower',mult:3},
+        {id:'shield_start',name:'护盾加持',desc:'开局自带 1 层护盾',icon:'fa-shield-halved',target:'shield',value:1},
+        {id:'magnet_extend',name:'磁场强化',desc:'磁铁持续时间 +50%',icon:'fa-magnet',target:'magnet',mult:1.5},
+        {id:'speed_boost',name:'疾风步',desc:'移动速度 +20%',icon:'fa-wind',target:'speed',mult:1.2},
+        {id:'heart_cap',name:'生命扩容',desc:'最大生命 +1',icon:'fa-heart',target:'maxHearts',value:1},
+        {id:'score_bonus',name:'幸运星',desc:'所有得分 +10%',icon:'fa-star',target:'score',mult:1.1},
+        {id:'whirl_shield',name:'漩涡护盾',desc:'漩涡吸入不扣心',icon:'fa-tornado',target:'whirl',value:1}
     ],
     // 节日专属 buff
     holidays:{
-        '0101':{name:'元旦',buffs:['snowfall','magnet_double'],mult:2,icon:'🧨'},
-        '0115':{name:'元宵',buffs:['lantern_whirl'],mult:1.5,icon:'🏮'},
-        '0501':{name:'劳动节',buffs:['speed_boost'],mult:2,icon:'🌸'},
-        '0505':{name:'端午',buffs:['zongzi_grass'],mult:1.5,icon:'🐉'},
-        '0815':{name:'中秋',buffs:['full_moon','rabbit_companion'],mult:2,icon:'🥮'},
-        '1001':{name:'国庆',buffs:['national_flag','cake_rock'],mult:2,icon:'🇨🇳'},
-        'chinese_new_year':{name:'春节',buffs:['fireworks','golden_duck','start_5hearts'],mult:2,icon:'🎊'}
+        '0101':{name:'元旦',buffs:['snowfall','magnet_double'],mult:2,icon:'fa-snowflake'},
+        '0115':{name:'元宵',buffs:['lantern_whirl'],mult:1.5,icon:'fa-lightbulb'},
+        '0501':{name:'劳动节',buffs:['speed_boost'],mult:2,icon:'fa-sun'},
+        '0505':{name:'端午',buffs:['zongzi_grass'],mult:1.5,icon:'fa-water'},
+        '0815':{name:'中秋',buffs:['full_moon','rabbit_companion'],mult:2,icon:'fa-moon'},
+        '1001':{name:'国庆',buffs:['national_flag','cake_rock'],mult:2,icon:'fa-flag'},
+        'chinese_new_year':{name:'春节',buffs:['fireworks','golden_duck','start_5hearts'],mult:2,icon:'fa-burst'}
     },
     // 当前生效的 blessing
     current:null,
@@ -4467,32 +4699,76 @@ const Blessings={
 // 生成今日祝福
 Blessings.generate();
 
-// 显示今日祝福 HUD
-function showBlessingHUD(){
-    const b=Blessings.current;
-    if(!b)return;
-    const hud=document.getElementById('blessing-hud');
-    hud.style.display='flex';
-    hud.querySelector('.blessing-icon').textContent=b.icon;
-    let name=b.name;
-    if(b.isHoliday&&b.holidayName) name=b.holidayName+' · '+name;
-    hud.querySelector('.blessing-name').textContent=name;
+function getBlessingIconClass(blessing){
+    const current=Blessings.daily.find(item=>item.id===blessing?.id);
+    return current?.icon||'fa-star';
 }
-// 游戏开始时显示祝福
-setTimeout(()=>showBlessingHUD(),500);
 
-// 今日祝福翻牌弹窗（游戏开始时展示）
+// 设置面板
+let graphicsQuality=['low','mid','high'].includes(localStorage.getItem('duck_quality'))?localStorage.getItem('duck_quality'):'high';
+let settingsPausedGame=false;
+function applyGraphicsQuality(level){
+    graphicsQuality=['low','mid','high'].includes(level)?level:'high';
+    const ratio=graphicsQuality==='low'?1:graphicsQuality==='mid'?Math.min(devicePixelRatio,1.5):Math.min(devicePixelRatio,2);
+    renderer.setPixelRatio(ratio);
+    renderer.setSize(innerWidth,innerHeight);
+    localStorage.setItem('duck_quality',graphicsQuality);
+}
+function setSwitchState(id,on){
+    const el=document.getElementById(id);
+    el.classList.toggle('on',on);
+    el.setAttribute('aria-checked',on?'true':'false');
+}
+function updateSettingsPanel(){
+    const b=Blessings.current;
+    if(b){
+        document.getElementById('set-sb-icon').innerHTML=`<i class="fa-solid ${getBlessingIconClass(b)}"></i>`;
+        document.getElementById('set-sb-name').textContent=(b.isHoliday&&b.holidayName?b.holidayName+' · ':'')+b.name;
+        document.getElementById('set-sb-desc').textContent=b.desc;
+        document.getElementById('set-sb-mult').textContent=b.mult&&b.mult>1?'×'+b.mult:'生效中';
+    }
+    setSwitchState('set-music',musicOn);
+    setSwitchState('set-sfx',sfxOn);
+    setSwitchState('set-fps',document.getElementById('fps-hud').classList.contains('show'));
+    document.querySelectorAll('#set-quality .seg-opt').forEach(el=>el.classList.toggle('sel',el.dataset.q===graphicsQuality));
+    document.getElementById('set-joy-row').style.display=isMobile?'flex':'none';
+    document.getElementById('set-joy').value=Math.round(joySensitivity*100);
+    document.getElementById('set-joy-val').textContent=joySensitivity.toFixed(1);
+}
+window.openSettings=function(){
+    settingsPausedGame=gameActive&&!isPaused;
+    if(settingsPausedGame)togglePause(true,true);
+    updateSettingsPanel();
+    document.getElementById('settings-modal').classList.add('show');
+};
+window.closeSettings=function(){
+    document.getElementById('settings-modal').classList.remove('show');
+    if(settingsPausedGame&&isPaused&&gameActive)togglePause(false,true);
+    settingsPausedGame=false;
+};
+document.getElementById('settings-btn').onclick=window.openSettings;
+document.getElementById('set-music').onclick=()=>{document.getElementById('music-btn').click();updateSettingsPanel()};
+document.getElementById('set-sfx').onclick=()=>{sfxOn=!sfxOn;localStorage.setItem('duck_sfx',sfxOn?'1':'0');updateSettingsPanel()};
+document.getElementById('set-fps').onclick=()=>{const hud=document.getElementById('fps-hud');hud.classList.toggle('show');localStorage.setItem('duck_fps',hud.classList.contains('show')?'1':'0');updateSettingsPanel()};
+document.querySelectorAll('#set-quality .seg-opt').forEach(el=>el.onclick=()=>{applyGraphicsQuality(el.dataset.q);updateSettingsPanel()});
+document.getElementById('set-joy').oninput=e=>{joySensitivity=Number(e.target.value)/100;localStorage.setItem('duck_joy_sensitivity',String(joySensitivity));document.getElementById('set-joy-val').textContent=joySensitivity.toFixed(1)};
+document.getElementById('set-retut').onclick=()=>{window.closeSettings();showTutorial()};
+document.getElementById('set-help').onclick=()=>{window.closeSettings();document.getElementById('help').classList.add('show')};
+applyGraphicsQuality(graphicsQuality);
+if(localStorage.getItem('duck_fps')==='1')document.getElementById('fps-hud').classList.add('show');
+
+// 今日祝福卡片（游戏开始时展示）
 function showBlessingSplash(){
     const b=Blessings.current;
     if(!b)return;
     const splash=document.getElementById('blessing-splash');
     const holidayEl=document.getElementById('bs-holiday');
-    document.getElementById('bs-icon').textContent=b.icon||'🌟';
+    document.getElementById('bs-icon').innerHTML=`<i class="fa-solid ${getBlessingIconClass(b)}"></i>`;
     document.getElementById('bs-name').textContent=b.name;
     document.getElementById('bs-desc').textContent=b.desc;
     // 节日 / 倍率展示
     if(b.isHoliday&&b.holidayName){
-        holidayEl.textContent='🎊 '+b.holidayName+' 节日双倍';
+        holidayEl.textContent=b.holidayName+' · 节日加成';
         holidayEl.style.display='block';
     }else{
         holidayEl.style.display='none';
@@ -4533,7 +4809,7 @@ window.showAchievements=function(){
         const curText=a.stat==='totalDistance'?Math.round(cur)+'m':a.stat==='playTime'?Math.floor(cur/60)+'分'+(cur%60)+'秒':cur;
         const tgtText=a.stat==='totalDistance'?a.target+'m':a.stat==='playTime'?Math.floor(a.target/60)+'分':a.target;
         return `<div class="ach-card ${a.unlocked?'unlocked':''}">
-            <div class="ach-icon">${a.icon}</div>
+            <div class="ach-icon"><i class="fa-solid ${a.icon}"></i></div>
             <div class="ach-body">
                 <div class="ach-name">${a.name} ${a.unlocked?'<i class="fa-solid fa-check-circle ach-check"></i>':''}</div>
                 <div class="ach-desc">${a.desc}</div>
@@ -4601,15 +4877,15 @@ function finishTutorial(){
 const Achievements={
     // 成就定义
     defs:[
-        {id:'whirl_survivor',name:'漩涡幸存者',desc:'累计被漩涡吸入 10 次',icon:'🌀',target:10,stat:'whirlDeaths',reward:{whirlResist:0.15}},
-        {id:'score_master',name:'万分解锁者',desc:'单局得分超过 10000',icon:'💰',target:10000,stat:'highScore',reward:{scoreBonus:0.10}},
-        {id:'streak_king',name:'连胜大师',desc:'累计触发 20 次连胜',icon:'🔥',target:20,stat:'streaks',reward:{streakBonus:3}},
-        {id:'iron_wall',name:'铁壁鸭',desc:'累计挡住 50 次伤害',icon:'🛡️',target:50,stat:'shieldBlocks',reward:{shieldBonus:0.20}},
-        {id:'rich_duck',name:'富翁鸭',desc:'累计收集 1000 个道具',icon:'💎',target:1000,stat:'totalItems',reward:{scoreBonus:0.10}},
-        {id:'surfer',name:'冲浪鸭',desc:'累计移动 10km',icon:'🏄',target:10000,stat:'totalDistance',reward:{speedBonus:0.05}},
-        {id:'collector',name:'收集家',desc:'累计收集 500 个道具',icon:'📦',target:500,stat:'totalItems',reward:{scoreBonus:0.05}},
-        {id:'survivor',name:'生存专家',desc:'单局存活超过 5 分钟',icon:'⏱️',target:300,stat:'playTime',reward:{maxHearts:1}},
-        {id:'duck_master',name:'小黄鸭大师',desc:'解锁所有其他成就',icon:'👑',target:7,stat:'achievements',reward:{scoreBonus:0.20}}
+        {id:'whirl_survivor',name:'漩涡幸存者',desc:'累计被漩涡吸入 10 次',icon:'fa-tornado',target:10,stat:'whirlDeaths',reward:{whirlResist:0.15}},
+        {id:'score_master',name:'万分解锁者',desc:'单局得分超过 10000',icon:'fa-sack-dollar',target:10000,stat:'highScore',reward:{scoreBonus:0.10}},
+        {id:'streak_king',name:'连胜大师',desc:'累计触发 20 次连胜',icon:'fa-fire',target:20,stat:'streaks',reward:{streakBonus:3}},
+        {id:'iron_wall',name:'铁壁鸭',desc:'累计挡住 50 次伤害',icon:'fa-shield-halved',target:50,stat:'shieldBlocks',reward:{shieldBonus:0.20}},
+        {id:'rich_duck',name:'富翁鸭',desc:'累计收集 1000 个道具',icon:'fa-gem',target:1000,stat:'totalItems',reward:{scoreBonus:0.10}},
+        {id:'surfer',name:'冲浪鸭',desc:'累计移动 10km',icon:'fa-water',target:10000,stat:'totalDistance',reward:{speedBonus:0.05}},
+        {id:'collector',name:'收集家',desc:'累计收集 500 个道具',icon:'fa-box-open',target:500,stat:'totalItems',reward:{scoreBonus:0.05}},
+        {id:'survivor',name:'生存专家',desc:'单局存活超过 5 分钟',icon:'fa-stopwatch',target:300,stat:'playTime',reward:{maxHearts:1}},
+        {id:'duck_master',name:'小黄鸭大师',desc:'解锁所有其他成就',icon:'fa-crown',target:7,stat:'achievements',reward:{scoreBonus:0.20}}
     ],
     // 玩家进度
     progress:{},
@@ -4664,7 +4940,7 @@ const Achievements={
         // 全屏解锁特效
         const fx=document.getElementById('ach-unlock-fx');
         if(fx){
-            document.getElementById('ach-fx-icon').textContent=def.icon;
+            document.getElementById('ach-fx-icon').innerHTML=`<i class="fa-solid ${def.icon}"></i>`;
             document.getElementById('ach-fx-name').textContent=def.name;
             const r=def.reward||{};
             const parts=[];
@@ -4679,7 +4955,7 @@ const Achievements={
             setTimeout(()=>fx.classList.remove('show'),2600);
         }
         // Toast 提示
-        toast(`<i class="fa-solid fa-trophy"></i> 成就解锁：${def.icon} ${def.name}`,'s');
+        toast(`<i class="fa-solid fa-trophy"></i> 成就解锁：${def.name}`,'s');
         // 成就按钮高亮（提示有新成就可查看）
         const btn=document.getElementById('ach-btn');
         if(btn)btn.classList.add('has-new');
