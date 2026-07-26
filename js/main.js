@@ -9,6 +9,7 @@ import {showShareModal,downloadShareCard,closeShareModal,setShareCardCtx} from '
 import {showAchievements,closeAchievements,setAchievementsCtx} from './ui/achievements.js';
 import {toast,updateHeartsUI,updateStreakUI,showEventHud,hideEventHud,showWarn,hideWarn,setHudCtx} from './ui/hud.js';
 import {Leaderboard,genDefaultName} from './services/leaderboard.js';
+import {togglePause,quitGame,openSettings,closeSettings,showDetailModal,restartGame,showTutorial,updateTutorialStep,nextTutorialStep,skipTutorial,finishTutorial,setOverlaysCtx} from './ui/overlays.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
@@ -3151,56 +3152,6 @@ async function finishGameOver(skipDuoFinish=false){
         showGameOver(Leaderboard.get(), false, null, false, true, genDefaultName());
     }
 }
-window.restartGame=async function(){
-    // 如果用户在输入框改了名（与缓存不同），先更新缓存和记录
-    const cachedName=Leaderboard.getCachedName();
-    const inputEl=document.getElementById('go-name');
-    const inputValue=inputEl?(inputEl.value||'').trim():'';
-    if(inputValue&&inputValue!==cachedName){
-        // 用户改了名但没点"确定"，尝试更新
-        Leaderboard.setCachedName(inputValue);
-        if(lastEntry){
-            const d=Leaderboard.get();
-            const e=d.entries.find(x=>x.id===lastEntry.id);
-            if(e){e.name=inputValue;Leaderboard.save(d)}
-        }
-    }else if(!cachedName){
-        const v=inputValue||genDefaultName();
-        Leaderboard.setCachedName(v);
-        if(lastEntry){
-            const d=Leaderboard.get();
-            const e=d.entries.find(x=>x.id===lastEntry.id);
-            if(e){e.name=v;Leaderboard.save(d)}
-        }
-    }
-    if(Duo.active){
-        try{await Duo.restart();}catch(error){
-            const messages={ONLY_HOST_CAN_RESTART:'请等待房主开启下一局。',WAITING_FOR_FRIEND:'好友尚未结束本局，暂时不能开启下一局。'};
-            toast(messages[error.message]||'无法开启下一局，请稍后重试。','m');
-        }
-        return;
-    }
-    resetRunState();
-    startGameSession();
-};
-
-// ---- 详情弹窗 ----
-function showDetailModal(mode='solo'){
-    const d=Leaderboard.get();
-    const list=document.getElementById('dm-list');
-    document.querySelectorAll('.rank-tab').forEach(tab=>tab.classList.toggle('active',tab.dataset.rank===mode));
-    if(mode==='duo'){
-        const entries=Array.isArray(d.duoEntries)?d.duoEntries:[];
-        if(!entries.length){list.innerHTML='<div class="lb-empty">暂无双人战绩</div>';}else{list.innerHTML=entries.map((entry,index)=>{
-            const top=index<3?'top'+(index+1):'';const names=(entry.players||[]).map(player=>escapeHtml(player.name)).join(' & ')||escapeHtml(entry.name||'双人队伍');
-            return `<div class="dm-item ${top}"><span class="rk">${index+1}</span><span class="nm">${names}</span><span class="sc">${formatScore(entry.score)}</span><span class="pt">${formatTime(entry.playTime||0)}</span><span class="ts">${formatDate(entry.ts||Date.now())}</span></div>`;
-        }).join('');}
-    }else if(!d.entries.length){list.innerHTML='<div class="lb-empty">暂无记录</div>';}else{list.innerHTML=d.entries.map((entry,index)=>{
-        const top=index<3?'top'+(index+1):'';return `<div class="dm-item ${top}"><span class="rk">${index+1}</span><span class="nm">${escapeHtml(entry.name)}</span><span class="sc">${formatScore(entry.score)}</span><span class="pt">${formatTime(entry.playTime)}</span><span class="ts">${formatDate(entry.ts)}</span></div>`;
-    }).join('');}
-    document.getElementById('detail-modal').classList.add('show');
-}
-
 
 // ---- 分享卡片（已迁移到 js/ui/share-card.js） ----
 // 挂载到 window（script type=module 中函数不在全局作用域，需要显式挂载以支持 onclick）
@@ -3757,32 +3708,37 @@ updateStreakUI();// 收集栏常驻显示
 // 启动时从后端加载 leaderboard.json（若失败则回退 localStorage）
 Leaderboard.load().then(d=>{console.log('排行榜已加载：',d.entries.length,'条记录')}).catch(e=>console.warn('排行榜加载失败：',e));
 
-// ===== 暂停功能 =====
-window.togglePause=function(forceState,silent){
-    if(!gameActive)return;
-    // forceState: true=强制暂停, false=强制恢复, undefined=切换
-    if(forceState!==undefined)isPaused=forceState;
-    else isPaused=!isPaused;
-    const overlay=document.getElementById('pause-overlay');
-    if(isPaused){
-        // 更新暂停界面统计
-        const pt=playStartTime?Math.floor((Date.now()-playStartTime)/1000):0;
-        const m=Math.floor(pt/60),s=pt%60;
-        document.getElementById('ps-score').textContent=formatScore(score);
-        document.getElementById('ps-time').textContent=(m>0?m+'分':'')+s+'秒';
-        document.getElementById('ps-items').textContent=runStats.items||0;
-        document.getElementById('ps-hearts').textContent=hearts+' / '+MAX_HEARTS;
-        if(!silent)overlay.classList.add('show');
-    }else{
-        overlay.classList.remove('show');
-    }
-};
-window.quitGame=function(){
-    isPaused=false;
-    document.getElementById('pause-overlay').classList.remove('show');
-    gameActive=false;
-    location.reload();
-};
+// 注入 Overlays 依赖：暂停/设置/教程/结算/重开 等覆盖层函数通过 ctx 读取 main.js 中的 let 状态
+// isPaused/gameActive 是 let 变量，必须传 getter+setter 才能让模块内函数修改 main.js 的同一变量
+setOverlaysCtx({
+    isPaused:()=>isPaused,
+    setIsPaused:v=>{isPaused=v},
+    gameActive:()=>gameActive,
+    setGameActive:v=>{gameActive=v},
+    playStartTime:()=>playStartTime,
+    score:()=>score,
+    runStats:()=>runStats,
+    hearts:()=>hearts,
+    MAX_HEARTS:()=>MAX_HEARTS,
+    lastEntry:()=>lastEntry,
+    Leaderboard,
+    Duo,
+    toast,
+    genDefaultName,
+    resetRunState,
+    startGameSession,
+    updateSettingsPanel
+});
+
+// ===== 暂停 / 退出 / 设置 / 教程（已迁移到 js/ui/overlays.js） =====
+// 挂载到 window（script type=module 中函数不在全局作用域，需要显式挂载以支持 onclick）
+window.togglePause=togglePause;
+window.quitGame=quitGame;
+window.openSettings=openSettings;
+window.closeSettings=closeSettings;
+window.restartGame=restartGame;
+window.nextTutorialStep=nextTutorialStep;
+window.skipTutorial=skipTutorial;
 // 键盘暂停快捷键
 addEventListener('keydown',e=>{
     if(e.code==='Escape'||e.code==='KeyP'){
@@ -4187,7 +4143,6 @@ function applyDuoBlessing(blessing){
 
 // 设置面板
 let graphicsQuality=['low','mid','high'].includes(localStorage.getItem('duck_quality'))?localStorage.getItem('duck_quality'):(isMobile?'low':'mid');
-let settingsPausedGame=false;
 function applyGraphicsQuality(level){
     graphicsQuality=['low','mid','high'].includes(level)?level:'high';
     const presets={
@@ -4352,17 +4307,7 @@ function updateSettingsPanel(){
     document.getElementById('set-joy').value=Math.round(joySensitivity*100);
     document.getElementById('set-joy-val').textContent=joySensitivity.toFixed(1);
 }
-window.openSettings=function(){
-    settingsPausedGame=gameActive&&!isPaused;
-    if(settingsPausedGame)togglePause(true,true);
-    updateSettingsPanel();
-    document.getElementById('settings-modal').classList.add('show');
-};
-window.closeSettings=function(){
-    document.getElementById('settings-modal').classList.remove('show');
-    if(settingsPausedGame&&isPaused&&gameActive)togglePause(false,true);
-    settingsPausedGame=false;
-};
+// openSettings / closeSettings 已迁移到 js/ui/overlays.js（通过 setOverlaysCtx 注入 updateSettingsPanel）
 document.getElementById('settings-btn').onclick=window.openSettings;
 document.getElementById('set-music').onclick=()=>{document.getElementById('music-btn').click();updateSettingsPanel()};
 document.getElementById('set-sfx').onclick=()=>{sfxOn=!sfxOn;localStorage.setItem('duck_sfx',sfxOn?'1':'0');updateSettingsPanel()};
@@ -4445,46 +4390,8 @@ document.getElementById('blessing-splash').addEventListener('click',()=>{
 window.showAchievements=showAchievements;
 window.closeAchievements=closeAchievements;
 
-// 新手教程
-let tutorialStep=0;
-const TUTORIAL_TOTAL_STEPS=4;
-function showTutorial(){
-    tutorialStep=0;
-    updateTutorialStep();
-    document.getElementById('tutorial').classList.add('show');
-    // 教程显示时自动暂停游戏（避免后台出事）
-    if(gameActive&&!isPaused)togglePause(true,true);
-}
-function updateTutorialStep(){
-    document.querySelectorAll('#tutorial .tut-step').forEach((el,i)=>el.classList.toggle('active',i===tutorialStep));
-    document.querySelectorAll('#tutorial .tut-dot').forEach((el,i)=>{
-        el.classList.toggle('active',i===tutorialStep);
-        el.classList.toggle('done',i<tutorialStep);
-    });
-    const curEl=document.getElementById('tut-cur');
-    if(curEl)curEl.textContent=tutorialStep+1;
-    const nextBtn=document.getElementById('tut-next');
-    if(tutorialStep>=TUTORIAL_TOTAL_STEPS-1){
-        nextBtn.innerHTML='<i class="fa-solid fa-check"></i> 开始游戏';
-    }else{
-        nextBtn.innerHTML='下一步 <i class="fa-solid fa-arrow-right" style="font-size:11px"></i>';
-    }
-}
-window.nextTutorialStep=function(){
-    tutorialStep++;
-    if(tutorialStep>=TUTORIAL_TOTAL_STEPS){
-        finishTutorial();
-    }else{
-        updateTutorialStep();
-    }
-};
-window.skipTutorial=function(){finishTutorial()};
-function finishTutorial(){
-    document.getElementById('tutorial').classList.remove('show');
-    localStorage.setItem('tutorial_done','1');
-    // 关闭教程时如果游戏被自动暂停了，恢复运行
-    if(isPaused&&gameActive)togglePause();
-}
+// 新手教程（已迁移到 js/ui/overlays.js，此处仅保留 showTutorial 引用以便初始化调用）
+// showTutorial 已通过 import 引入
 
 // ===== 成就系统 =====
 const Achievements={
