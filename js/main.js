@@ -3,10 +3,11 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {genUUID,escapeHtml,formatTime,formatDate,formatScore} from './core/format.js';
-import {EVENTS,EV_TINT,EV_BORDER,EV_W_NORMAL,EV_W_MERCY,DEFAULT_DUCK_SKIN,DUCK_SKINS,WING_BLOBS,isValidDuckSkin} from './core/config.js';
+import {EVENTS,EV_TINT,EV_BORDER,EV_W_NORMAL,EV_W_MERCY,STREAK_ICONS,STREAK_COLORS,DEFAULT_DUCK_SKIN,DUCK_SKINS,WING_BLOBS,isValidDuckSkin} from './core/config.js';
 import * as Storage from './core/storage.js';
 import {showShareModal,downloadShareCard,closeShareModal,setShareCardCtx} from './ui/share-card.js';
 import {showAchievements,closeAchievements,setAchievementsCtx} from './ui/achievements.js';
+import {toast,updateHeartsUI,updateStreakUI,showEventHud,hideEventHud,showWarn,hideWarn,setHudCtx} from './ui/hud.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
@@ -1889,10 +1890,9 @@ let score=0,hasShield=false,shieldTimer=0,invincible=0;
 let isPaused=false; // 暂停状态
 // 成就永久奖励（游戏开始时计算一次）
 let activeRewards={scoreBonus:0,speedBonus:0,shieldBonus:0,whirlResist:0,streakBonus:0,maxHearts:0};
-function toast(t,type){const el=document.getElementById('toast');document.getElementById('toast-text').innerHTML=t;el.className='toast show '+type;setTimeout(()=>el.className='toast',1200)}
+// toast 已迁移到 ui/hud.js（main.js 通过 import 使用，无需 window 桥接）
 let streakItems=[];let streakActive=false;let streakTimer=0;let scoreMultiplier=1;let streakType='';let bigTimer=0;// 'same' or 'diff'
-const STREAK_ICONS={flower:'fa-sun',grass:'fa-seedling',lily:'fa-spa',rock:'fa-gem',heart:'fa-heart',magnet:'fa-magnet'};
-const STREAK_COLORS={flower:'#ffee44',grass:'#44dd44',lily:'#ff9ec7',rock:'#cc8844',heart:'#ff4d6d',magnet:'#aa66ff'};
+// STREAK_ICONS/STREAK_COLORS 已迁移到 core/config.js
 function addScore(n,type='score'){
     const blessingMult=Blessings.getScoreMult(n>0?type:null);
     const achBonus=1+(activeRewards.scoreBonus||0);
@@ -1932,7 +1932,7 @@ function trackStreak(type){
         updateStreakUI();
     }
 }
-function updateStreakUI(){const hud=document.getElementById('streak-hud');for(let i=0;i<3;i++){const el=document.getElementById('s'+i);if(i<streakItems.length){el.className='si active';el.innerHTML=`<i class="fa-solid ${STREAK_ICONS[streakItems[i]]||'fa-circle'}"></i>`;el.style.color=STREAK_COLORS[streakItems[i]]||'#fff'}else{el.className='si';el.innerHTML='●';el.style.color='rgba(255,255,255,.3)'}}hud.style.display='flex'}
+// updateStreakUI 已迁移到 ui/hud.js
 function activateStreak(kind,itemType){streakActive=true;streakTimer=10+(activeRewards.streakBonus||0);streakType=kind;
 // 成就追踪：累计触发连胜次数
 Achievements.updateStat('streaks',1);
@@ -2692,7 +2692,7 @@ const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.s
 let hearts=3;let MAX_HEARTS=5;let gameActive=false;playStartTime=Date.now(); // gameActive 由"开始冒险"按钮点击后置 true
 // 本局运行统计（用于暂停界面展示 + 成就追踪）
 let runStats={items:0,distance:0,startTime:0};
-function updateHeartsUI(){const el=document.getElementById('hearts-hud');if(!el)return;let html='';for(let i=0;i<MAX_HEARTS;i++){html+=`<span class="hp ${i<hearts?'':'empty'}"><i class="fa-solid fa-heart"></i></span>`}el.innerHTML=html}
+// updateHeartsUI 已迁移到 ui/hud.js
 function screenFlash(){const f=document.getElementById('red-flash');if(!f)return;f.classList.add('show');setTimeout(()=>f.classList.remove('show'),40)}
 let screenShakeT=0; // 无护盾受伤时的画面抖动剩余时长（护盾挡住/无敌不抖，借此区分）
 function takeDamage(amount=1,sfx='hit'){
@@ -3879,19 +3879,7 @@ let globalEventTimer=30,activeEvent=null,activeEventTime=0,pendingEvent=null,war
 let whirlSpawnTimer=0;
 let windActive=false;let windSpeedMul=1;
 let stormActive=false,rainbowActive=false;
-function showEventHud(e){const el=document.getElementById('event-hud');el.style.display='flex';el.style.background=EV_TINT[e.t]||'rgba(0,0,0,.5)';el.style.borderColor=EV_BORDER[e.t]||'rgba(255,255,255,.1)';el.querySelector('.ev-icon').innerHTML='<i class="fa-solid '+e.ic+'"></i>';el.querySelector('.ev-name').textContent=e.n;el.querySelector('.ev-fx').textContent=e.fx||'';el.querySelector('.ev-time').textContent=Math.ceil(activeEventTime)+'s'}
-function hideEventHud(){document.getElementById('event-hud').style.display='none'}
-function showWarn(e){
-    const el=document.getElementById('event-warn');
-    el.style.background=EV_TINT[e.t]||'rgba(200,40,40,.85)';
-    el.style.borderColor=EV_BORDER[e.t]||'rgba(255,255,255,.1)';
-    // 边框发光颜色与事件类型一致（通过 CSS 变量驱动 warnPulse 动画）
-    const glowMap={good:'rgba(90,230,150,1)',bad:'rgba(255,80,80,1)',neutral:'rgba(255,220,110,1)'};
-    el.style.setProperty('--warn-glow',glowMap[e.t]||'rgba(255,80,80,1)');
-    el.querySelector('.warn-txt').innerHTML=' 即将来临：<i class="fa-solid '+e.ic+'"></i> '+e.n+' · '+(e.fx||'');
-    el.classList.add('show');
-}
-function hideWarn(){document.getElementById('event-warn').classList.remove('show')}
+// showEventHud/hideEventHud/showWarn/hideWarn 已迁移到 ui/hud.js
 function startEvent(key){
     activeEvent=key;
     // 事件持续时间随难度延长：满级时 +60%（开局保持原配置）
@@ -3963,6 +3951,14 @@ function updateGlobalEvent(dt){
     }
 }
 
+// 注入 HUD 依赖（必须在 updateHeartsUI/updateStreakUI 初始化调用之前）
+// hearts/MAX_HEARTS/streakItems/activeEventTime 都是 let 变量，传 getter 函数避免值快照过时
+setHudCtx({
+    hearts:()=>hearts,
+    MAX_HEARTS:()=>MAX_HEARTS,
+    streakItems:()=>streakItems,
+    activeEventTime:()=>activeEventTime
+});
 updateHeartsUI();
 updateStreakUI();// 收集栏常驻显示
 // 启动时从后端加载 leaderboard.json（若失败则回退 localStorage）

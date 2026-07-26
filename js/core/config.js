@@ -21,6 +21,10 @@ export const EV_BORDER={good:'rgba(90,230,150,.6)',bad:'rgba(255,120,120,.6)',ne
 export const EV_W_NORMAL=[['tailwind',10],['headwind',10],['storm',15],['rainbow',15],['shadow',15],['bigwave',15],['itemrain',10],['calm',10]];
 export const EV_W_MERCY=[['itemrain',40],['rainbow',30],['calm',20],['tailwind',10]];
 
+// 三连收集栏图标与配色（按道具类型）
+export const STREAK_ICONS={flower:'fa-sun',grass:'fa-seedling',lily:'fa-spa',rock:'fa-gem',heart:'fa-heart',magnet:'fa-magnet'};
+export const STREAK_COLORS={flower:'#ffee44',grass:'#44dd44',lily:'#ff9ec7',rock:'#cc8844',heart:'#ff4d6d',magnet:'#aa66ff'};
+
 // ===== 鸭子皮肤 =====
 export const DEFAULT_DUCK_SKIN='classic';
 
