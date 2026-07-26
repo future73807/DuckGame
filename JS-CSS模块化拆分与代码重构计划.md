@@ -23,15 +23,20 @@
 
 ## 2. 当前结构与主要风险
 
-当前快照：
+当前快照（`3d-duck.html` 总体积约 583 KB）：
 
-| 区域 | 当前位置 | 重构含义 |
-| --- | --- | --- |
-| CSS | `3d-duck.html` 第 10–712 行 | 先原样外置，不能同时改选择器和布局。 |
-| 静态 HTML | 第 714–1056 行 | 保留为页面壳；首轮不改 DOM 结构。 |
-| 前端主模块 | 第 1072 行起 | Three.js 场景、玩法、UI、网络和持久化均在同一个模块中。 |
-| 服务端 | `server.node.js` | 兼容本地 Node 与云函数入口，首轮只确保新静态文件可访问。 |
-| 静态检查 | `_check.js` | 目前只解析内联 module，外置 JS 后必须先升级。 |
+| 区域 | 当前位置 | 体积 | 重构含义 |
+| --- | --- | --- | --- |
+| favicon SVG | 第 8 行 `<link rel="icon" href="data:image/svg+xml,...">` | ~2 KB | 外置为 `assets/favicon.svg`，HTML 改为外部引用。 |
+| GLB 3D 模型 | 第 3236 行 base64 字符串 | ~157 KB | base64 解码后外置为 `assets/duck.glb`，体积可减小约 25%。 |
+| 分享卡 duckSVG | 第 4705 行内联模板字符串 | ~2 KB | 外置为 `assets/duck-share.svg`，运行时 `fetch` 加载。 |
+| CSS | `3d-duck.html` 第 10–712 行 | ~26 KB | 先原样外置，不能同时改选择器和布局。 |
+| 静态 HTML | 第 714–1056 行 | — | 保留为页面壳；首轮不改 DOM 结构。 |
+| 前端主模块 | 第 1072 行起 | ~395 KB | Three.js 场景、玩法、UI、网络和持久化均在同一个模块中。 |
+| 服务端 | `server.node.js` | — | 兼容本地 Node 与云函数入口，首轮只确保新静态文件可访问。 |
+| 静态检查 | `_check.js` | — | 目前只解析内联 module，外置 JS 后必须先升级。 |
+
+静态资源合计约 161 KB，占文件总体积 27.6%。其中 GLB 模型占比最大，外置后 HTML 可降至约 422 KB。
 
 四个不可忽视的耦合点：
 
@@ -46,6 +51,10 @@
 
 ```text
 3d-duck.html                 # 静态页面壳、import map、CSS/JS 入口
+assets/
+  favicon.svg                # 第 8 行的浏览器标签图标
+  duck-share.svg             # 第 4705 行的分享卡鸭子 SVG（保留 ${duckSize} 占位或运行时替换）
+  duck.glb                   # 第 3236 行的小黄鸭 3D 模型（base64 解码后的二进制）
 styles/
   game.css                   # 第一阶段：完整原样迁出的内联 CSS
   # 稳定后才拆为 base.css / hud.css / overlays.css / responsive.css
@@ -104,7 +113,36 @@ js/
 
 验收：得到一份“拆分前行为清单”，后续每阶段只和这份清单比较。
 
-### 阶段 1：CSS 原样外置
+### 阶段 1：静态资源原样外置
+
+目标：把 `3d-duck.html` 内联的三处静态资源（favicon SVG、GLB base64 模型、分享卡 duckSVG）拆为独立文件，HTML 改为外部引用。这是整个重构中风险最低、收益最直观的一步，应先于 CSS 外置执行。
+
+资源清单：
+
+| 资源 | 当前位置 | 体积 | 目标文件 | 引用方式 |
+| --- | --- | --- | --- | --- |
+| favicon SVG | 第 8 行 `<link rel="icon" href="data:image/svg+xml,...">` | ~2 KB | `assets/favicon.svg` | `<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">` |
+| 分享卡 duckSVG | 第 4705 行内联模板字符串 | ~2 KB | `assets/duck-share.svg` | `await (await fetch('./assets/duck-share.svg')).text()` |
+| GLB 3D 模型 | 第 3236 行 base64 字符串 | ~157 KB | `assets/duck.glb` | `loader.load('./assets/duck.glb', onLoad, onProgress, onError)` |
+
+约束：
+
+- 不改变任何资源的内容，只做“内联 → 外部文件”的搬家。SVG 文件保留原始 path 数据，GLB 文件由 base64 解码为二进制（体积可减小约 25%）。
+- favicon SVG 当前使用 `encodeURIComponent` 编码的内联形式，外置为文件后无需编码，直接写入原始 SVG 即可。
+- 分享卡 duckSVG 当前是模板字符串，包含 `${duckSize}` 占位。外置时保留占位符语义：要么改为在 `fetch` 后做字符串替换，要么把 `width`/`height` 从 SVG 中移除并在 Canvas 绘制时通过 `Image` 对象的天然尺寸 + `drawImage` 缩放控制（推荐后者，与现有 `duckImg.width>0` 判断逻辑一致）。
+- GLB 模型由 `loader.parse(arrayBuffer, ...)` 改为 `loader.load(url, onLoad, onProgress, onError)`，注意加载完成前 `duckModel` 仍为 `null`，主循环和 `startGameSession` 的守卫逻辑不变。
+- 服务器已支持 `.svg`、`.glb` MIME（参考 `server.node.js` 的 MIME 表），无需服务端改造。
+- 不在本阶段做资源压缩、指纹缓存或 CDN 化；保持本地与云函数两种模式都可访问。
+- 解码 base64 GLB 时使用一次性脚本（如 `node -e "fs.writeFileSync('assets/duck.glb', Buffer.from(b64, 'base64'))"`），不要手写中间文件。
+
+验收：
+
+- 浏览器标签图标正常显示。
+- 进入对局后 3D 鸭子模型加载并渲染正常，硬刷新无控制台错误。
+- 生成分享卡时鸭子图像绘制位置和大小与基线一致。
+- `3d-duck.html` 体积从 ~583 KB 降至 ~422 KB（减少约 161 KB）。
+
+### 阶段 2：CSS 原样外置
 
 目标：把内联 CSS 整段迁到 `styles/game.css`，HTML 改为 `<link rel="stylesheet">`。
 
@@ -114,7 +152,7 @@ js/
 
 验收：桌面与手机横屏截图逐项对比；HUD、安全区、设置、教程、分享卡和成就均无布局漂移。
 
-### 阶段 2：先升级检查，再外置前端入口
+### 阶段 3：先升级检查，再外置前端入口
 
 目标：把内联主模块变为 `js/main.js`；页面保留 import map、首屏加载动画所需的极小 inline boot 脚本，以及 `<script type="module" src="./js/main.js">`。
 
@@ -145,7 +183,7 @@ Object.assign(window, {
 
 验收：硬刷新后没有模块加载或控制台错误；所有原有按钮仍可用。
 
-### 阶段 3：先迁纯工具、配置与持久化
+### 阶段 4：先迁纯工具、配置与持久化
 
 这是风险最低的一批模块：
 
@@ -161,7 +199,7 @@ Object.assign(window, {
 
 验收：相同输入得到相同分数格式、日期格式和存档结果；刷新页面后原有皮肤、设置、成就、祝福仍存在。
 
-### 阶段 4：迁移独立 UI 与排行榜
+### 阶段 5：迁移独立 UI 与排行榜
 
 推荐顺序：
 
@@ -179,7 +217,7 @@ Object.assign(window, {
 
 验收：分享卡仍为 1200×800，排行榜与昵称流程正常，所有弹层能打开、关闭且手机横屏不溢出。
 
-### 阶段 5：迁移渲染基础设施
+### 阶段 6：迁移渲染基础设施
 
 推荐顺序：
 
@@ -196,7 +234,7 @@ Object.assign(window, {
 
 验收：低/中/高画质、窗口 resize、昼夜、暴风雨、漩涡吸入后处理都与基线一致。
 
-### 阶段 6：迁移输入与玩法子系统
+### 阶段 7：迁移输入与玩法子系统
 
 顺序必须小步进行：
 
@@ -220,7 +258,7 @@ events.spawnHazard → hazards.spawn / items.spawn
 
 验收：移动、碰撞、三连、磁铁、护盾、血瓶、漩涡、鲨鱼、事件和游戏结束逐项回归。
 
-### 阶段 7：最后处理双人、调试与服务端可选拆分
+### 阶段 8：最后处理双人、调试与服务端可选拆分
 
 客户端：
 
@@ -240,7 +278,7 @@ events.spawnHazard → hazards.spawn / items.spawn
 ### 每阶段必跑
 
 ```text
-node scripts/check-client.js   # 阶段 2 后替代旧的内联检查
+node scripts/check-client.js   # 阶段 3 后替代旧的内联检查
 node --check server.node.js
 git diff --check
 ```
@@ -263,7 +301,7 @@ API 测试必须使用临时数据文件，绝不向真实 `leaderboard.json` �
 | UI | 设置、教程、帮助、祝福、成就、分享卡、排行榜 |
 | 移动 | 横屏、触控摇杆、安全区、HUD、分享卡预览 |
 | 渲染 | 画质切换、resize、昼夜、天气、漩涡后处理 |
-| 双人（仅阶段 7） | 建房、加入、开始、远端渲染、倒地救援、结算 |
+| 双人（仅阶段 8） | 建房、加入、开始、远端渲染、倒地救援、结算 |
 
 ## 6. 服务端与发布注意事项
 
@@ -276,16 +314,17 @@ API 测试必须使用临时数据文件，绝不向真实 `leaderboard.json` �
 以下条件同时满足，才算完成这两个 TODO：
 
 1. HTML、CSS、前端 JS 已按职责分文件，`3d-duck.html` 只保留页面壳与入口。
-2. 没有新增框架或构建链；`npm start` 和现有部署方式仍可用。
-3. 所有既有 UI、单人玩法、移动端和双人流程通过基线回归。
-4. `window.*` 兼容桥在内联按钮全部替换为事件监听前持续保留。
-5. 客户端语法检查覆盖外置模块，服务端检查与测试可在新环境复现。
-6. 每阶段可单独回退，没有“大重写”提交。
+2. favicon、分享卡 SVG、GLB 3D 模型已外置为 `assets/` 下的独立文件；`3d-duck.html` 不再内联任何 base64 或 SVG 资源。
+3. 没有新增框架或构建链；`npm start` 和现有部署方式仍可用。
+4. 所有既有 UI、单人玩法、移动端和双人流程通过基线回归。
+5. `window.*` 兼容桥在内联按钮全部替换为事件监听前持续保留。
+6. 客户端语法检查覆盖外置模块，服务端检查与测试可在新环境复现。
+7. 每阶段可单独回退，没有“大重写”提交。
 
 ## 8. 推荐实施顺序（摘要）
 
 ```text
-基线 → CSS 原样外置 → 升级检查 → main.js 外置
+基线 → 静态资源外置 → CSS 原样外置 → 升级检查 → main.js 外置
 → 纯工具/配置/存储 → 独立 UI/排行榜
 → 渲染层 → 输入与玩法 → 双人/调试 → 可选服务端拆分
 ```
