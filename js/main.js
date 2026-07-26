@@ -6,6 +6,7 @@ import {genUUID,escapeHtml,formatTime,formatDate,formatScore} from './core/forma
 import {EVENTS,EV_TINT,EV_BORDER,EV_W_NORMAL,EV_W_MERCY,DEFAULT_DUCK_SKIN,DUCK_SKINS,WING_BLOBS,isValidDuckSkin} from './core/config.js';
 import * as Storage from './core/storage.js';
 import {showShareModal,downloadShareCard,closeShareModal,setShareCardCtx} from './ui/share-card.js';
+import {showAchievements,closeAchievements,setAchievementsCtx} from './ui/achievements.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
@@ -3414,6 +3415,8 @@ window.showShareModal=showShareModal;
 window.downloadShareCard=downloadShareCard;
 window.closeShareModal=closeShareModal;
 window.showDetailModal=showDetailModal;
+// 注入分享卡依赖（Leaderboard/Duo/toast 均为 const 或函数声明，引用稳定）
+setShareCardCtx({Leaderboard,Duo,toast});
 
 // ---- 加心道具：红色爱心血瓶 ----
 function mkHeart(x,z){
@@ -4649,53 +4652,9 @@ document.getElementById('blessing-splash').addEventListener('click',()=>{
     stopBlessingFx(splash);
 });
 
-// ===== 成就 UI =====
-window.showAchievements=function(){
-    const list=Achievements.getList();
-    const listEl=document.getElementById('ach-list');
-    const rewards=Achievements.getRewards();
-    const unlockedCount=list.filter(a=>a.unlocked).length;
-    // 副标题
-    document.getElementById('ach-sub').textContent=`解锁 ${unlockedCount} / ${list.length} · 永久成长属性`;
-    // 汇总卡片
-    const sumEl=document.getElementById('ach-summary');
-    const sumItems=[
-        {lbl:'已解锁',val:unlockedCount+'<small>/'+list.length+'</small>'},
-        {lbl:'得分加成',val:'+'+Math.round((rewards.scoreBonus||0)*100)+'%'},
-        {lbl:'速度加成',val:'+'+Math.round((rewards.speedBonus||0)*100)+'%'},
-        {lbl:'生命上限',val:'+'+(rewards.maxHearts||0)}
-    ];
-    sumEl.innerHTML=sumItems.map(s=>`<div class="ach-sum-item"><div class="lbl">${s.lbl}</div><div class="val">${s.val}</div></div>`).join('');
-    // 成就列表
-    const rewardText=r=>{if(!r)return'';const parts=[];if(r.scoreBonus)parts.push('得分+'+Math.round(r.scoreBonus*100)+'%');if(r.speedBonus)parts.push('速度+'+Math.round(r.speedBonus*100)+'%');if(r.shieldBonus)parts.push('护盾+'+Math.round(r.shieldBonus*100)+'%');if(r.whirlResist)parts.push('漩涡抗性+'+Math.round(r.whirlResist*100)+'%');if(r.streakBonus)parts.push('连胜+'+r.streakBonus+'s');if(r.maxHearts)parts.push('生命+'+r.maxHearts);return parts.length?'<i class="fa-solid fa-gift"></i> '+parts.join(' · '):''};
-    listEl.innerHTML=list.map(a=>{
-        const cur=Math.min(a.current,a.target);
-        const pct=Math.round(a.progress*100);
-        const curText=a.stat==='totalDistance'?Math.round(cur)+'m':a.stat==='playTime'?Math.floor(cur/60)+'分'+(cur%60)+'秒':cur;
-        const tgtText=a.stat==='totalDistance'?a.target+'m':a.stat==='playTime'?Math.floor(a.target/60)+'分':a.target;
-        return `<div class="ach-card ${a.unlocked?'unlocked':''}">
-            <div class="ach-icon"><i class="fa-solid ${a.icon}"></i></div>
-            <div class="ach-body">
-                <div class="ach-name">${a.name} ${a.unlocked?'<i class="fa-solid fa-check-circle ach-check"></i>':''}</div>
-                <div class="ach-desc">${a.desc}</div>
-                <div class="ach-reward">${rewardText(a.reward)||''}</div>
-                <div class="ach-progress">
-                    <div class="ach-bar"><div class="ach-bar-fill" style="width:${a.unlocked?100:pct}%"></div></div>
-                    <div class="ach-prog-text">${a.unlocked?'已完成':curText+' / '+tgtText}</div>
-                </div>
-            </div>
-        </div>`}).join('');
-    document.getElementById('ach-modal').classList.add('show');
-    // 清除"有新成就"高亮
-    document.getElementById('ach-btn').classList.remove('has-new');
-    // 打开成就面板时自动暂停游戏（防止鸭子在后台死亡）
-    if(gameActive&&!isPaused)togglePause(true,true);
-};
-window.closeAchievements=function(){
-    document.getElementById('ach-modal').classList.remove('show');
-    // 关闭面板时恢复游戏（如果之前被自动暂停）
-    if(isPaused&&gameActive)togglePause();
-};
+// ===== 成就 UI（已迁移到 js/ui/achievements.js） =====
+window.showAchievements=showAchievements;
+window.closeAchievements=closeAchievements;
 
 // 新手教程
 let tutorialStep=0;
@@ -4851,6 +4810,14 @@ const Achievements={
 
 // 加载成就进度
 Achievements.load();
+// 注入成就 UI 依赖
+// isPaused/gameActive 是 let 变量，传 getter 函数；togglePause 是 window 后赋值，传 lazy wrapper
+setAchievementsCtx({
+    Achievements,
+    isPaused:()=>isPaused,
+    gameActive:()=>gameActive,
+    togglePause:(...args)=>window.togglePause(...args)
+});
 
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
 let fpsAccum=0,fpsFrames=0,fpsValue=60;
