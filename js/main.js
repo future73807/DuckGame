@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {genUUID,escapeHtml,formatTime,formatDate,formatScore} from './core/format.js';
+import {EVENTS,EV_TINT,EV_BORDER,EV_W_NORMAL,EV_W_MERCY,DEFAULT_DUCK_SKIN,DUCK_SKINS,WING_BLOBS,isValidDuckSkin} from './core/config.js';
+import * as Storage from './core/storage.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
@@ -2797,14 +2800,6 @@ function updateTransientFx(dt){
 }
 
 // ---- 排行榜（仅从 leaderboard.json 文件读写，无 localStorage 回退） ----
-// UUID v4 生成（用于稳定标识用户/记录）
-function genUUID(){
-    if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
-        const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);
-        return v.toString(16);
-    });
-}
 // 生成默认昵称：勇敢鸭鸭 + 5个随机字母（避免重名）
 function genDefaultName(){
     const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -3158,7 +3153,6 @@ window.copyDuoCode=async function(){if(!Duo.room)return;try{await navigator.clip
 window.startDuoRoom=()=>Duo.start().catch(error=>{document.getElementById('duo-error').textContent='暂时无法开始，请确认好友仍在房间内。'});
 let lastEntry=null;
 let pendingScore=0,pendingPlayTime=0;  // 待提交的分数（供 confirmName 重试重名时使用）
-function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
 function renderLeaderboard(data){
     const list=document.getElementById('lb-list');
     if(!data.entries.length){list.innerHTML='<div class="lb-empty">暂无记录，成为第一名吧！</div>';return}
@@ -3411,8 +3405,7 @@ function showDetailModal(mode='solo'){
     }).join('');}
     document.getElementById('detail-modal').classList.add('show');
 }
-function formatTime(s){const m=Math.floor(s/60),sec=s%60;return m>0?m+'分'+sec+'秒':sec+'秒'}
-function formatDate(ts){const d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+
 
 // ---- 分享卡片 ----
 function ensureQRCodeLib(){
@@ -3733,13 +3726,6 @@ async function downloadShareCard(){
         console.error('downloadShareCard error:',e);
         toast('<i class="fa-solid fa-hand-pointer"></i> 下载失败时，可长按图片保存','m');
     }
-}
-// 分数格式化：大数统一缩写为 k / w，并保留三位小数，避免 HUD 与榜单被长数字撑开
-function formatScore(n){
-    const value=Math.max(0,Number(n)||0);
-    if(value<1000)return String(Math.floor(value));
-    if(value<10000)return(value/1000).toFixed(3)+'k';
-    return(value/10000).toFixed(3)+'w';
 }
 // 辅助：字距加宽的左对齐文字绘制
 function drawSpacedTextLeft(ctx,text,x,y,extraSpacing){
@@ -4227,21 +4213,6 @@ function updateShark(dt){
 function removeShark(){if(shark){scene.remove(shark.g);scene.remove(shark.wake);shark=null}}
 
 // ---- 随机事件系统（每30秒全局触发） ----
-const EVENTS={
-    tailwind:{n:'顺风',ic:'fa-wind',d:15,fx:'移动加速',t:'good'},
-    headwind:{n:'逆风',ic:'fa-tornado',d:15,fx:'移动减速',t:'bad'},
-    storm:{n:'暴风雨',ic:'fa-cloud-showers-heavy',d:20,fx:'巨浪雷电·落石多',t:'bad'},
-    rainbow:{n:'彩虹祝福',ic:'fa-rainbow',d:15,fx:'花草额外+5分',t:'good'},
-    shadow:{n:'水下暗影',ic:'fa-fish',d:20,fx:'暗影追踪·撞击扣心',t:'bad'},
-    bigwave:{n:'海浪汹涌',ic:'fa-water',d:15,fx:'巨浪起伏',t:'neutral'},
-    itemrain:{n:'道具雨',ic:'fa-gift',d:10,fx:'血瓶荷叶掉落',t:'good'},
-    calm:{n:'平静时刻',ic:'fa-sun',d:15,fx:'风平浪静',t:'neutral'}
-};
-// 事件类别配色：好（绿）/坏（红）/中性（黄）
-const EV_TINT={good:'rgba(24,150,74,.62)',bad:'rgba(196,46,46,.62)',neutral:'rgba(200,158,32,.62)'};
-const EV_BORDER={good:'rgba(90,230,150,.6)',bad:'rgba(255,120,120,.6)',neutral:'rgba(255,220,110,.6)'};
-const EV_W_NORMAL=[['tailwind',10],['headwind',10],['storm',15],['rainbow',15],['shadow',15],['bigwave',15],['itemrain',10],['calm',10]];
-const EV_W_MERCY=[['itemrain',40],['rainbow',30],['calm',20],['tailwind',10]];
 // 难度递进：基于游戏时长返回 0..1 的难度因子（0=开局，1=5分钟后满级）
 function difficultyFactor(){
     if(!playStartTime)return 0;
@@ -4815,14 +4786,6 @@ function setSwitchState(id,on){
     el.classList.toggle('on',on);
     el.setAttribute('aria-checked',on?'true':'false');
 }
-const DEFAULT_DUCK_SKIN='classic';
-// 每套皮肤 = 身体/嘴巴 两色搭配（翅膀与身体同色，不再区分）
-const DUCK_SKINS={
-    classic:{color:0xffde76,beak:0xff9a3d},
-    pearl:{color:0xf3f5f2,beak:0xf2a35e},
-    coral:{color:0xf09a78,beak:0xf7c65c},
-    ocean:{color:0x70b9d4,beak:0xf2b25c}
-};
 function getDuckCustomPalette(){
     try{const p=JSON.parse(localStorage.getItem('duck_custom_palette')||'null');if(p&&p.body&&p.beak)return p}catch(e){}
     return{body:'#ffde76',beak:'#ff9a3d'};
@@ -4835,11 +4798,8 @@ function getDuckPalette(skin,override){
     const s=DUCK_SKINS[skin]||DUCK_SKINS.classic,hex=c=>'#'+c.toString(16).padStart(6,'0');
     return{color:hex(s.color),beak:hex(s.beak),wing:hex(s.color)};
 }
-function isValidDuckSkin(skin){return skin==='custom'||Object.hasOwn(DUCK_SKINS,skin)}
 let activeDuckSkin=isValidDuckSkin(localStorage.getItem('duck_skin'))?localStorage.getItem('duck_skin'):DEFAULT_DUCK_SKIN;
 const duckSkinTextureCache=new Map();
-// 贴图上三块翅膀橙斑的椭圆区域（512 基准：cx,cy,rx,ry）
-const WING_BLOBS=[[110,90,95,62],[55,230,72,46],[265,280,88,42]];
 function getDuckSkinTexture(source,skin,override){
     if(!source||skin==='classic')return source;
     const pal=getDuckPalette(skin,override);
