@@ -71,7 +71,7 @@ if (isHotFe) {
         return code;
     };
     const safeText = (value, max = 18) => String(value || '').replace(/[<>]/g, '').trim().slice(0, max);
-    const DUCK_SKIN_IDS = new Set(['classic', 'pearl', 'coral', 'ocean']);
+    const DUCK_SKIN_IDS = new Set(['classic', 'pearl', 'coral', 'ocean', 'custom']);
     const DUO_BLESSINGS = new Map([
         ['grass_double', { id: 'grass_double', name: '水草丰收', desc: '今日水草得分 ×2', icon: 'fa-seedling', target: 'grass', mult: 2 }],
         ['flower_triple', { id: 'flower_triple', name: '花季绽放', desc: '今日花朵得分 ×3', icon: 'fa-sun', target: 'flower', mult: 3 }],
@@ -95,15 +95,73 @@ if (isHotFe) {
     };
     const cleanDuoState = (state) => {
         const num = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-        return {
+        const cleaned = {
             x: Math.max(-100000, Math.min(100000, num(state?.x))),
             y: Math.max(-1000, Math.min(1000, num(state?.y))),
             z: Math.max(-100000, Math.min(100000, num(state?.z))),
             ry: num(state?.ry),
             score: Math.max(0, Math.floor(num(state?.score))),
             hearts: Math.max(0, Math.min(9, Math.floor(num(state?.hearts)))),
-            skin: DUCK_SKIN_IDS.has(state?.skin) ? state.skin : 'classic'
+            skin: DUCK_SKIN_IDS.has(state?.skin) ? state.skin : 'classic',
+            sh: Math.max(0, num(state?.sh)),
+            mt: Math.max(0, num(state?.mt)),
+            bt: Math.max(0, num(state?.bt)),
+            iv: Math.max(0, num(state?.iv)),
+            sk: Math.max(0, num(state?.sk))
         };
+        // 自定义皮肤调色板透传（body/beak 为 hex 颜色字符串）
+        if (cleaned.skin === 'custom' && state?.palette && typeof state.palette === 'object') {
+            const hexRe = /^#[0-9a-fA-F]{6}$/;
+            const body = String(state.palette.body || '');
+            const beak = String(state.palette.beak || '');
+            cleaned.palette = {};
+            if (hexRe.test(body)) cleaned.palette.body = body;
+            if (hexRe.test(beak)) cleaned.palette.beak = beak;
+        }
+        // 场景快照透传（房主权威：时钟/事件/物品列表）
+        if (state?.scene && typeof state.scene === 'object') {
+            const sc = state.scene;
+            const num2 = (v, d = 0) => Number.isFinite(Number(v)) ? Number(v) : d;
+            const str = (v, max) => typeof v === 'string' ? v.slice(0, max) : null;
+            const allowedItems = ['rock', 'flower', 'grass', 'lily', 'magnet', 'heart'];
+            const cleanedItems = Array.isArray(sc.items) ? sc.items.slice(0, 600).map(it => {
+                if (!Array.isArray(it) || it.length < 4) return null;
+                const t = String(it[0]).slice(0, 12);
+                if (!allowedItems.includes(t)) return null;
+                // 第 5 元素（可选）：道具雨掉落中的 y 坐标
+                const out = [t, num2(it[1]), num2(it[2]), num2(it[3], 1)];
+                if (it.length >= 5 && Number.isFinite(Number(it[4]))) out.push(num2(it[4]));
+                return out;
+            }).filter(Boolean) : [];
+            // 漩涡：房主权威同步（位置 + 缩放）
+            const cleanedWhirls = Array.isArray(sc.whirls) ? sc.whirls.slice(0, 60).map(w => {
+                if (!Array.isArray(w) || w.length < 3) return null;
+                return [num2(w[0]), num2(w[1]), num2(w[2], 1)];
+            }).filter(Boolean) : [];
+            cleaned.scene = {
+                clk: num2(sc.clk),
+                evT: num2(sc.evT, 30),
+                evN: str(sc.evN, 20),
+                evTm: num2(sc.evTm),
+                wS: num2(sc.wS, 1),
+                wST: num2(sc.wST, 1),
+                eWT: num2(sc.eWT, 1),
+                ih: num2(sc.ih),
+                items: cleanedItems,
+                whirls: cleanedWhirls,
+                waveDir: Array.isArray(sc.waveDir) && sc.waveDir.length >= 2 ? [num2(sc.waveDir[0]), num2(sc.waveDir[1])] : null,
+                waveStr: num2(sc.waveStr),
+                waveActive: sc.waveActive ? 1 : 0,
+                waveDur: num2(sc.waveDur),
+                shark: Array.isArray(sc.shark) && sc.shark.length >= 3 ? [num2(sc.shark[0]), num2(sc.shark[1]), num2(sc.shark[2])] : null,
+                windAct: sc.windAct ? 1 : 0,
+                windMul: num2(sc.windMul, 1),
+                evWindDir: Array.isArray(sc.evWindDir) && sc.evWindDir.length >= 2 ? [num2(sc.evWindDir[0]), num2(sc.evWindDir[1])] : null,
+                stormAct: sc.stormAct ? 1 : 0,
+                rbAct: sc.rbAct ? 1 : 0
+            };
+        }
+        return cleaned;
     };
     const publicDuoPlayer = player => player ? ({ id: player.id, name: player.name, state: player.state, finished: player.finished, down: !!player.down, downAt: player.downAt || null }) : null;
     const publicDuoRoom = room => ({
@@ -192,7 +250,7 @@ if (isHotFe) {
         let body = '';
         req.on('data', chunk => {
             body += chunk;
-            if (body.length > 24000) { res.writeHead(413); res.end(); req.destroy(); }
+            if (body.length > 64000) { res.writeHead(413); res.end(); req.destroy(); }
         });
         req.on('end', () => {
             let data;
@@ -211,7 +269,12 @@ if (isHotFe) {
             const code = safeText(data.room, 6).toUpperCase();
             const room = duoRooms.get(code);
             if (!room) return sendDuoJson(res, 404, { ok: false, error: 'ROOM_NOT_FOUND' });
-            let player = room.host.id === playerId ? room.host : room.guest?.id === playerId ? room.guest : null;
+            // 优先使用请求中的 role 字段区分 host/guest（防止同一 playerId 同时是 host 和 guest，例如同浏览器多标签页测试）
+            const reqRole = safeText(data.role, 5);
+            let player = null;
+            if (reqRole === 'host' && room.host.id === playerId) player = room.host;
+            else if (reqRole === 'guest' && room.guest && room.guest.id === playerId) player = room.guest;
+            else player = room.host.id === playerId ? room.host : room.guest?.id === playerId ? room.guest : null;
             if (action === 'join') {
                 if (!name) return sendDuoJson(res, 400, { ok: false, error: 'NAME_REQUIRED' });
                 if (!room.guest) {
@@ -245,6 +308,22 @@ if (isHotFe) {
             } else if (action === 'state') {
                 if (room.status !== 'running') return sendDuoJson(res, 409, { ok: false, error: 'ROOM_NOT_RUNNING', room: publicDuoRoom(room) });
                 player.state = cleanDuoState(data.state);
+            } else if (action === 'profile') {
+                // 大厅阶段也允许同步皮肤/调色板，避免开局前看不到对方皮肤
+                const skin = DUCK_SKIN_IDS.has(data?.skin) ? data.skin : 'classic';
+                player.state = player.state || cleanDuoState();
+                player.state.skin = skin;
+                if (skin === 'custom' && data?.palette && typeof data.palette === 'object') {
+                    const hexRe = /^#[0-9a-fA-F]{6}$/;
+                    const body = String(data.palette.body || '');
+                    const beak = String(data.palette.beak || '');
+                    const pal = {};
+                    if (hexRe.test(body)) pal.body = body;
+                    if (hexRe.test(beak)) pal.beak = beak;
+                    if (pal.body && pal.beak) player.state.palette = pal; else { player.state.skin = 'classic'; delete player.state.palette; }
+                } else {
+                    delete player.state.palette;
+                }
             } else if (action === 'down') {
                 if (room.status !== 'running') return sendDuoJson(res, 409, { ok: false, error: 'ROOM_NOT_RUNNING', room: publicDuoRoom(room) });
                 player.state = cleanDuoState(data.state);
