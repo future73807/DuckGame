@@ -197,6 +197,9 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 #hearts-hud .hp{font-size:13px;line-height:1;color:#ff4d6d;transition:transform .3s,filter .3s,opacity .3s}
 #hearts-hud .hp.empty{color:#5a6472;opacity:.45}
 #hearts-hud .hp.beat{animation:hpBeat .45s}
+/* 中秋：玉兔血条（月金色 + 夜晚柔光） */
+#hearts-hud.moon .hp{color:#ffd54f;text-shadow:0 0 8px rgba(255,213,79,.6)}
+#hearts-hud.moon .hp.empty{color:#6b6252;opacity:.4;text-shadow:none}
 @keyframes hpBeat{0%,100%{transform:scale(1)}45%{transform:scale(1.6)}}
 #event-hud{position:absolute;top:calc(var(--safe-top) + 46px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:#fff;padding:4px 12px;border-radius:10px;font-size:12px;display:none;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.1);pointer-events:none;z-index:106}
 #event-hud .ev-icon{font-size:14px;display:inline-flex}
@@ -728,4 +731,4 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
     #loader #start-btn,#duo-btn{min-width:0;min-height:42px;padding:10px 22px;bottom:max(24px,calc(var(--safe-bottom) + 16px));border-radius:11px;font-size:15px;letter-spacing:1px}
     #loader #start-btn{left:calc(50% - 7px)}
     #duo-btn{left:calc(50% + 7px)}
-}
+}

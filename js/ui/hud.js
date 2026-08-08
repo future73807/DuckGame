@@ -24,13 +24,17 @@ export function toast(t,type){
 
 // ===== 血量 HUD =====
 export function updateHeartsUI(){
-    const {hearts,MAX_HEARTS}=_ctx||{};
+    const {hearts,MAX_HEARTS,isMoonHearts}=_ctx||{};
     const el=document.getElementById('hearts-hud');
     if(!el)return;
     const h=hearts(),mh=MAX_HEARTS();
+    // 中秋节：血条换成月亮图标（配合 1.5 倍得分与夜空明月）
+    const moon=typeof isMoonHearts==='function'&&isMoonHearts();
+    const icon=moon?'fa-moon':'fa-heart';
+    el.classList.toggle('moon',!!moon);
     let html='';
     for(let i=0;i<mh;i++){
-        html+=`<span class="hp ${i<h?'':'empty'}"><i class="fa-solid fa-heart"></i></span>`;
+        html+=`<span class="hp ${i<h?'':'empty'}"><i class="fa-solid ${icon}"></i></span>`;
     }
     el.innerHTML=html;
 }
