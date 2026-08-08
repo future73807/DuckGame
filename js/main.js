@@ -2353,6 +2353,7 @@ function mkWhirlpool(x,z,fixedScale){
         const lanternGroup=new THREE.Group();
         lanternGroup.add(L);
         lanternGroup.position.set(x,0,z);
+        lanternGroup.renderOrder=20; // 高于漩涡贴图（5-8），确保花灯不被遮挡
         scene.add(lanternGroup);
         lantern=lanternGroup;
         const zone={x,z,r:rTop*wm,depth};whirlZones.push(zone);
