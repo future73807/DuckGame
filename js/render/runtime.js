@@ -52,9 +52,11 @@ export function createRuntime(){
     controls.minPolarAngle=Math.PI*.1;
 
     // 鼠标手动旋转相机时，暂停自动跟随
-    const cam={manualCamTimer:0};
+    // autoMoved：自动跟随程序性移动相机的标记——OrbitControls.update() 检测到外部位移
+    // 也会派发 'change'，若不排除会把自动跟随误判为手动操作，导致跟随被周期性暂停（镜头卡顿）
+    const cam={manualCamTimer:0,autoMoved:false};
     canvas.addEventListener('pointerdown',()=>{cam.manualCamTimer=2});
-    controls.addEventListener('change',()=>{if(cam.manualCamTimer<=0)cam.manualCamTimer=.5});
+    controls.addEventListener('change',()=>{if(cam.manualCamTimer<=0&&!cam.autoMoved)cam.manualCamTimer=.5});
 
     /**
      * 动态分辨率（DRS）：按实测 FPS 在 0.6~1.0 之间自动缩放像素比

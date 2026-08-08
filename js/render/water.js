@@ -113,6 +113,7 @@ export function createWater(ctx){
         const mesh=new THREE.Mesh(geo,material);
         mesh.frustumCulled=false;
         // 每帧更新：圆环绕 (cx,cz)，内外半径 r0~r1，顶点贴合浪面 + yOff
+        // 采样 renderedWaveClock：与渲染中的浪面网格严格同相，贴图永不脱离水面
         mesh.userData.update=function(cx,cz,r0,r1,yOff){
             const p=geo.attributes.position;
             for(let r=0;r<=radialSegs;r++){
@@ -120,7 +121,7 @@ export function createWater(ctx){
                 for(let t=0;t<=thetaSegs;t++){
                     const i=r*(thetaSegs+1)+t,a=t/thetaSegs*Math.PI*2;
                     const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr;
-                    p.setXYZ(i,x,waveHeight(x,z,state.waveClock)+yOff,z);
+                    p.setXYZ(i,x,waveHeight(x,z,state.renderedWaveClock)+yOff,z);
                 }
             }
             p.needsUpdate=true;
@@ -158,13 +159,14 @@ export function createWater(ctx){
         const mesh=new THREE.Mesh(geo,material);
         mesh.frustumCulled=false;
         // 每帧更新：圆盘中心 (cx,cz)，缩放 ws（对应 group.scale），yOff 抬高避免被浪面遮挡
+        // 采样 renderedWaveClock：与渲染中的浪面网格严格同相，漩涡贴图紧贴水面漏斗
         mesh.userData.update=function(cx,cz,ws,yOff){
             const p=geo.attributes.position;
             for(let i=0;i<p.count;i++){
                 const lx=p.getX(i),lz=p.getZ(i);
                 const wx=cx+lx*ws,wz=cz+lz*ws;
                 // y 需除以 ws 抵消 group 缩放，使世界 y = waveHeight + yOff
-                p.setY(i,(waveHeight(wx,wz,state.waveClock)+yOff)/ws);
+                p.setY(i,(waveHeight(wx,wz,state.renderedWaveClock)+yOff)/ws);
             }
             p.needsUpdate=true;
             // MeshBasicMaterial 不参与光照，无需 computeVertexNormals（每帧省下数千次法线重算）

@@ -444,8 +444,7 @@ function dbgSpawnItem(type,count=1){
         const x=dp.x+Math.cos(ang)*dist,z=dp.z+Math.sin(ang)*dist;
         if(type==='whirlpool'){
             const w=mkWhirlpool(x,z);
-            scene.add(w.group,w.rim,w.field);if(w.lantern)scene.add(w.lantern);
-            whirlZones.push(w.zone);
+            // mkWhirlpool 内部已完成 scene.add 与 whirlZones.push，此处只需登记数组
             whirlpools.push(w);
         }else{
             let mesh,radius;
@@ -1385,7 +1384,7 @@ function resetRunState(){
     duckSink.state='none';duckSink.t=0;duckSink.whirl=null;sinkFx=0;screenShakeT=0;duckVel.set(0,0,0);
     heartTimer=8;whirlSpawnTimer=0;globalEventTimer=30;activeEventTime=0;pendingEvent=null;warnedFor=null;waveSpeed=1;waveSpeedTarget=1;eventWaveTarget=1;
     if(duckModel){duckModel.visible=true;const duoOffsetX=(typeof Duo!=='undefined'&&Duo.active&&Duo.role==='guest')?3.5:(typeof Duo!=='undefined'&&Duo.active&&Duo.role==='host')?-3.5:0;duckModel.position.set(duoOffsetX,.05,0);duckModel.rotation.set(0,0,0);duckModel.scale.setScalar(.72)}
-    if(controls){controls.target.set(0,1,0)}
+    if(controls){controls.target.set(0,1,0);camSmoothY=1}
     document.getElementById('score').textContent='0';updateHeartsUI();updateStreakUI();if(!duoIsGuest())spawnAround(0,0);
     // 重开后重新发放节日特效：Blessings.apply 重算护盾/生命，FestivalFx.start 重建月亮/覆盖层粒子
     Blessings.apply();FestivalFx.start();updateHeartsUI();
@@ -1414,23 +1413,28 @@ function hideLoader(){
     },300)
 }
 // 相机：用 OrbitControls 自由旋转，自动跟随鸭子位置
-let cameraYaw=0,camSmoothY=0;
+// 跟随策略：相机与注视点【同步平移】——保持用户设定的视角方向/距离完全不变，
+// 不与 OrbitControls 的阻尼/距离/俯仰约束打架（旧方案手动 lerp 相机会被 controls.update()
+// 拉回并误触发 'change' → manualCamTimer 反复重置 → 镜头每 0.5s 跳一格，像不断撞墙）
+let camSmoothY=1;
 function updateCam(dt){if(!duckModel)return;
 // 手动操控计时器衰减
 if(cam.manualCamTimer>0)cam.manualCamTimer-=dt;
+cam.autoMoved=false; // 本帧是否由程序移动相机（供 controls 'change' 监听排除误判）
 if(cam.manualCamTimer<=0){
-    // 相机自动跟随：保持当前方向角，平滑跟随鸭子
-    // 鸭子 Y 坐标低通滤波（.008），消除浪面起伏导致的相机撞墙式卡顿
-    camSmoothY+=((duckModel.position.y+1)-camSmoothY)*.008;
-    const lookDir=controls.target.clone().sub(camera.position);
-    const camDist=camera.position.distanceTo(controls.target);
-    const azimuth=Math.atan2(lookDir.x,lookDir.z);
-    const targetPos=duckModel.position.clone().add(new THREE.Vector3(
-        -Math.sin(azimuth)*camDist, camera.position.y-controls.target.y+camSmoothY, -Math.cos(azimuth)*camDist
-    ));
-    camera.position.lerp(targetPos,.04);
+    // 鸭子 Y 低通滤波（dt 归一化，帧率无关），吸收浪面顶点分帧更新带来的阶梯抖动
+    camSmoothY+=((duckModel.position.y+1)-camSmoothY)*Math.min(1,dt*3.2);
+    // 注视点平滑逼近鸭子（x/z 较快跟随，y 用滤波值）
+    const k=Math.min(1,dt*5);
+    const nx=controls.target.x+(duckModel.position.x-controls.target.x)*k;
+    const nz=controls.target.z+(duckModel.position.z-controls.target.z)*k;
+    const dx=nx-controls.target.x,dy=camSmoothY-controls.target.y,dz=nz-controls.target.z;
+    if(dx||dy||dz){
+        controls.target.x=nx;controls.target.y=camSmoothY;controls.target.z=nz;
+        camera.position.x+=dx;camera.position.y+=dy;camera.position.z+=dz;
+        cam.autoMoved=true;
+    }
 }
-controls.target.lerp(duckModel.position.clone().add(new THREE.Vector3(0,1,0)),.05);
 if(stormActive){const d=camera.position.distanceTo(controls.target);if(d>9)camera.position.lerp(controls.target,dt*.4);}
 // 雷击震动
 if(camShake>0){camShake-=dt;const s=camShake*.5;camera.position.x+=(Math.random()-.5)*s;camera.position.y+=(Math.random()-.5)*s*.6;camera.position.z+=(Math.random()-.5)*s}
@@ -2325,65 +2329,46 @@ const whirlCoreTex=mkTex(128,128,(x)=>{const g=x.createRadialGradient(64,64,4,64
 function mkWhirlpool(x,z,fixedScale){
     const g=new THREE.Group();
     const rTop=3.0,depth=2.4;
-    // 元宵：不再是漏斗漩涡，改为"祈福灯笼群"（温和暖光，无吸入感）。
-    // 视觉重构：移除暗洞/水流漏斗/浪花环这些"危险"元素，换成 3 盏漂浮上升的纸灯笼 + 底部一圈暖光涟漪。
-    // 引力判定保留（whirlZones）→ 玩家进入会被"送回岸边"（updateDuckSink 已有灯笼特判：无扣心，仅传送）。
+    // 元宵：漩涡本体视觉与常规漩涡【完全一致】（同一套贴图/层级/抬升），
+    // 只在中心额外立一盏大型祈福花灯。引力判定保留（whirlZones）→ 玩家进入被"送回岸边"。
     const isLantern=isFestival('festival_lantern');
-    let disk=null,foam=null,core=null,rim=null,field=null,lantern=null;
+    let lantern=null;
     // 随机大小：1/1.5/2/2.5/3 倍（0.5 档位）；双人模式客机使用房主同步的固定缩放
     const wm=fixedScale||(1+Math.floor(Math.random()*5)*.5);
-    if(isLantern){
-        // 元宵灯笼漩涡：保留常规漩涡全部视觉（漏斗/浪花/暗洞/边缘环），中心加一盏大型祈福花灯
-        // 漩涡贴图不删除，视觉与其他漩涡完全一致
-        disk=mkWaveDisk(rTop,16,72,new THREE.MeshBasicMaterial({map:whirlWaterTex,transparent:true,opacity:.95,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),1,1);
-        disk.renderOrder=5;g.add(disk);
-        foam=mkWaveDisk(rTop*.98,14,64,new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.82,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}),1,1);
-        foam.renderOrder=6;g.add(foam);
-        core=mkWaveDisk(.8,5,24,new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}),1,1);
-        core.renderOrder=7;g.add(core);
-        g.scale.setScalar(wm);g.position.set(x,0,z);scene.add(g);
-        rim=mkWaveRing(2,72,new THREE.MeshBasicMaterial({map:wakeTex,transparent:true,opacity:.85,depthWrite:false,fog:false,side:THREE.DoubleSide}),3);
-        rim.renderOrder=8;
-        field=mkWaveRing(1,72,new THREE.MeshBasicMaterial({color:0xffaa55,transparent:true,opacity:.3,depthWrite:false,fog:false,side:THREE.DoubleSide}),1);
-        field.renderOrder=4;
-        scene.add(rim,field);
-        // 中心一盏大型祈福花灯（4× 放大，高度冗余 2.5 单位，不会被海浪穿模）
-        const L=mkWhirlLantern();
-        L.scale.setScalar(4);
-        const lanternGroup=new THREE.Group();
-        lanternGroup.add(L);
-        lanternGroup.position.set(x,0,z);
-        lanternGroup.renderOrder=20; // 高于漩涡贴图（5-8），确保花灯不被遮挡
-        scene.add(lanternGroup);
-        lantern=lanternGroup;
-        const zone={x,z,r:rTop*wm,depth};whirlZones.push(zone);
-        disk.userData.update(x,z,wm,.42);foam.userData.update(x,z,wm,.47);core.userData.update(x,z,wm,.52);
-        rim.userData.update(x,z,2.3*wm,3.9*wm,.40);field.userData.update(x,z,4.6*wm,5*wm,.20);
-        return{group:g,disk,foam,core,rim,field,zone,life:9+Math.random()*4,x,z,scale:wm,depth,lantern,isLanternFx:true};
-    }
-    // ---- 常规漩涡（漏斗 + 浪花 + 暗洞） ----
+    // ---- 漩涡本体（漏斗 + 浪花 + 暗洞） ----
     // 各层贴图在世界空间有序抬高（见 updateWhirlpools），高于浪面漏斗处最大插值偏差，
     // 保证漩涡任何情况下都不被浪面/浪花遮挡
-    disk=mkWaveDisk(rTop,16,72,new THREE.MeshBasicMaterial({map:whirlWaterTex,transparent:true,opacity:.95,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),1,1);
+    const disk=mkWaveDisk(rTop,16,72,new THREE.MeshBasicMaterial({map:whirlWaterTex,transparent:true,opacity:.95,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),1,1);
     disk.renderOrder=5;g.add(disk);
-    foam=mkWaveDisk(rTop*.98,14,64,new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.82,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}),1,1);
+    const foam=mkWaveDisk(rTop*.98,14,64,new THREE.MeshBasicMaterial({map:whirlFoamTex,transparent:true,opacity:.82,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}),1,1);
     foam.renderOrder=6;g.add(foam);
-    core=mkWaveDisk(.8,5,24,new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}),1,1);
+    const core=mkWaveDisk(.8,5,24,new THREE.MeshBasicMaterial({map:whirlCoreTex,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}),1,1);
     core.renderOrder=7;g.add(core);
     g.scale.setScalar(wm);
     g.position.set(x,0,z);scene.add(g);
     // 边缘浪花环 + 引力提示圈（贴浪面网格，不会被海浪盖住）
-    rim=mkWaveRing(2,72,new THREE.MeshBasicMaterial({map:wakeTex,transparent:true,opacity:.85,depthWrite:false,fog:false,side:THREE.DoubleSide}),3);
+    const rim=mkWaveRing(2,72,new THREE.MeshBasicMaterial({map:wakeTex,transparent:true,opacity:.85,depthWrite:false,fog:false,side:THREE.DoubleSide}),3);
     rim.renderOrder=8; // 浪花环盖在漩涡边缘之上（depthWrite=false 时按 renderOrder 分层）
-    field=mkWaveRing(1,72,new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.25,depthWrite:false,fog:false,side:THREE.DoubleSide}),1);
+    const field=mkWaveRing(1,72,new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.25,depthWrite:false,fog:false,side:THREE.DoubleSide}),1);
     field.renderOrder=4;
     scene.add(rim,field);
     const zone={x,z,r:rTop*wm,depth};whirlZones.push(zone);
     // 创建即同步一次顶点（其余帧由 updateWhirlpools 每帧刷新），
     // 否则生成后到下个更新帧之间贴图会平躺在 y=0 高度闪一下
-    disk.userData.update(x,z,wm,.42);foam.userData.update(x,z,wm,.47);core.userData.update(x,z,wm,.52);
-    rim.userData.update(x,z,2.3*wm,3.9*wm,.40);field.userData.update(x,z,4.6*wm,5*wm,.20);
-    return{group:g,disk,foam,core,rim,field,zone,life:9+Math.random()*4,x,z,scale:wm,depth,lantern:null};
+    disk.userData.update(x,z,wm,.62);foam.userData.update(x,z,wm,.70);core.userData.update(x,z,wm,.80);
+    rim.userData.update(x,z,2.3*wm,3.9*wm,.52);field.userData.update(x,z,4.6*wm,5*wm,.24);
+    if(isLantern){
+        // 元宵：中心一盏祈福孔明灯（唯一、居中、体量适中、略浮于水面之上）
+        const L=mkWhirlLantern();
+        L.scale.setScalar(3);
+        const lanternGroup=new THREE.Group();
+        lanternGroup.add(L);
+        lanternGroup.position.set(x,0,z);
+        // renderOrder 已在 mkWhirlLantern 内每个 Mesh 上设置（20），Group 上设置无效
+        scene.add(lanternGroup);
+        lantern=lanternGroup;
+    }
+    return{group:g,disk,foam,core,rim,field,zone,life:9+Math.random()*4,x,z,scale:wm,depth,lantern,isLanternFx:isLantern};
 }
 function spawnWhirlpool(){
     if(!duckModel)return;
@@ -2392,13 +2377,27 @@ function spawnWhirlpool(){
 }
 window.__whirlTest={
     spawn:near=>{if(!duckModel)return;const d=near||6;whirlpools.push(mkWhirlpool(duckModel.position.x+d,duckModel.position.z));return whirlpools.length},
+    clear:()=>{for(const w of whirlpools)w.life=0;return whirlpools.length}, // 全部标记消散（下一帧清理）
     info:()=>whirlpools.map(w=>({lantern:!!w.isLanternFx,hasDisk:!!w.disk,diskLift:w.disk&&w.disk.userData.update?'sync':'no',diskDepthWrite:w.disk?w.disk.material.depthWrite:null,diskPolygonOffset:w.disk?w.disk.material.polygonOffset:null,diskRenderOrder:w.disk?w.disk.renderOrder:null})),
-    // 检查漩涡 disk 顶点与 waveHeight 的差值（应等于抬升 .42/ws，完全贴合）
-    checkSync:()=>{const w=whirlpools[0];if(!w)return'no whirl';if(!w.disk)return'lantern whirlpool (no disk)';const ws=w.scale||1;const pos=w.disk.geometry.attributes.position;let maxDiff=0,samples=0;const cx=w.x,cz=w.z;for(let i=0;i<pos.count;i+=20){const lx=pos.getX(i),lz=pos.getZ(i);const wx=cx+lx*ws,wz=cz+lz*ws;const wh=waveHeight(wx,wz,waveClock);const expected=(wh+.42)/ws;const actual=pos.getY(i);const diff=Math.abs(actual-expected);if(diff>maxDiff)maxDiff=diff;samples++}return{maxDiff:samples?maxDiff.toFixed(4):0,samples}}
+    // 检查漩涡 disk 顶点与 waveHeight 的差值（应等于抬升 .62/ws，完全贴合）
+    checkSync:()=>{const w=whirlpools[0];if(!w)return'no whirl';if(!w.disk)return'lantern whirlpool (no disk)';const ws=w.scale||1;const pos=w.disk.geometry.attributes.position;let maxDiff=0,samples=0;const cx=w.x,cz=w.z;for(let i=0;i<pos.count;i+=20){const lx=pos.getX(i),lz=pos.getZ(i);const wx=cx+lx*ws,wz=cz+lz*ws;const wh=waveHeight(wx,wz,renderedWaveClock);const expected=(wh+.62)/ws;const actual=pos.getY(i);const diff=Math.abs(actual-expected);if(diff>maxDiff)maxDiff=diff;samples++}return{maxDiff:samples?maxDiff.toFixed(4):0,samples}}
 };
 window.__auraTest={
     info:()=>({depthWrite:auraMesh.material.depthWrite,renderOrder:auraMesh.renderOrder,visible:auraMesh.visible,opacity:auraMesh.material.opacity})
 };
+// 调试：强制切换节日（key 如 'lantern'/'dragon_boat'，null 清除）+ 附近生成物品
+window.__debugFestival=key=>Blessings.applyDebugSelection(null,key);
+window.__dbgSpawn=(type,count)=>dbgSpawnItem(type,count);
+// 调试：把相机对准世界坐标点（视觉自检截图用），暂停自动跟随
+window.__lookAt=(tx,ty,tz,dist=20,ang=.5)=>{
+    cam.manualCamTimer=999;
+    controls.target.set(tx,ty,tz);
+    camera.position.set(tx+Math.cos(ang)*dist,ty+dist*.55,tz+Math.sin(ang)*dist);
+    camera.lookAt(controls.target);
+};
+// 调试：相机 Y 采样（验证随浪起伏平滑度）+ 解除手动锁定恢复自动跟随
+window.__camY=()=>camera.position.y;
+window.__unlockCam=()=>{cam.manualCamTimer=0};
 // 临时测试钩子：暴露游戏内部状态用于双人模式同步验证
 window.__gameState=()=>({
     itemsCount:items.length,
@@ -2407,6 +2406,8 @@ window.__gameState=()=>({
     itemsPositions:items.filter(i=>!i.coll).map(i=>[i.type,Math.round(i.mesh.position.x*10)/10,Math.round(i.mesh.position.z*10)/10]),
     whirlpoolsCount:whirlpools.length,
     whirlpoolsPos:whirlpools.map(w=>[Math.round(w.x*10)/10,Math.round(w.z*10)/10,Math.round(w.scale*100)/100]),
+    festival:Blessings.festival?.id||null,
+    duckPos:duckModel?[Math.round(duckModel.position.x*10)/10,Math.round(duckModel.position.z*10)/10]:null,
     activeEvent:activeEvent,
     globalEventTimer:Math.round(globalEventTimer*10)/10,
     activeEventTime:Math.round(activeEventTime*10)/10,
@@ -2425,6 +2426,7 @@ window.__gameState=()=>({
     frameCount:typeof frameCount!=='undefined'?frameCount:null,
     // 双人同步调试：本地/远程鸭子位置 + 远程特效状态
     localDuckPos:duckModel?{x:Math.round(duckModel.position.x*100)/100,y:Math.round(duckModel.position.y*100)/100,z:Math.round(duckModel.position.z*100)/100}:null,
+    camY:camera?Math.round(camera.position.y*1000)/1000:null,
     remoteDuckPos:duoRemoteDuck?{x:Math.round(duoRemoteDuck.position.x*100)/100,y:Math.round(duoRemoteDuck.position.y*100)/100,z:Math.round(duoRemoteDuck.position.z*100)/100}:null,
     remoteDuckVisible:duoRemoteDuck?duoRemoteDuck.visible:null,
     remoteTarget:duoRemoteTarget?{x:Math.round(duoRemoteTarget.x*100)/100,z:Math.round(duoRemoteTarget.z*100)/100,sh:duoRemoteTarget.sh,mt:duoRemoteTarget.mt,bt:duoRemoteTarget.bt,iv:duoRemoteTarget.iv}:null,
@@ -2447,7 +2449,6 @@ function updateWhirlpools(dt){
     // 漩涡贴图旋转动画：沿圆周方向（UV-U）滚动 = 螺旋水流旋转，泡沫反向转更有层次
     whirlWaterTex.offset.x=(whirlWaterTex.offset.x+dt*.09)%1;
     whirlFoamTex.offset.x=(whirlFoamTex.offset.x-dt*.13+1)%1;
-    if(typeof whirlLanternTex!=='undefined')whirlLanternTex.offset.x=(whirlLanternTex.offset.x+dt*.09)%1;
     for(let i=whirlpools.length-1;i>=0;i--){
         const w=whirlpools[i];
         // duo guest：life 和物品销毁由房主场景同步负责，客机跳过避免不同步
@@ -2455,41 +2456,34 @@ function updateWhirlpools(dt){
         const ws=w.scale||1;       // 漩涡缩放倍数
         const R=12*ws;              // 影响半径（大幅扩大，让鸭子更易进入吸力范围）
         const SINK_R=1.0*ws;       // 进入中心阈值：到达此处触发沉没动画
-        if(w.isLanternFx){
-            // ---- 元宵灯笼群：暖光涟漪 + 中心花灯 ----
-            // 漩涡贴图每帧贴合浪面 + 有序抬高，和普通漩涡完全一致
-            w.disk.userData.update(w.x,w.z,ws,.42);
-            w.foam.userData.update(w.x,w.z,ws,.47);
-            w.core.userData.update(w.x,w.z,ws,.52);
-            w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.40);
-            w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.20);
-            // 随昼夜变暗
-            w.disk.material.color.setScalar(envBright);w.foam.material.color.setScalar(envBright);
-            w.core.material.color.setScalar(envBright);w.rim.material.color.setScalar(envBright);
-            w.field.material.color.setHex(0xffaa55);w.field.material.color.multiplyScalar(envBright);
-            w.rim.material.opacity=.55+Math.sin(gameClock*5+i)*.25;
-            w.field.material.opacity=.2+Math.sin(gameClock*2.2+i)*.08;
-            if(w.lantern){
-                // 中心花灯：漩涡中心 + 浪面上 2.5 单位（高于所有漩涡贴图，不被遮挡）+ 缓慢旋转
-                w.lantern.position.set(w.x,waveHeight(w.x,w.z,waveClock)+2.5,w.z);
-                w.lantern.rotation.y+=dt*.25;
-            }
-        }else{
-            // ---- 常规漩涡：漏斗贴图 + 浪花环 ----
-            // 圆盘贴图每帧贴合浪面 + 有序抬高（.42/.47/.52），高于 waveMesh 漏斗+巨浪事件下的
-            // 最大插值偏差（~0.38）：贴图任何情况下都不被浪面顶出不规则破洞（恢复 f51f421 版本）
-            w.disk.userData.update(w.x,w.z,ws,.42);
-            w.foam.userData.update(w.x,w.z,ws,.47);
-            w.core.userData.update(w.x,w.z,ws,.52);
-            // 浪花环/引力圈逐帧贴合浪面
-            w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.40);
-            w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.20);
-            // 漩涡贴图随昼夜变暗（MeshBasicMaterial 自发光，否则夜晚亮得突兀）
-            w.disk.material.color.setScalar(envBright);w.foam.material.color.setScalar(envBright);
-            w.core.material.color.setScalar(envBright);w.rim.material.color.setScalar(envBright);
-            w.field.material.color.setHex(0x66ccff);w.field.material.color.multiplyScalar(envBright);
-            w.rim.material.opacity=.55+Math.sin(gameClock*5+i)*.25;
-            w.field.material.opacity=.16+Math.sin(gameClock*3+i)*.1;
+        // ---- 漩涡本体（元宵/常规完全一致的视觉与动画） ----
+        // 圆盘贴图每帧贴合浪面 + 有序抬高（.62/.70/.80）：浪面网格顶点稀疏（~3.6 间距），
+        // 漏斗底部是线性插值的"浅坑"，比真实 waveHeight 漏斗浅 ~0.5+；抬升量必须大于该插值偏差，
+        // 否则浪面会从贴图中心顶出不规则破洞（视觉上像贴图不随漩涡变化）
+        w.disk.userData.update(w.x,w.z,ws,.62);
+        w.foam.userData.update(w.x,w.z,ws,.70);
+        w.core.userData.update(w.x,w.z,ws,.80);
+        // 浪花环/引力圈逐帧贴合浪面
+        w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.52);
+        w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.24);
+        // 漩涡贴图随昼夜变暗（MeshBasicMaterial 自发光，否则夜晚亮得突兀）
+        w.disk.material.color.setScalar(envBright);w.foam.material.color.setScalar(envBright);
+        w.core.material.color.setScalar(envBright);w.rim.material.color.setScalar(envBright);
+        w.field.material.color.setHex(0x66ccff);w.field.material.color.multiplyScalar(envBright);
+        w.rim.material.opacity=.55+Math.sin(gameClock*5+i)*.25;
+        w.field.material.opacity=.16+Math.sin(gameClock*3+i)*.1;
+        if(w.lantern){
+            // 元宵中心孔明灯：唯一一盏、居于漩涡中心、随浪面中心起伏。
+            // 抬升 = 竹圈底部 local .04×缩放3 + 冗余 1.3（略高于水面；漩涡中心漏斗下凹 2.4，
+            // 灯罩边缘处浪面最多比中心高 ~1.3，恰好不碰竹圈；暴风雨再按浪强补高）
+            const lift=w.lantern.children[0].userData.bottomExtent*w.lantern.children[0].scale.x+1.3+3*Math.max(0,waveBoost-1);
+            w.lantern.position.set(w.x,waveHeight(w.x,w.z,renderedWaveClock)+lift,w.z);
+            // 孔明灯缓缓自旋 + 随风轻摆 + 烛火闪烁
+            w.lantern.rotation.y+=dt*.15;
+            w.lantern.rotation.z=Math.sin(gameClock*.8+w.x)*.05;
+            w.lantern.rotation.x=Math.cos(gameClock*.6+w.z)*.04;
+            const fl=w.lantern.children[0].userData.flame;
+            if(fl){const fk=1+Math.sin(gameClock*11+w.x*7)*.12+Math.sin(gameClock*23)*.06;fl.scale.set(1,1.5*fk,1)}
         }
         if(gameActive&&duckModel&&duckSink.state==='none'){
             const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
@@ -3305,94 +3299,301 @@ const FestivalFx={
         }
     }
 };
-// --- 元宵：灯笼漩涡贴图（红金水流 + 暖光核心） ---
-const whirlLanternTex=mkTex(512,256,(x)=>{
-    x.fillStyle='#4a0d0d';x.fillRect(0,0,512,256);
-    for(let i=0;i<16;i++){const x0=i*32;
-        x.strokeStyle='rgba(255,120,60,'+(.14+(i%3)*.06)+')';x.lineWidth=6+(i%4)*3;
-        for(const ox of[-512,0,512]){x.beginPath();x.moveTo(x0+ox,0);x.bezierCurveTo(x0+ox+30,80,x0+ox-20,160,x0+ox+24,256);x.stroke()}}
-});
-whirlLanternTex.wrapS=whirlLanternTex.wrapT=THREE.RepeatWrapping;
-const whirlLanternCoreTex=mkTex(128,128,(x)=>{const g=x.createRadialGradient(64,64,4,64,64,64);
-    g.addColorStop(0,'rgba(255,190,90,1)');g.addColorStop(.55,'rgba(255,90,40,.95)');g.addColorStop(1,'rgba(120,12,10,0)');
-    x.fillStyle=g;x.fillRect(0,0,128,128)});
-// 漩涡中心漂浮的孔明灯（元宵祈福灯）
-function mkWhirlLantern(){
-    const g=new THREE.Group();
-    // 孔明灯主体：圆柱形纸灯笼，暖白半透明
-    const paperMat=new THREE.MeshStandardMaterial({
-        color:0xfff3e0,roughness:.6,transparent:true,opacity:.75,
-        emissive:0xffaa55,emissiveIntensity:.45,side:THREE.DoubleSide
+// --- 元宵：漩涡中心漂浮的祈福孔明灯 ---
+// 宣纸贴图：暖橙纸面 + 竹骨阴影 + 顶部收口褶皱 + 纸面纤维颗粒 + 灯身"福"字（祈福特写细节）
+let _skyLanternTex=null;
+function getSkyLanternTex(){
+    if(_skyLanternTex)return _skyLanternTex;
+    _skyLanternTex=mkTex(1024,512,x=>{
+        // 纸面底色：横向包覆无接缝，纵向底亮顶暗（烛光从下往上照），深橙红防止阳光下洗白
+        const bg=x.createLinearGradient(0,512,0,0);
+        bg.addColorStop(0,'#d95a14');bg.addColorStop(.35,'#c8430c');bg.addColorStop(.8,'#a83308');bg.addColorStop(1,'#8f2806');
+        x.fillStyle=bg;x.fillRect(0,0,1024,512);
+        // 纸面纤维颗粒（宣纸质感）
+        for(let i=0;i<900;i++){
+            x.fillStyle=`rgba(${120+Math.random()*80|0},${40+Math.random()*40|0},10,${.03+Math.random()*.05})`;
+            x.fillRect(Math.random()*1024,Math.random()*512,1+Math.random()*3,1+Math.random()*2);
+        }
+        // 横向纤维丝（竹帘纹）
+        x.strokeStyle='rgba(255,220,170,.06)';x.lineWidth=1;
+        for(let i=0;i<60;i++){
+            const y0=Math.random()*512;
+            x.beginPath();x.moveTo(0,y0);x.lineTo(1024,y0+(Math.random()-.5)*8);x.stroke();
+        }
+        // 竖向竹骨/纸筋阴影（8 条，与 3D 竹骨对应）
+        for(let i=0;i<8;i++){
+            const x0=i*128+16;
+            const g=x.createLinearGradient(x0,0,x0+44,0);
+            g.addColorStop(0,'rgba(110,30,6,0)');g.addColorStop(.5,'rgba(110,30,6,.4)');g.addColorStop(1,'rgba(110,30,6,0)');
+            x.fillStyle=g;x.fillRect(x0,0,44,512);
+        }
+        // 顶部收拢褶皱（扇形汇聚暗纹，向下渐隐，让圆顶有"纸糊收口"结构感）
+        for(let i=0;i<24;i++){
+            const x0=i*42.7;
+            const g2=x.createLinearGradient(0,0,0,220);
+            g2.addColorStop(0,'rgba(90,22,4,.55)');g2.addColorStop(1,'rgba(90,22,4,0)');
+            x.strokeStyle=g2;x.lineWidth=5;
+            x.beginPath();x.moveTo(x0+14,0);x.lineTo(x0,220);x.stroke();
+        }
+        // 灯身"福"字（祈福手写感，只占一格不重复）
+        x.save();
+        x.translate(256,300);x.rotate(-.04);
+        x.fillStyle='rgba(120,18,6,.5)';
+        x.font='bold 150px "KaiTi","STKaiti","SimSun",serif';
+        x.textAlign='center';x.textBaseline='middle';
+        x.fillText('福',0,0);
+        x.restore();
+        // 底部烛光光晕
+        const gl=x.createLinearGradient(0,512,0,300);
+        gl.addColorStop(0,'rgba(255,220,160,.4)');gl.addColorStop(1,'rgba(255,220,160,0)');
+        x.fillStyle=gl;x.fillRect(0,300,1024,212);
     });
-    // 灯体：圆柱（顶部略圆，底部开口）
-    const body=new THREE.Mesh(new THREE.CylinderGeometry(.22,.2,.5,12,4,true),paperMat);
-    body.position.y=.25;body.castShadow=false;body.renderOrder=10;g.add(body);
-    // 顶部圆盖
-    const top=new THREE.Mesh(new THREE.SphereGeometry(.22,12,6,0,Math.PI*.5),paperMat);
-    top.position.y=.5;top.rotation.x=Math.PI;top.renderOrder=10;g.add(top);
-    // 竹骨架（4 根纵向）
-    const bambooMat=new THREE.MeshStandardMaterial({color:0xd4a854,roughness:.6});
+    _skyLanternTex.wrapS=THREE.RepeatWrapping;_skyLanternTex.wrapT=THREE.ClampToEdgeWrapping;
+    return _skyLanternTex;
+}
+function mkWhirlLantern(){
+    // 孔明灯：圆角方筒纸灯罩 + 棱角竹骨 + 顶部收口结 + 底部竹圈/十字竹条 + 内部烛火
+    const g=new THREE.Group();
+    const RO=20; // renderOrder：高于漩涡贴图（5-8），花灯永不被漩涡贴图遮挡
+    // 灯罩轮廓：底部开口小、直筒腹、顶部收成圆顶（高:宽≈1.2:1，真孔明灯比例，压扁了会像球）
+    const prof=[[.26,0],[.38,.08],[.44,.22],[.45,.45],[.44,.65],[.38,.82],[.28,.95],[.14,1.05],[.02,1.10]]
+        .map(p=>new THREE.Vector2(p[0],p[1]));
+    const paperMat=new THREE.MeshStandardMaterial({
+        map:getSkyLanternTex(),roughness:.7,metalness:0,
+        side:THREE.DoubleSide,
+        emissive:0xff8040,emissiveIntensity:.18 // 烛光自发光，夜晚也是暖的
+    });
+    const bodyGeo=new THREE.LatheGeometry(prof,64);
+    // 真孔明灯是四张纸糊的【圆角方筒】：截面按 superellipse 外鼓（4 条圆角棱在 45° 方向），
+    // 混合 70% 方形因子 → 纸面微鼓、棱圆润，不是硬纸盒
+    const sqF=th=>{const c=Math.abs(Math.cos(th)),s=Math.abs(Math.sin(th));
+        return 1+(Math.pow(Math.pow(c,4)+Math.pow(s,4),-.25)-1)*.7};
+    const bp=bodyGeo.attributes.position;
+    for(let i=0;i<bp.count;i++){
+        const bx=bp.getX(i),bz=bp.getZ(i);
+        if(bx*bx+bz*bz<1e-8)continue;
+        const f=sqF(Math.atan2(bz,bx));
+        bp.setX(i,bx*f);bp.setZ(i,bz*f);
+    }
+    bodyGeo.computeVertexNormals();
+    const body=new THREE.Mesh(bodyGeo,paperMat);
+    body.renderOrder=RO;g.add(body);
+    // 纵向竹骨条：4 根细管立在方筒圆角棱上（真孔明灯骨架就在纸面接缝处）
+    const bambooMat=new THREE.MeshStandardMaterial({color:0xb9904f,roughness:.6});
+    const ribPts=prof.map(p=>new THREE.Vector3(p.x*sqF(Math.PI/4)+.012,p.y,0)); // 沿 45° 棱外鼓
+    const ribCurve=new THREE.CatmullRomCurve3(ribPts);
     for(let i=0;i<4;i++){
-        const a=i/4*Math.PI*2;
-        const rib=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,.52,4),bambooMat);
-        rib.position.set(Math.cos(a)*.215,.25,Math.sin(a)*.215);rib.renderOrder=10;g.add(rib);
+        const rib=new THREE.Mesh(new THREE.TubeGeometry(ribCurve,24,.009,5),bambooMat);
+        rib.rotation.y=Math.PI/4+i*Math.PI/2;rib.renderOrder=RO;g.add(rib);
     }
-    // 底部竹圈
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(.215,.008,4,16),bambooMat);
-    ring.position.y=0;ring.renderOrder=10;g.add(ring);
-    // 底部十字竹条（放蜡烛用）
+    // 顶部收口结（纸张收拢捆扎处）
+    const knot=new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,.09,10),bambooMat);
+    knot.position.y=1.11;knot.renderOrder=RO;g.add(knot);
+    // 底部竹圈（贴合方口的圆角方形）+ 十字竹条（托烛火用）
+    const ringPts=[];
+    for(let i=0;i<=32;i++){const th=i/32*Math.PI*2;const rr=.26*sqF(th)+.008;
+        ringPts.push(new THREE.Vector3(Math.cos(th)*rr,.01,Math.sin(th)*rr))}
+    const ring=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ringPts,true),64,.02,6),bambooMat);
+    ring.renderOrder=RO;g.add(ring);
     for(let i=0;i<2;i++){
-        const cross=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,.42,4),bambooMat);
-        cross.rotation.z=Math.PI/2;
-        cross.rotation.y=i*Math.PI/2;
-        cross.position.y=0;cross.renderOrder=10;g.add(cross);
+        const stick=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,.52,5),bambooMat);
+        stick.rotation.z=Math.PI/2;stick.rotation.y=i*Math.PI/2;stick.position.y=.02;
+        stick.renderOrder=RO;g.add(stick);
     }
-    // 内部烛光（暖黄发光球，最高层级）
-    const flameMat=new THREE.MeshBasicMaterial({color:0xff8833,transparent:true,opacity:.85});
-    const flame=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),flameMat);
-    flame.position.y=.12;flame.renderOrder=11;g.add(flame);
+    // 内部暖光晕（隔着纸罩透出的烛光团）
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(.17,12,10),
+        new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:.14,fog:false,depthWrite:false}));
+    glow.position.y=.2;glow.renderOrder=RO;g.add(glow);
+    // 烛火：外焰（暖黄）+ 内芯（亮橙），双层拉长的火苗形（userData.flame 供闪烁动画）
+    const flameOut=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),
+        new THREE.MeshBasicMaterial({color:0xffc46e,transparent:true,opacity:.9,fog:false,depthWrite:false}));
+    flameOut.scale.set(1,1.5,1);flameOut.position.y=.13;flameOut.renderOrder=RO+1;g.add(flameOut);
+    const flameIn=new THREE.Mesh(new THREE.SphereGeometry(.04,8,6),
+        new THREE.MeshBasicMaterial({color:0xff8a2a,fog:false,depthWrite:false}));
+    flameIn.scale.set(1,1.4,1);flameIn.position.y=.11;flameIn.renderOrder=RO+1;g.add(flameIn);
+    g.userData.flame=flameOut;
+    // 最低点（竹圈底部）局部坐标，供外部计算防穿模抬升高度
+    g.userData.bottomExtent=.04;
     return g;
 }
 // --- 端午：粽子（替代水草） ---
-// 粽叶贴图：深绿叶底 + 平行叶脉 + 纵向色斑（手绘感）
+// 粽叶贴图：层层叠压的粽叶（横向环绕包裹感）+ 叶脉 + 深浅渐变（手绘卡通感）
 let _zongziTex=null;
 function getZongziTex(){
     if(_zongziTex)return _zongziTex;
-    _zongziTex=mkTex(256,256,x=>{
-        x.fillStyle='#2e7d32';x.fillRect(0,0,256,256);
-        // 叶脉：从底边发散的浅色弧线
-        for(let i=0;i<14;i++){
-            x.strokeStyle=`rgba(120,190,110,${.22+(i%3)*.09})`;x.lineWidth=2+(i%2);
-            x.beginPath();x.moveTo(i*19-10,262);
-            x.bezierCurveTo(i*19+16,180,i*19-14,90,i*19+10,-6);x.stroke();
-        }
-        // 深浅色斑模拟粽叶叠压
-        for(let i=0;i<9;i++){
-            x.fillStyle=i%2?'rgba(24,88,28,.24)':'rgba(80,160,84,.16)';
-            x.beginPath();x.ellipse((i*53)%256,(i*97)%256,26+(i%3)*10,60+(i%4)*16,(i*.7)%3.14,0,6.283);x.fill();
+    _zongziTex=mkTex(512,512,x=>{
+        // 底色调：顶部受光嫩绿 → 底部深沉（球面 UV 的纵轴 = 粽身竖直方向）
+        const bg=x.createLinearGradient(0,0,0,512);
+        bg.addColorStop(0,'#2f9e44');bg.addColorStop(.45,'#237a34');bg.addColorStop(1,'#145224');
+        x.fillStyle=bg;x.fillRect(0,0,512,512);
+        // 叠压粽叶：4 排交错叶片，每片带中脉与侧脉，像粽叶一圈圈缠裹
+        for(let row=0;row<4;row++){
+            const y0=row*128-30;
+            for(let i=0;i<6;i++){
+                const x0=i*96+(row%2)*48-60;
+                const light=row%2===0;
+                // 叶片本体（椭圆，排间互相压叠）
+                const lg=x.createLinearGradient(x0,y0,x0,y0+170);
+                lg.addColorStop(0,light?'rgba(120,210,110,.16)':'rgba(8,50,16,.26)');
+                lg.addColorStop(1,light?'rgba(8,50,16,.30)':'rgba(120,210,110,.08)');
+                x.fillStyle=lg;
+                x.beginPath();x.ellipse(x0+48,y0+90,58,96,0,0,6.283);x.fill();
+                // 叶缘描边（卡通勾线感）
+                x.strokeStyle='rgba(10,52,18,.6)';x.lineWidth=4;
+                x.beginPath();x.ellipse(x0+48,y0+90,58,96,0,0,6.283);x.stroke();
+                // 中脉
+                x.strokeStyle='rgba(190,235,170,.55)';x.lineWidth=3.5;
+                x.beginPath();x.moveTo(x0+48,y0-2);x.lineTo(x0+48,y0+182);x.stroke();
+                // 侧脉（斜向细线）
+                x.strokeStyle='rgba(170,225,155,.3)';x.lineWidth=2;
+                for(let v=1;v<5;v++){
+                    const vy=y0+v*34;
+                    x.beginPath();x.moveTo(x0+48,vy);x.lineTo(x0+16,vy+22);x.stroke();
+                    x.beginPath();x.moveTo(x0+48,vy);x.lineTo(x0+80,vy+22);x.stroke();
+                }
+            }
         }
     });
     _zongziTex.wrapS=_zongziTex.wrapT=THREE.RepeatWrapping;
     return _zongziTex;
 }
+// 单片粽叶贴图：中脉 + 细密侧脉 + 叶缘压暗（用于 3D 叶片几何）
+let _leafTex=null;
+function getLeafTex(){
+    if(_leafTex)return _leafTex;
+    _leafTex=mkTex(256,512,x=>{
+        const bg=x.createLinearGradient(0,512,0,0);
+        bg.addColorStop(0,'#26702d');bg.addColorStop(.6,'#319139');bg.addColorStop(1,'#46ab50');
+        x.fillStyle=bg;x.fillRect(0,0,256,512);
+        // 中脉（基部粗亮 → 叶尖细）
+        const cv=x.createLinearGradient(0,512,0,0);
+        cv.addColorStop(0,'rgba(215,240,190,.85)');cv.addColorStop(1,'rgba(230,248,205,.95)');
+        x.strokeStyle=cv;x.lineWidth=7;
+        x.beginPath();x.moveTo(128,506);x.lineTo(128,6);x.stroke();
+        // 细密侧脉（斜向叶缘）
+        x.lineWidth=2;
+        for(let i=0;i<22;i++){
+            const y0=20+i*22;
+            x.strokeStyle='rgba(200,235,180,'+(.18+(i%3)*.05)+')';
+            x.beginPath();x.moveTo(128,y0);x.lineTo(14,y0+26);x.stroke();
+            x.beginPath();x.moveTo(128,y0);x.lineTo(242,y0+26);x.stroke();
+        }
+        // 叶缘压暗（卷曲阴影感）
+        const eg=x.createLinearGradient(0,0,256,0);
+        eg.addColorStop(0,'rgba(10,50,16,.5)');eg.addColorStop(.12,'rgba(10,50,16,0)');
+        eg.addColorStop(.88,'rgba(10,50,16,0)');eg.addColorStop(1,'rgba(10,50,16,.5)');
+        x.fillStyle=eg;x.fillRect(0,0,256,512);
+    });
+    _leafTex.wrapS=_leafTex.wrapT=THREE.ClampToEdgeWrapping;
+    return _leafTex;
+}
+// 麻绳绞纹贴图：斜向明暗条纹绕在环面上 = 绞丝感
+let _ropeTex=null;
+function getRopeTex(){
+    if(_ropeTex)return _ropeTex;
+    _ropeTex=mkTex(128,64,x=>{
+        x.fillStyle='#d8b25e';x.fillRect(0,0,128,64);
+        x.lineCap='round';
+        for(let i=-3;i<10;i++){
+            x.strokeStyle='rgba(146,102,38,.6)';x.lineWidth=6;
+            x.beginPath();x.moveTo(i*18,68);x.lineTo(i*18+34,-4);x.stroke();
+            x.strokeStyle='rgba(255,238,185,.4)';x.lineWidth=2.5;
+            x.beginPath();x.moveTo(i*18+5,68);x.lineTo(i*18+39,-4);x.stroke();
+        }
+    });
+    _ropeTex.wrapS=_ropeTex.wrapT=THREE.RepeatWrapping;
+    _ropeTex.repeat.set(10,2);
+    return _ropeTex;
+}
 function mkZongzi(x,z){
-    // 极简卡通粽子：四面体 + 一道麻绳 + 叶尖
+    // 卡通圆润粽子：球面顶点向正四面体面投影并向外融合 → 饱满圆角的四面粽
     const g=new THREE.Group();
-    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.45});
-    // 主体：胖四面体（圆润卡通）
-    const body=new THREE.Mesh(new THREE.ConeGeometry(.2,.32,3,5),bodyMat);
-    body.rotation.y=Math.PI/6;body.position.y=.16;body.castShadow=true;g.add(body);
-    // 一道麻绳（腰部缠绕）
-    const ropeMat=new THREE.MeshStandardMaterial({color:0xd4a854,roughness:.65});
-    const rope=new THREE.Mesh(new THREE.TorusGeometry(.15,.02,6,20),ropeMat);
-    rope.rotateX(Math.PI/2);rope.position.y=.14;g.add(rope);
-    // 叶尖（从顶点弯出）
-    const tip=new THREE.Mesh(new THREE.ConeGeometry(.04,.16,6),
-        new THREE.MeshStandardMaterial({color:0x66bb6a,roughness:.45}));
-    tip.position.set(0,.32,0);
-    tip.rotation.set(.85,Math.PI/4,.15);
-    g.add(tip);
-    g.position.set(x,0,z);return g;
+    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.48,metalness:.02});
+    const geo=new THREE.SphereGeometry(1,48,32);
+    // 正四面体四个面的外法线（四个顶点方向取反）
+    const tetV=[[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].map(v=>new THREE.Vector3(v[0],v[1],v[2]).normalize());
+    const tetN=tetV.map(v=>v.clone().negate());
+    const IN=.7,SPH=2.0,Q=.42; // 内切球半径 / 融合球半径 / 圆润度（面平棱挺，更接近真实粽子的四面锥形）
+    const pos=geo.attributes.position;const d=new THREE.Vector3();
+    for(let i=0;i<pos.count;i++){
+        d.set(pos.getX(i),pos.getY(i),pos.getZ(i)).normalize();
+        let t=1e9;
+        for(const n of tetN){const c=d.dot(n);if(c>1e-4)t=Math.min(t,IN/c)}
+        const r=t*(1-Q)+SPH*Q;
+        pos.setXYZ(i,d.x*r,d.y*r,d.z*r);
+    }
+    geo.computeVertexNormals();
+    // 一个顶点朝上（底部为平面，稳稳坐在水面）
+    const qUp=new THREE.Quaternion().setFromUnitVectors(tetV[0],new THREE.Vector3(0,1,0));
+    geo.applyQuaternion(qUp);
+    geo.scale(.16,.175,.16);
+    const body=new THREE.Mesh(geo,bodyMat);
+    body.position.y=.27;body.castShadow=true;g.add(body);
+    // 卡通描边：略大的反面 hull，深绿轮廓线
+    const outline=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x14521f,side:THREE.BackSide}));
+    outline.scale.setScalar(1.045);outline.position.copy(body.position);g.add(outline);
+    // 叶棱：从顶尖到三个底角的叶脉压边（深绿细管，沿棱线微微外鼓）
+    const seamMat=new THREE.MeshStandardMaterial({color:0x145c22,roughness:.55});
+    const rVert=(IN/(1/3))*(1-Q)+SPH*Q;   // 顶点处半径
+    const rEdge=(IN/(1/Math.sqrt(3)))*(1-Q)+SPH*Q; // 棱中点处半径
+    const apex=new THREE.Vector3(0,1,0).multiplyScalar(rVert);
+    for(let k=1;k<4;k++){
+        const base=tetV[k].clone().applyQuaternion(qUp).multiplyScalar(rVert);
+        const mid=tetV[0].clone().add(tetV[k]).normalize().applyQuaternion(qUp).multiplyScalar(rEdge*1.05);
+        const sv=v=>new THREE.Vector3(v.x*.16,v.y*.175,v.z*.16).add(new THREE.Vector3(0,.27,0));
+        const curve=new THREE.QuadraticBezierCurve3(sv(apex),sv(mid),sv(base));
+        const seam=new THREE.Mesh(new THREE.TubeGeometry(curve,12,.02,6),seamMat);
+        g.add(seam);
+    }
+    // 3D 粽叶包裹：三个侧面各覆一片独立叶形几何（真粽子是"叶子包出来的"，贴图画不出叠压感）
+    // 叶片顶点直接按角度投影到粽身表面（与 body 同一套投影函数），零悬浮完美贴合
+    const leafFrame=new THREE.Group();
+    leafFrame.quaternion.copy(qUp);leafFrame.scale.set(.16,.175,.16);leafFrame.position.y=.27;
+    g.add(leafFrame);
+    const leafMat=new THREE.MeshStandardMaterial({map:getLeafTex(),roughness:.5,metalness:.02,side:THREE.DoubleSide});
+    // 粽身半径函数（与上面的投影同一套）：给定方向求表面距离
+    const rOf=dir=>{let t=1e9;for(const nn of tetN){const c=dir.dot(nn);if(c>1e-4)t=Math.min(t,IN/c)}return t*(1-Q)+SPH*Q};
+    for(let k=1;k<4;k++){
+        const n=tetN[k]; // 含顶尖的侧面外法线
+        const u=tetV[0].clone().sub(n.clone().multiplyScalar(tetV[0].dot(n))).normalize(); // 面内朝顶尖
+        const wAxis=new THREE.Vector3().crossVectors(n,u).normalize(); // 面内横向
+        // 角度域铺叶：ty 沿叶长（-0.55 靠近底棱 → +1.32 越过顶尖），tx 沿叶宽（±0.5 锥形收尖）
+        const ROWS=14,COLS=8;
+        const lg=new THREE.PlaneGeometry(1,1,COLS,ROWS); // 仅用于拿拓扑，顶点全量重写
+        const lp=lg.attributes.position,luv=lg.attributes.uv;
+        const tmp=new THREE.Vector3();
+        for(let i=0;i<lp.count;i++){
+            const ny=luv.getY(i),nx=luv.getX(i); // 0..1
+            const ty=-0.55+ny*1.87; // 叶长覆盖角
+            const wProf=Math.sin(Math.pow(Math.max(ny,.02),.8)*Math.PI); // 叶形：中部宽两端尖
+            const tx=(nx-.5)*1.0*Math.max(.05,wProf);
+            tmp.copy(n).addScaledVector(u,Math.tan(ty)).addScaledVector(wAxis,Math.tan(tx)*wProf).normalize();
+            const rr=rOf(tmp)+.015; // 贴面 + 微浮
+            lp.setXYZ(i,tmp.x*rr,tmp.y*rr,tmp.z*rr);
+        }
+        lg.computeVertexNormals();
+        leafFrame.add(new THREE.Mesh(lg,leafMat));
+    }
+    // 麻绳十字捆扎：腰横一圈 + 过顶纵一圈（绞纹稻草绳），微陷入粽身显"勒紧"感
+    const ropeMat=new THREE.MeshStandardMaterial({map:getRopeTex(),roughness:.65});
+    const ropeH=new THREE.Mesh(new THREE.TorusGeometry(.245,.024,10,48),ropeMat);
+    ropeH.rotation.x=Math.PI/2;ropeH.position.y=.24;g.add(ropeH);
+    const ropeV=new THREE.Mesh(new THREE.TorusGeometry(.235,.024,10,48),ropeMat);
+    ropeV.rotation.y=Math.PI/4;ropeV.scale.set(1,1.5,1);ropeV.position.y=.27;g.add(ropeV);
+    // 绳结（侧面小球 + 两根翘起的线头）
+    const knot=new THREE.Mesh(new THREE.SphereGeometry(.045,12,10),ropeMat);
+    knot.position.set(.21,.28,.11);g.add(knot);
+    for(let i=0;i<2;i++){
+        const tail=new THREE.Mesh(new THREE.CylinderGeometry(.011,.006,.12,6),ropeMat);
+        tail.position.set(.24+i*.04,.22-i*.03,.13);
+        tail.rotation.z=.5+i*.4;tail.rotation.x=.3;
+        g.add(tail);
+    }
+    g.position.set(x,0,z);
+    // 防穿模：道具漂浮逻辑对 grass 固定下沉 .06（水草从水里长出才压水面），
+    // 粽子是"浮"在水上的，需要净抬高，否则底面被浪面切片
+    g.userData.floatLift=.14;
+    return g;
 }
 // --- 国庆：蛋糕（替代石头，撞碎得分） ---
 function mkCake(p,s){
@@ -3870,7 +4071,7 @@ if(it.falling!==undefined&&it.falling>0){
 }
 // 磁吸牵引：道具轻微浮起 + 自旋（magT 在磁铁吸引时充能，平时衰减）
 it.magT=Math.max(0,(it.magT||0)-dt*1.5);const mLift=it.magT*it.magT*.55,itSpin=it.magT*dt*5;
-if(it.type==='lily'){it.mesh.position.y=floatY+.04+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='flower'){it.mesh.position.y=floatY-.02+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05;it.mesh.rotation.y+=itSpin}else if(it.type==='grass'){it.mesh.position.y=floatY-.06+mLift;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+mLift+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65+mLift;it.mesh.rotation.y=gameClock*1.2+it.magT*2}}
+if(it.type==='lily'){it.mesh.position.y=floatY+.04+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='flower'){it.mesh.position.y=floatY-.02+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05;it.mesh.rotation.y+=itSpin}else if(it.type==='grass'){it.mesh.position.y=floatY-.06+(it.mesh.userData.floatLift||0)+mLift;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+mLift+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65+mLift;it.mesh.rotation.y=gameClock*1.2+it.magT*2}}
 // 连胜边框柔和呼吸
 if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('combo-border').style.opacity=s}
 controls.update();
