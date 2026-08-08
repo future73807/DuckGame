@@ -28,13 +28,13 @@ export function updateHeartsUI(){
     const el=document.getElementById('hearts-hud');
     if(!el)return;
     const h=hearts(),mh=MAX_HEARTS();
-    // 中秋节：血条换成月亮图标（配合 1.5 倍得分与夜空明月）
+    // 中秋节：血条换成满月图标（圆形发光月盘，而非 FontAwesome 的月牙 fa-moon）
     const moon=typeof isMoonHearts==='function'&&isMoonHearts();
-    const icon=moon?'fa-moon':'fa-heart';
     el.classList.toggle('moon',!!moon);
     let html='';
     for(let i=0;i<mh;i++){
-        html+=`<span class="hp ${i<h?'':'empty'}"><i class="fa-solid ${icon}"></i></span>`;
+        html+=moon?`<span class="hp moon-hp ${i<h?'':'empty'}"></span>`
+                 :`<span class="hp ${i<h?'':'empty'}"><i class="fa-solid fa-heart"></i></span>`;
     }
     el.innerHTML=html;
 }
