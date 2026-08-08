@@ -1423,8 +1423,12 @@ if(cam.manualCamTimer<=0){
     const lookDir=controls.target.clone().sub(camera.position);
     const camDist=camera.position.distanceTo(controls.target);
     const azimuth=Math.atan2(lookDir.x,lookDir.z);
+    // 相机高度：固定偏移 + 极缓慢跟随鸭子 Y（避免浪面起伏导致相机卡顿）
+    // 用 .008 的低通滤波平滑鸭子 Y 变化，消除浪面高频抖动传递到相机
+    if(!updateCam._smoothDuckY)updateCam._smoothDuckY=duckModel.position.y;
+    updateCam._smoothDuckY+=(duckModel.position.y-updateCam._smoothDuckY)*.008;
     const targetPos=duckModel.position.clone().add(new THREE.Vector3(
-        -Math.sin(azimuth)*camDist, camera.position.y-controls.target.y+duckModel.position.y+1, -Math.cos(azimuth)*camDist
+        -Math.sin(azimuth)*camDist, updateCam._smoothDuckY+4.2, -Math.cos(azimuth)*camDist
     ));
     camera.position.lerp(targetPos,.04);
 }
@@ -3333,6 +3337,8 @@ function mkWhirlLantern(){
     const pad=new THREE.Mesh(new THREE.CircleGeometry(.24,18),
         new THREE.MeshStandardMaterial({color:0x3f9d4e,roughness:.6,side:THREE.DoubleSide}));
     pad.rotation.x=-Math.PI/2;pad.position.y=-.06;g.add(pad);
+    // 整体放大 4 倍（用户要求花灯比现在大 4 倍）
+    g.scale.setScalar(4);
     return g;
 }
 // --- 端午：粽子（替代水草） ---
@@ -3359,32 +3365,39 @@ function getZongziTex(){
 }
 function mkZongzi(x,z){
     const g=new THREE.Group();
-    // 主体：四棱锥用平滑着色（圆润粽形，去棱角感）
-    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.58});
-    const body=new THREE.Mesh(new THREE.ConeGeometry(.185,.3,4,3),bodyMat);
-    body.rotation.y=Math.PI/4;body.position.y=.15;body.castShadow=true;g.add(body);
-    // 底部圆润化：一个小扁球塞在锥底，消除尖底
-    const base=new THREE.Mesh(new THREE.SphereGeometry(.148,10,8),bodyMat);
-    base.scale.set(1,.42,1);base.position.y=.02;g.add(base);
-    // 顶芽：顶端收束的小叶尖（更细长、微弯）
-    const tip=new THREE.Mesh(new THREE.ConeGeometry(.05,.14,6),
-        new THREE.MeshStandardMaterial({color:0x4caf50,roughness:.55}));
-    tip.rotation.set(.4,Math.PI/4,.14);tip.position.set(.02,.345,0);g.add(tip);
-    // 麻绳：两道圆环十字缠绕 + 一道收口（圆润半径贴合锥身）+ 侧面小结
+    // 主体：四面体粽子（金字塔形，四个三角面，经典粽形）
+    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.55,flatShading:false});
+    // 用四面体几何体：底部是三角形，顶部收尖
+    const bodyGeo=new THREE.ConeGeometry(.22,.38,3,1,true); // 3 边形 = 四面体
+    const body=new THREE.Mesh(bodyGeo,bodyMat);
+    body.rotation.y=Math.PI/6; // 让一个面正对前方
+    body.position.y=.19;
+    body.castShadow=true;g.add(body);
+    // 叶子包裹感：在外层加一层半透明绿叶薄片（模拟粽叶外层）
+    const leafWrap=new THREE.Mesh(new THREE.ConeGeometry(.23,.4,3,1,true),
+        new THREE.MeshStandardMaterial({color:0x4a9c52,roughness:.6,transparent:true,opacity:.35,side:THREE.DoubleSide}));
+    leafWrap.rotation.y=Math.PI/6+.1;leafWrap.position.y=.19;leafWrap.scale.set(1.02,1,1.02);g.add(leafWrap);
+    // 顶部叶尖收束（粽子顶部通常有多余的叶子折下来）
+    const topFold=new THREE.Mesh(new THREE.ConeGeometry(.06,.16,3),
+        new THREE.MeshStandardMaterial({color:0x3d8b42,roughness:.5}));
+    topFold.rotation.set(.35,Math.PI/3,.2);topFold.position.set(0,.4,.03);g.add(topFold);
+    // 麻绳：三道环绕（贴合三角锥身），用 Torus 模拟绳子缠绕
     const ropeMat=new THREE.MeshStandardMaterial({color:0xcbb27a,roughness:.75});
     const mkRope=(ry,yy,r)=>{
-        const rope=new THREE.Mesh(new THREE.TorusGeometry(r,.015,8,24),ropeMat);
+        const rope=new THREE.Mesh(new THREE.TorusGeometry(r,.016,8,24),ropeMat);
         rope.rotateX(Math.PI/2);rope.rotateY(ry);rope.position.y=yy;g.add(rope);
     };
-    mkRope(Math.PI/4,.13,.128);
-    mkRope(-Math.PI/4,.185,.112);
-    mkRope(Math.PI/4+.12,.24,.09);
-    const knot=new THREE.Mesh(new THREE.SphereGeometry(.032,8,6),ropeMat);
-    knot.position.set(.128,.185,.015);g.add(knot);
-    // 绳尾两小段垂下
-    const tailGeo=new THREE.CylinderGeometry(.008,.006,.09,5);
-    const t1=new THREE.Mesh(tailGeo,ropeMat);t1.rotation.z=.5;t1.position.set(.148,.13,.02);g.add(t1);
-    const t2=new THREE.Mesh(tailGeo,ropeMat);t2.rotation.set(.3,0,.7);t2.position.set(.143,.125,.035);g.add(t2);
+    // 三道绳：底部、中部、上部（贴合三角锥）
+    mkRope(0,.1,.155);
+    mkRope(Math.PI/3,.19,.138);
+    mkRope(Math.PI*.66,.28,.11);
+    // 侧面绳结（粽子侧面通常有个小结）
+    const knot=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),ropeMat);
+    knot.position.set(.15,.19,.02);g.add(knot);
+    // 绳尾两小段垂下（更自然）
+    const tailGeo=new THREE.CylinderGeometry(.008,.005,.11,5);
+    const t1=new THREE.Mesh(tailGeo,ropeMat);t1.rotation.z=.6;t1.position.set(.16,.09,.03);g.add(t1);
+    const t2=new THREE.Mesh(tailGeo,ropeMat);t2.rotation.set(.4,0,.8);t2.position.set(.15,.08,.045);g.add(t2);
     g.position.set(x,0,z);return g;
 }
 // --- 国庆：蛋糕（替代石头，撞碎得分） ---
