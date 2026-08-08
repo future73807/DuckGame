@@ -1415,6 +1415,8 @@ function hideLoader(){
 }
 // 相机：用 OrbitControls 自由旋转，自动跟随鸭子位置
 let cameraYaw=0;
+// 相机Y轴平滑滤波（消除浪面起伏导致的卡顿）
+let _camSmoothY=1.2;
 function updateCam(dt){if(!duckModel)return;
 // 手动操控计时器衰减
 if(cam.manualCamTimer>0)cam.manualCamTimer-=dt;
@@ -1423,12 +1425,10 @@ if(cam.manualCamTimer<=0){
     const lookDir=controls.target.clone().sub(camera.position);
     const camDist=camera.position.distanceTo(controls.target);
     const azimuth=Math.atan2(lookDir.x,lookDir.z);
-    // 相机高度：固定偏移 + 极缓慢跟随鸭子 Y（避免浪面起伏导致相机卡顿）
-    // 用 .008 的低通滤波平滑鸭子 Y 变化，消除浪面高频抖动传递到相机
-    if(!updateCam._smoothDuckY)updateCam._smoothDuckY=duckModel.position.y;
-    updateCam._smoothDuckY+=(duckModel.position.y-updateCam._smoothDuckY)*.008;
+    // Y轴低通滤波：鸭子Y坐标用 .008 低通滤波，消除浪面起伏导致的撞墙式卡顿
+    _camSmoothY+= (duckModel.position.y+1 - _camSmoothY) * 0.008;
     const targetPos=duckModel.position.clone().add(new THREE.Vector3(
-        -Math.sin(azimuth)*camDist, updateCam._smoothDuckY+4.2, -Math.cos(azimuth)*camDist
+        -Math.sin(azimuth)*camDist, _camSmoothY - controls.target.y + duckModel.position.y, -Math.cos(azimuth)*camDist
     ));
     camera.position.lerp(targetPos,.04);
 }
@@ -2342,8 +2342,9 @@ function mkWhirlpool(x,z,fixedScale){
         const cluster=new THREE.Group();
         for(let i=0;i<3;i++){
             const L=mkWhirlLantern();
+            L.scale.setScalar(4); // 放大4倍，显眼存在
             const a=i*(Math.PI*2/3);
-            L.userData={ph:a,r:1.1*wm*.6,baseY:.9+i*.35};
+            L.userData={ph:a,r:1.1*wm*.6,baseY:1.4+i*.3}; // 浮高一点（baseY 从 .9 提到 1.4）
             L.position.set(Math.cos(a)*1.1*wm*.6,0,Math.sin(a)*1.1*wm*.6);
             cluster.add(L);
         }
@@ -3337,8 +3338,6 @@ function mkWhirlLantern(){
     const pad=new THREE.Mesh(new THREE.CircleGeometry(.24,18),
         new THREE.MeshStandardMaterial({color:0x3f9d4e,roughness:.6,side:THREE.DoubleSide}));
     pad.rotation.x=-Math.PI/2;pad.position.y=-.06;g.add(pad);
-    // 整体放大 4 倍（用户要求花灯比现在大 4 倍）
-    g.scale.setScalar(4);
     return g;
 }
 // --- 端午：粽子（替代水草） ---
@@ -3365,39 +3364,45 @@ function getZongziTex(){
 }
 function mkZongzi(x,z){
     const g=new THREE.Group();
-    // 主体：四面体粽子（金字塔形，四个三角面，经典粽形）
-    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.55,flatShading:false});
-    // 用四面体几何体：底部是三角形，顶部收尖
-    const bodyGeo=new THREE.ConeGeometry(.22,.38,3,1,true); // 3 边形 = 四面体
+    // 四面体几何体：三角锥粽子（更像真实粽子形状）
+    const bodyMat=new THREE.MeshStandardMaterial({color:0x4a7c3f,roughness:.52,side:THREE.DoubleSide});
+    // 主体：四面体（三角锥）
+    const bodyGeo=new THREE.TetrahedronGeometry(.28,0);
     const body=new THREE.Mesh(bodyGeo,bodyMat);
-    body.rotation.y=Math.PI/6; // 让一个面正对前方
-    body.position.y=.19;
-    body.castShadow=true;g.add(body);
-    // 叶子包裹感：在外层加一层半透明绿叶薄片（模拟粽叶外层）
-    const leafWrap=new THREE.Mesh(new THREE.ConeGeometry(.23,.4,3,1,true),
-        new THREE.MeshStandardMaterial({color:0x4a9c52,roughness:.6,transparent:true,opacity:.35,side:THREE.DoubleSide}));
-    leafWrap.rotation.y=Math.PI/6+.1;leafWrap.position.y=.19;leafWrap.scale.set(1.02,1,1.02);g.add(leafWrap);
-    // 顶部叶尖收束（粽子顶部通常有多余的叶子折下来）
-    const topFold=new THREE.Mesh(new THREE.ConeGeometry(.06,.16,3),
-        new THREE.MeshStandardMaterial({color:0x3d8b42,roughness:.5}));
-    topFold.rotation.set(.35,Math.PI/3,.2);topFold.position.set(0,.4,.03);g.add(topFold);
-    // 麻绳：三道环绕（贴合三角锥身），用 Torus 模拟绳子缠绕
-    const ropeMat=new THREE.MeshStandardMaterial({color:0xcbb27a,roughness:.75});
+    body.scale.set(1,1.3,1);
+    body.position.y=.18;
+    body.castShadow=true;
+    g.add(body);
+    // 粽叶包裹层：半透明绿色薄片包裹四面体
+    const leafMat=new THREE.MeshStandardMaterial({color:0x5a9c4f,roughness:.45,transparent:true,opacity:.72,side:THREE.DoubleSide,depthWrite:false});
+    const leafGeo=new THREE.TetrahedronGeometry(.31,0);
+    const leaf=new THREE.Mesh(leafGeo,leafMat);
+    leaf.scale.set(1,1.35,1);
+    leaf.position.y=.17;
+    g.add(leaf);
+    // 叶尖折下：顶端延伸出一片折下的粽叶
+    const tipGeo=new THREE.ConeGeometry(.08,.22,4);
+    const tip=new THREE.Mesh(tipGeo,new THREE.MeshStandardMaterial({color:0x4a7c3f,roughness:.5}));
+    tip.scale.set(1,1,1);
+    tip.rotation.set(.55,.15,.12);
+    tip.position.set(.01,.42,.02);
+    g.add(tip);
+    // 三道麻绳缠绕（贴合四面体轮廓）
+    const ropeMat=new THREE.MeshStandardMaterial({color:0xd4a854,roughness:.78});
     const mkRope=(ry,yy,r)=>{
-        const rope=new THREE.Mesh(new THREE.TorusGeometry(r,.016,8,24),ropeMat);
+        const rope=new THREE.Mesh(new THREE.TorusGeometry(r,.018,8,24),ropeMat);
         rope.rotateX(Math.PI/2);rope.rotateY(ry);rope.position.y=yy;g.add(rope);
     };
-    // 三道绳：底部、中部、上部（贴合三角锥）
-    mkRope(0,.1,.155);
-    mkRope(Math.PI/3,.19,.138);
-    mkRope(Math.PI*.66,.28,.11);
-    // 侧面绳结（粽子侧面通常有个小结）
-    const knot=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),ropeMat);
-    knot.position.set(.15,.19,.02);g.add(knot);
-    // 绳尾两小段垂下（更自然）
-    const tailGeo=new THREE.CylinderGeometry(.008,.005,.11,5);
-    const t1=new THREE.Mesh(tailGeo,ropeMat);t1.rotation.z=.6;t1.position.set(.16,.09,.03);g.add(t1);
-    const t2=new THREE.Mesh(tailGeo,ropeMat);t2.rotation.set(.4,0,.8);t2.position.set(.15,.08,.045);g.add(t2);
+    mkRope(0,.12,.22);
+    mkRope(Math.PI/3,.20,.18);
+    mkRope(Math.PI*.2/3,.28,.13);
+    // 绳结小球
+    const knot=new THREE.Mesh(new THREE.SphereGeometry(.038,8,6),ropeMat);
+    knot.position.set(.14,.22,.03);g.add(knot);
+    // 绳尾两小段
+    const tailGeo=new THREE.CylinderGeometry(.01,.006,.11,5);
+    const t1=new THREE.Mesh(tailGeo,ropeMat);t1.rotation.z=.55;t1.position.set(.16,.13,.03);g.add(t1);
+    const t2=new THREE.Mesh(tailGeo,ropeMat);t2.rotation.set(.35,0,.75);t2.position.set(.155,.12,.045);g.add(t2);
     g.position.set(x,0,z);return g;
 }
 // --- 国庆：蛋糕（替代石头，撞碎得分） ---
