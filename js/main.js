@@ -2455,12 +2455,21 @@ function updateWhirlpools(dt){
         const R=12*ws;              // 影响半径（大幅扩大，让鸭子更易进入吸力范围）
         const SINK_R=1.0*ws;       // 进入中心阈值：到达此处触发沉没动画
         if(w.isLanternFx){
-            // ---- 元宵灯笼群：暖光涟漪 + 3 盏灯笼漂浮升降 ----
+            // ---- 元宵灯笼群：暖光涟漪 + 中心花灯 ----
+            // 漩涡贴图每帧贴合浪面 + 有序抬高，和普通漩涡完全一致
+            w.disk.userData.update(w.x,w.z,ws,.42);
+            w.foam.userData.update(w.x,w.z,ws,.47);
+            w.core.userData.update(w.x,w.z,ws,.52);
+            w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.40);
             w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.20);
-            w.field.material.color.setHex(0xffaa55);
+            // 随昼夜变暗
+            w.disk.material.color.setScalar(envBright);w.foam.material.color.setScalar(envBright);
+            w.core.material.color.setScalar(envBright);w.rim.material.color.setScalar(envBright);
+            w.field.material.color.setHex(0xffaa55);w.field.material.color.multiplyScalar(envBright);
+            w.rim.material.opacity=.55+Math.sin(gameClock*5+i)*.25;
             w.field.material.opacity=.2+Math.sin(gameClock*2.2+i)*.08;
             if(w.lantern){
-                // 单盏中心花灯：漩涡中心 + 浪面上 2.5 单位（冗余高度防穿模）+ 缓慢旋转
+                // 中心花灯：漩涡中心 + 浪面上 2.5 单位（高于所有漩涡贴图，不被遮挡）+ 缓慢旋转
                 w.lantern.position.set(w.x,waveHeight(w.x,w.z,waveClock)+2.5,w.z);
                 w.lantern.rotation.y+=dt*.25;
             }
@@ -3316,31 +3325,31 @@ function mkWhirlLantern(){
     });
     // 灯体：圆柱（顶部略圆，底部开口）
     const body=new THREE.Mesh(new THREE.CylinderGeometry(.22,.2,.5,12,4,true),paperMat);
-    body.position.y=.25;body.castShadow=false;g.add(body);
+    body.position.y=.25;body.castShadow=false;body.renderOrder=10;g.add(body);
     // 顶部圆盖
     const top=new THREE.Mesh(new THREE.SphereGeometry(.22,12,6,0,Math.PI*.5),paperMat);
-    top.position.y=.5;top.rotation.x=Math.PI;g.add(top);
+    top.position.y=.5;top.rotation.x=Math.PI;top.renderOrder=10;g.add(top);
     // 竹骨架（4 根纵向）
     const bambooMat=new THREE.MeshStandardMaterial({color:0xd4a854,roughness:.6});
     for(let i=0;i<4;i++){
         const a=i/4*Math.PI*2;
         const rib=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,.52,4),bambooMat);
-        rib.position.set(Math.cos(a)*.215,.25,Math.sin(a)*.215);g.add(rib);
+        rib.position.set(Math.cos(a)*.215,.25,Math.sin(a)*.215);rib.renderOrder=10;g.add(rib);
     }
     // 底部竹圈
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.215,.008,4,16),bambooMat);
-    ring.position.y=0;g.add(ring);
+    ring.position.y=0;ring.renderOrder=10;g.add(ring);
     // 底部十字竹条（放蜡烛用）
     for(let i=0;i<2;i++){
         const cross=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,.42,4),bambooMat);
         cross.rotation.z=Math.PI/2;
         cross.rotation.y=i*Math.PI/2;
-        cross.position.y=0;g.add(cross);
+        cross.position.y=0;cross.renderOrder=10;g.add(cross);
     }
-    // 内部烛光（暖黄发光球）
+    // 内部烛光（暖黄发光球，最高层级）
     const flameMat=new THREE.MeshBasicMaterial({color:0xff8833,transparent:true,opacity:.85});
     const flame=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),flameMat);
-    flame.position.y=.12;g.add(flame);
+    flame.position.y=.12;flame.renderOrder=11;g.add(flame);
     return g;
 }
 // --- 端午：粽子（替代水草） ---
