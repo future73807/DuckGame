@@ -3306,40 +3306,56 @@ whirlLanternTex.wrapS=whirlLanternTex.wrapT=THREE.RepeatWrapping;
 const whirlLanternCoreTex=mkTex(128,128,(x)=>{const g=x.createRadialGradient(64,64,4,64,64,64);
     g.addColorStop(0,'rgba(255,190,90,1)');g.addColorStop(.55,'rgba(255,90,40,.95)');g.addColorStop(1,'rgba(120,12,10,0)');
     x.fillStyle=g;x.fillRect(0,0,128,128)});
-// 漩涡中心漂浮的祈福花灯（传统宫灯造型，4× 放大后约 1 单位高）
+// 漩涡中心漂浮的祈福花灯（卡通宫灯造型，4× 放大后约 1.2 单位高）
 function mkWhirlLantern(){
     const g=new THREE.Group();
-    // 灯笼主体：扁球体，红底金纹，半透明暖光
-    const bodyMat=new THREE.MeshStandardMaterial({color:0xdc143c,roughness:.4,metalness:.15,emissive:0xff4444,emissiveIntensity:.35,transparent:true,opacity:.92});
-    const body=new THREE.Mesh(new THREE.SphereGeometry(.22,16,12),bodyMat);
-    body.scale.set(1.08,.92,1.08);body.castShadow=true;g.add(body);
-    // 金色纵向肋条（8 条均匀分布）
-    const ribMat=new THREE.MeshStandardMaterial({color:0xffd700,roughness:.25,metalness:.7,emissive:0xffaa00,emissiveIntensity:.2});
-    for(let i=0;i<8;i++){
-        const rib=new THREE.Mesh(new THREE.BoxGeometry(.018,.44,.008),ribMat);
-        const a=i/8*Math.PI*2;
-        rib.position.set(Math.cos(a)*.218,.02,Math.sin(a)*.218);
+    // 材质
+    const redMat=new THREE.MeshStandardMaterial({color:0xe53935,roughness:.35,metalness:.1,emissive:0xff5544,emissiveIntensity:.25});
+    const goldMat=new THREE.MeshStandardMaterial({color:0xffd740,roughness:.2,metalness:.8,emissive:0xffcc00,emissiveIntensity:.3});
+    const glowMat=new THREE.MeshBasicMaterial({color:0xffaa33,transparent:true,opacity:.6});
+    // 灯笼主体：胖椭圆球（卡通圆润感）
+    const body=new THREE.Mesh(new THREE.SphereGeometry(.24,20,16),redMat);
+    body.scale.set(1.15,1.05,1.15);body.castShadow=true;g.add(body);
+    // 金色纵向肋条（6 条，略宽更有存在感）
+    for(let i=0;i<6;i++){
+        const a=i/6*Math.PI*2;
+        const rib=new THREE.Mesh(new THREE.BoxGeometry(.025,.48,.012),goldMat);
+        rib.position.set(Math.cos(a)*.24,.02,Math.sin(a)*.24);
         rib.lookAt(0,.02,0);rib.rotateY(Math.PI/2);g.add(rib);
     }
-    // 上下金色箍环
-    const topRing=new THREE.Mesh(new THREE.TorusGeometry(.222,.014,6,20),ribMat);
-    topRing.rotation.x=Math.PI/2;topRing.position.y=.22;g.add(topRing);
-    const botRing=new THREE.Mesh(new THREE.TorusGeometry(.222,.014,6,20),ribMat);
-    botRing.rotation.x=Math.PI/2;botRing.position.y=-.18;g.add(botRing);
-    // 顶部挂钩
-    const hook=new THREE.Mesh(new THREE.TorusGeometry(.035,.008,6,12,Math.PI),ribMat);
-    hook.rotation.x=Math.PI;hook.position.y=.34;g.add(hook);
-    const hookStem=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.06,6),ribMat);
-    hookStem.position.y=.3;g.add(hookStem);
-    // 底部流苏（三级圆锥叠落）
-    const tasselMat=new THREE.MeshStandardMaterial({color:0xffd700,roughness:.5,emissive:0xffcc00,emissiveIntensity:.15});
-    for(let j=0;j<3;j++){
-        const ts=new THREE.Mesh(new THREE.ConeGeometry(.035-j*.008,.1-j*.015,6),tasselMat);
-        ts.position.y=-.28-j*.08;g.add(ts);
+    // 上下金色箍环（更粗）
+    const topRing=new THREE.Mesh(new THREE.TorusGeometry(.245,.02,8,24),goldMat);
+    topRing.rotation.x=Math.PI/2;topRing.position.y=.25;g.add(topRing);
+    const botRing=new THREE.Mesh(new THREE.TorusGeometry(.245,.02,8,24),goldMat);
+    botRing.rotation.x=Math.PI/2;botRing.position.y=-.22;g.add(botRing);
+    // 顶部金色圆盖
+    const topCap=new THREE.Mesh(new THREE.CylinderGeometry(.08,.05,.05,10),goldMat);
+    topCap.position.y=.28;g.add(topCap);
+    const topKnob=new THREE.Mesh(new THREE.SphereGeometry(.025,8,6),goldMat);
+    topKnob.position.y=.32;g.add(topKnob);
+    // 金色挂钩环
+    const hookRing=new THREE.Mesh(new THREE.TorusGeometry(.04,.01,6,14,Math.PI),goldMat);
+    hookRing.rotation.x=Math.PI;hookRing.position.y=.35;g.add(hookRing);
+    // 底部流苏（红色+金色，更蓬松）
+    const tasselRed=new THREE.MeshStandardMaterial({color:0xe53935,roughness:.4,emissive:0xff4444,emissiveIntensity:.15});
+    const tasselGold=new THREE.MeshStandardMaterial({color:0xffd740,roughness:.3,metalness:.7,emissive:0xffcc00,emissiveIntensity:.2});
+    // 流苏顶部小金球
+    const tasselTop=new THREE.Mesh(new THREE.CylinderGeometry(.04,.02,.06,8),goldMat);
+    tasselTop.position.y=-.3;g.add(tasselTop);
+    // 红色流苏丝线（5 根）
+    for(let i=0;i<5;i++){
+        const strand=new THREE.Mesh(new THREE.CapsuleGeometry(.006,.14,4),tasselRed);
+        strand.position.set(Math.cos(i/5*Math.PI*2)*.03,-.4-i*.02,Math.sin(i/5*Math.PI*2)*.03);
+        strand.rotation.x=.15+Math.random()*.1;g.add(strand);
+    }
+    // 中间金色流苏（3 根）
+    for(let i=0;i<3;i++){
+        const strand=new THREE.Mesh(new THREE.CapsuleGeometry(.005,.1,.4),tasselGold);
+        strand.position.set(Math.cos(i/3*Math.PI*2+1)*.02,-.48-i*.015,Math.sin(i/3*Math.PI*2+1)*.02);
+        g.add(strand);
     }
     // 内部暖光烛芯（柔和内发光）
-    const core=new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),
-        new THREE.MeshBasicMaterial({color:0xffdd88,transparent:true,opacity:.55}));
+    const core=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),glowMat);
     core.position.y=.02;g.add(core);
     return g;
 }
@@ -3366,38 +3382,41 @@ function getZongziTex(){
     return _zongziTex;
 }
 function mkZongzi(x,z){
-    // 卡通圆润四面体粽子：三角锥 + 半透明绿叶包裹 + 叶尖折下 + 三道麻绳
+    // 卡通圆润粽子：胖四面体 + 绿叶包裹 + 叶尖弯折 + 麻绳装饰
     const g=new THREE.Group();
-    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.55});
-    // 内层：三角锥主体（3 边形锥体 = 四面体，卡通圆润感）
-    const body=new THREE.Mesh(new THREE.ConeGeometry(.19,.32,3,4),bodyMat);
-    body.rotation.y=Math.PI/6;body.position.y=.16;body.castShadow=true;g.add(body);
-    // 外层：半透明绿叶包裹（略大，模拟粽叶叠压包裹感）
-    const leafMat=new THREE.MeshStandardMaterial({color:0x3a7d32,roughness:.5,transparent:true,opacity:.35,side:THREE.DoubleSide});
-    const leafWrap=new THREE.Mesh(new THREE.ConeGeometry(.2,.34,3,4),leafMat);
-    leafWrap.rotation.y=Math.PI/6+.15;leafWrap.position.y=.17;g.add(leafWrap);
-    // 叶尖：从顶点延伸并折下（粽叶收口特征）
-    const tip=new THREE.Mesh(new THREE.ConeGeometry(.045,.18,6),
-        new THREE.MeshStandardMaterial({color:0x4caf50,roughness:.5}));
-    tip.position.set(0,.32,0);
-    tip.rotation.set(.85,Math.PI/3,.18); // 向前下方弯折
+    const bodyMat=new THREE.MeshStandardMaterial({map:getZongziTex(),roughness:.5});
+    // 主体：胖四面体（更圆润的卡通比例）
+    const body=new THREE.Mesh(new THREE.ConeGeometry(.22,.35,3,5),bodyMat);
+    body.rotation.y=Math.PI/6;body.position.y=.18;body.castShadow=true;g.add(body);
+    // 底部圆球（让粽子坐得更稳，更可爱）
+    const baseBall=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),bodyMat);
+    baseBall.scale.set(1,.5,1);baseBall.position.y=.03;g.add(baseBall);
+    // 外层半透明绿叶（略大，模拟粽叶叠压）
+    const leafMat=new THREE.MeshStandardMaterial({color:0x4caf50,roughness:.45,transparent:true,opacity:.25,side:THREE.DoubleSide});
+    const leafWrap=new THREE.Mesh(new THREE.ConeGeometry(.23,.37,3,5),leafMat);
+    leafWrap.rotation.y=Math.PI/6+.2;leafWrap.position.y=.19;g.add(leafWrap);
+    // 叶尖：从顶点延伸并弯折（粽叶收口特征，更生动）
+    const tipMat=new THREE.MeshStandardMaterial({color:0x66bb6a,roughness:.45});
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(.05,.22,6),tipMat);
+    tip.position.set(0,.35,0);
+    tip.rotation.set(.9,Math.PI/4,.2); // 向前下方弯折
     g.add(tip);
-    // 三道麻绳（贴合三角锥三个面，十字交叉缠绕）
-    const ropeMat=new THREE.MeshStandardMaterial({color:0xcbb27a,roughness:.72});
+    // 三道麻绳（贴合三角锥，十字交叉缠绕）
+    const ropeMat=new THREE.MeshStandardMaterial({color:0xd4a854,roughness:.7});
     const mkRope=(ry,yy,r)=>{
-        const rope=new THREE.Mesh(new THREE.TorusGeometry(r,.016,8,24),ropeMat);
+        const rope=new THREE.Mesh(new THREE.TorusGeometry(r,.018,8,28),ropeMat);
         rope.rotateX(Math.PI/2);rope.rotateY(ry);rope.position.y=yy;g.add(rope);
     };
-    mkRope(0,.11,.14);
-    mkRope(Math.PI/3,.175,.122);
-    mkRope(-Math.PI/3,.24,.095);
-    // 绳结：侧面小结
-    const knot=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),ropeMat);
-    knot.position.set(.135,.175,.02);g.add(knot);
-    // 绳尾两小段垂下
-    const tailGeo=new THREE.CylinderGeometry(.008,.006,.1,5);
-    const t1=new THREE.Mesh(tailGeo,ropeMat);t1.rotation.z=.55;t1.position.set(.155,.11,.02);g.add(t1);
-    const t2=new THREE.Mesh(tailGeo,ropeMat);t2.rotation.set(.35,0,.65);t2.position.set(.15,.105,.035);g.add(t2);
+    mkRope(0,.1,.16);
+    mkRope(Math.PI/3,.165,.138);
+    mkRope(-Math.PI/3,.23,.11);
+    // 绳结：侧面小结（更明显）
+    const knot=new THREE.Mesh(new THREE.SphereGeometry(.04,10,8),ropeMat);
+    knot.position.set(.15,.17,.025);g.add(knot);
+    // 绳尾两小段垂下（更自然）
+    const tailGeo=new THREE.CylinderGeometry(.009,.006,.12,6);
+    const t1=new THREE.Mesh(tailGeo,ropeMat);t1.rotation.z=.6;t1.position.set(.17,.1,.025);g.add(t1);
+    const t2=new THREE.Mesh(tailGeo,ropeMat);t2.rotation.set(.4,0,.7);t2.position.set(.165,.095,.04);g.add(t2);
     g.position.set(x,0,z);return g;
 }
 // --- 国庆：蛋糕（替代石头，撞碎得分） ---
