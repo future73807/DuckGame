@@ -71,6 +71,20 @@ if (isHotFe) {
         return code;
     };
     const safeText = (value, max = 18) => String(value || '').replace(/[<>]/g, '').trim().slice(0, max);
+    const MAX_STABLE_ITEM_ID = 0x7fffffff;
+    const MAX_DUO_ITEMS = 1200;
+    const nextSyncCounter = value => {
+        const current = Number.isSafeInteger(value) && value >= 0 ? value : 0;
+        return current < Number.MAX_SAFE_INTEGER ? current + 1 : current;
+    };
+    const bumpPlayerSeq = player => {
+        player.seq = nextSyncCounter(player.seq);
+        return player.seq;
+    };
+    const bumpRoomRev = room => {
+        room.rev = nextSyncCounter(room.rev);
+        return room.rev;
+    };
     const DUCK_SKIN_IDS = new Set(['classic', 'pearl', 'coral', 'ocean', 'custom']);
     const DUO_BLESSINGS = new Map([
         ['grass_double', { id: 'grass_double', name: '水草丰收', desc: '今日水草得分 ×2', icon: 'fa-seedling', target: 'grass', mult: 2 }],
@@ -109,6 +123,23 @@ if (isHotFe) {
             iv: Math.max(0, num(state?.iv)),
             sk: Math.max(0, num(state?.sk))
         };
+        if (Array.isArray(state?.ci)) {
+            const collected = [];
+            const seen = new Set();
+            for (const raw of state.ci) {
+                const isVersioned = Array.isArray(raw);
+                const id = Number(isVersioned ? raw[0] : raw);
+                const generation = isVersioned ? Number(raw[1]) : null;
+                if (!Number.isSafeInteger(id) || id <= 0 || id > MAX_STABLE_ITEM_ID) continue;
+                if (isVersioned && (!Number.isSafeInteger(generation) || generation < 0 || generation > MAX_STABLE_ITEM_ID)) continue;
+                const key = id + '|' + (generation === null ? '' : generation);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                collected.push(isVersioned ? [id, generation] : id);
+                if (collected.length >= 64) break;
+            }
+            if (collected.length) cleaned.ci = collected;
+        }
         // 自定义皮肤调色板透传（body/beak 为 hex 颜色字符串）
         if (cleaned.skin === 'custom' && state?.palette && typeof state.palette === 'object') {
             const hexRe = /^#[0-9a-fA-F]{6}$/;
@@ -124,13 +155,20 @@ if (isHotFe) {
             const num2 = (v, d = 0) => Number.isFinite(Number(v)) ? Number(v) : d;
             const str = (v, max) => typeof v === 'string' ? v.slice(0, max) : null;
             const allowedItems = ['rock', 'flower', 'grass', 'lily', 'magnet', 'heart'];
-            const cleanedItems = Array.isArray(sc.items) ? sc.items.slice(0, 600).map(it => {
+            const cleanedItems = Array.isArray(sc.items) ? sc.items.slice(0, MAX_DUO_ITEMS).map(it => {
                 if (!Array.isArray(it) || it.length < 4) return null;
                 const t = String(it[0]).slice(0, 12);
                 if (!allowedItems.includes(t)) return null;
-                // 第 5 元素（可选）：道具雨掉落中的 y 坐标
+                // 旧格式：[type,x,z,scale] / [type,x,z,scale,fallY]
+                // 新格式：[type,x,z,scale,fallY|null,stableId,temporarilyHidden,generation]
                 const out = [t, num2(it[1]), num2(it[2]), num2(it[3], 1)];
-                if (it.length >= 5 && Number.isFinite(Number(it[4]))) out.push(num2(it[4]));
+                const hasFallY = it.length >= 5 && it[4] !== null && it[4] !== undefined && Number.isFinite(Number(it[4]));
+                const rawStableId = it.length >= 6 ? Number(it[5]) : NaN;
+                const stableId = Number.isSafeInteger(rawStableId) && rawStableId > 0 && rawStableId <= MAX_STABLE_ITEM_ID ? rawStableId : null;
+                const rawGeneration = it.length >= 8 ? Number(it[7]) : 0;
+                const generation = Number.isSafeInteger(rawGeneration) && rawGeneration >= 0 && rawGeneration <= MAX_STABLE_ITEM_ID ? rawGeneration : 0;
+                if (stableId !== null) out.push(hasFallY ? num2(it[4]) : null, stableId, it[6] ? 1 : 0, generation);
+                else if (hasFallY) out.push(num2(it[4]));
                 return out;
             }).filter(Boolean) : [];
             // 漩涡：房主权威同步（位置 + 缩放）
@@ -158,21 +196,114 @@ if (isHotFe) {
                 windMul: num2(sc.windMul, 1),
                 evWindDir: Array.isArray(sc.evWindDir) && sc.evWindDir.length >= 2 ? [num2(sc.evWindDir[0]), num2(sc.evWindDir[1])] : null,
                 stormAct: sc.stormAct ? 1 : 0,
+                stormBolt: sc.stormBolt && typeof sc.stormBolt === 'object' ? {
+                    a: sc.stormBolt.a ? 1 : 0,
+                    s: Number.isSafeInteger(Number(sc.stormBolt.s)) ? Number(sc.stormBolt.s) : -1,
+                    n: num2(sc.stormBolt.n)
+                } : null,
                 rbAct: sc.rbAct ? 1 : 0
             };
         }
         return cleaned;
     };
-    const publicDuoPlayer = player => player ? ({ id: player.id, name: player.name, state: player.state, finished: player.finished, down: !!player.down, downAt: player.downAt || null }) : null;
-    const publicDuoRoom = room => ({
-        code: room.code,
-        round: room.round || 1,
-        status: room.status,
-        host: publicDuoPlayer(room.host),
-        guest: publicDuoPlayer(room.guest),
-        duoEntry: room.duoEntry || null,
-        blessing: room.blessing
-    });
+    const copyDuoScene = (scene, metadataOnly = false) => {
+        if (!scene || typeof scene !== 'object') return null;
+        const copied = { ...scene };
+        if (metadataOnly) {
+            delete copied.items;
+            delete copied.whirls;
+        } else {
+            copied.items = Array.isArray(scene.items) ? scene.items.map(item => Array.isArray(item) ? item.slice() : item) : [];
+            copied.whirls = Array.isArray(scene.whirls) ? scene.whirls.map(whirl => Array.isArray(whirl) ? whirl.slice() : whirl) : [];
+        }
+        for (const key of ['waveDir', 'shark', 'evWindDir']) {
+            if (Array.isArray(scene[key])) copied[key] = scene[key].slice();
+        }
+        return copied;
+    };
+    const DUO_SCENE_HISTORY_LIMIT = 12;
+    const stableDuoItemId = item => {
+        const id = Array.isArray(item) && item.length >= 6 ? Number(item[5]) : NaN;
+        return Number.isSafeInteger(id) && id > 0 && id <= MAX_STABLE_ITEM_ID ? id : null;
+    };
+    const sameDuoItem = (left, right) => {
+        if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+        for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false;
+        return true;
+    };
+    const copyDuoSceneDelta = (scene, baseScene) => {
+        if (!scene || !baseScene || !Array.isArray(scene.items) || !Array.isArray(baseScene.items)) return null;
+        const before = new Map();
+        for (const item of baseScene.items) {
+            const id = stableDuoItemId(item);
+            if (id === null || before.has(id)) return null;
+            before.set(id, item);
+        }
+        const currentIds = new Set(), upserts = [];
+        for (const item of scene.items) {
+            const id = stableDuoItemId(item);
+            if (id === null || currentIds.has(id)) return null;
+            currentIds.add(id);
+            if (!sameDuoItem(before.get(id), item)) upserts.push(item.slice());
+        }
+        const removed = [];
+        for (const id of before.keys()) if (!currentIds.has(id)) removed.push(id);
+        const copied = copyDuoScene(scene, true);
+        copied.whirls = Array.isArray(scene.whirls) ? scene.whirls.map(whirl => Array.isArray(whirl) ? whirl.slice() : whirl) : [];
+        copied.itemDelta = { baseHash: Number(baseScene.ih), upserts, removed };
+        return copied;
+    };
+    const rememberDuoScene = (room, scene) => {
+        const hash = Number(scene?.ih);
+        if (!room || !scene || !Number.isFinite(hash)) return;
+        if (!(room.sceneHistory instanceof Map)) room.sceneHistory = new Map();
+        // cleanDuoState 每次都会生成一棵新的不可变快照，可直接保留引用，避免再复制最多 1200 项数组。
+        room.sceneHistory.delete(hash);
+        room.sceneHistory.set(hash, scene);
+        while (room.sceneHistory.size > DUO_SCENE_HISTORY_LIMIT) room.sceneHistory.delete(room.sceneHistory.keys().next().value);
+    };
+    const copyDuoState = (state, { omitScene = false, sceneMetadataOnly = false, sceneDeltaBase = null } = {}) => {
+        if (!state || typeof state !== 'object') return state || null;
+        const copied = { ...state };
+        if (state.palette && typeof state.palette === 'object') copied.palette = { ...state.palette };
+        if (Array.isArray(state.ci)) copied.ci = state.ci.map(claim => Array.isArray(claim) ? claim.slice() : claim);
+        if (omitScene) delete copied.scene;
+        else if (state.scene && typeof state.scene === 'object') {
+            copied.scene = sceneDeltaBase ? (copyDuoSceneDelta(state.scene, sceneDeltaBase) || copyDuoScene(state.scene, false)) : copyDuoScene(state.scene, sceneMetadataOnly);
+        }
+        return copied;
+    };
+    const publicDuoPlayer = (player, stateOptions) => player ? ({
+        id: player.id,
+        name: player.name,
+        state: copyDuoState(player.state, stateOptions),
+        seq: Number.isSafeInteger(player.seq) && player.seq >= 0 ? player.seq : 0,
+        finished: player.finished,
+        down: !!player.down,
+        downAt: player.downAt || null
+    }) : null;
+    const publicDuoRoom = (room, viewer = null, sceneHash) => {
+        const hostScene = room.host?.state?.scene;
+        const parsedSceneHash = sceneHash === null || sceneHash === undefined || sceneHash === '' ? NaN : Number(sceneHash);
+        const hostSceneMetadataOnly = viewer === 'guest' && hostScene && Number.isFinite(parsedSceneHash) && parsedSceneHash === Number(hostScene.ih);
+        const hostSceneDeltaBase = viewer === 'guest' && hostScene && Number.isFinite(parsedSceneHash) && !hostSceneMetadataOnly && room.sceneHistory instanceof Map
+            ? room.sceneHistory.get(parsedSceneHash) || null
+            : null;
+        const duoEntry = room.duoEntry ? {
+            ...room.duoEntry,
+            players: Array.isArray(room.duoEntry.players) ? room.duoEntry.players.map(player => ({ ...player })) : room.duoEntry.players
+        } : null;
+        return {
+            code: room.code,
+            round: room.round || 1,
+            rev: Number.isSafeInteger(room.rev) && room.rev >= 0 ? room.rev : 0,
+            status: room.status,
+            host: publicDuoPlayer(room.host, { omitScene: viewer === 'host', sceneMetadataOnly: !!hostSceneMetadataOnly, sceneDeltaBase: hostSceneDeltaBase }),
+            guest: publicDuoPlayer(room.guest),
+            duoEntry,
+            blessing: room.blessing ? { ...room.blessing } : room.blessing
+        };
+    };
     const saveDuoEntry = room => {
         if (room.duoEntry || !room.host.finished || !room.guest?.finished) return room.duoEntry || null;
         let data = { entries: [], duoEntries: [] };
@@ -202,7 +333,7 @@ if (isHotFe) {
         return room.duoEntry;
     };
     const finishDuoRoom = room => {
-        if (room.status === 'finished' || !room.guest) return;
+        if (room.status === 'finished' || !room.guest) return false;
         const playTime = Math.max(0, Math.floor((Date.now() - (room.startedAt || Date.now())) / 1000));
         for (const player of [room.host, room.guest]) {
             player.down = false;
@@ -212,20 +343,25 @@ if (isHotFe) {
         }
         room.status = 'finished';
         saveDuoEntry(room);
+        return true;
     };
     const resolveDuoRespawn = room => {
-        if (room.status !== 'running' || !room.guest) return;
+        if (room.status !== 'running' || !room.guest) return false;
         const players = [room.host, room.guest];
         const downPlayers = players.filter(player => player.down);
-        if (downPlayers.length > 1) { finishDuoRoom(room); return; }
-        if (downPlayers.length !== 1) return;
+        if (downPlayers.length > 1) return finishDuoRoom(room);
+        if (downPlayers.length !== 1) return false;
         const downPlayer = downPlayers[0];
-        if (Date.now() - (downPlayer.downAt || Date.now()) < 10000) return;
+        if (Date.now() - (downPlayer.downAt || Date.now()) < 10000) return false;
         const partner = players.find(player => player !== downPlayer);
         const side = downPlayer === room.host ? -1 : 1;
-        downPlayer.state = { ...downPlayer.state, x: partner.state.x + side * 1.25, y: partner.state.y, z: partner.state.z + side * .8, ry: partner.state.ry, hearts: 1 };
+        // ci 是一次性拾取声明，不能随 10 秒后的复活 seq 再次广播，否则同一稳定 ID 会被重复收集。
+        const { ci: _consumedCollections, ...respawnState } = downPlayer.state || {};
+        downPlayer.state = { ...respawnState, x: partner.state.x + side * 1.25, y: partner.state.y, z: partner.state.z + side * .8, ry: partner.state.ry, hearts: 1 };
         downPlayer.down = false;
         downPlayer.downAt = null;
+        bumpPlayerSeq(downPlayer);
+        return true;
     };
     const pruneDuoRooms = () => {
         const now = Date.now();
@@ -237,20 +373,29 @@ if (isHotFe) {
         res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify(payload));
     };
+    const sendKnownDuoJson = (res, status, payload, room, viewer, sceneHash, advanceRev = true) => {
+        // POST 房间快照都带唯一递增版本，客户端可安全丢弃后到达的旧响应。
+        if (advanceRev) bumpRoomRev(room);
+        return sendDuoJson(res, status, { ...payload, room: publicDuoRoom(room, viewer, sceneHash) });
+    };
     const handleDuo = (req, res, url) => {
         pruneDuoRooms();
         if (req.method === 'GET') {
             const code = safeText(url.searchParams.get('room'), 6).toUpperCase();
             const room = duoRooms.get(code);
             if (!room) return sendDuoJson(res, 404, { ok: false, error: 'ROOM_NOT_FOUND' });
-            resolveDuoRespawn(room);
+            if (resolveDuoRespawn(room)) {
+                bumpRoomRev(room);
+                room.updatedAt = Date.now();
+            }
+            // 旧 GET 客户端没有 viewer/sceneHash，继续返回完整快照以保持兼容。
             return sendDuoJson(res, 200, { ok: true, room: publicDuoRoom(room) });
         }
         if (req.method !== 'POST') return sendDuoJson(res, 405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
         let body = '';
         req.on('data', chunk => {
             body += chunk;
-            if (body.length > 64000) { res.writeHead(413); res.end(); req.destroy(); }
+            if (body.length > 256000) { res.writeHead(413); res.end(); req.destroy(); }
         });
         req.on('end', () => {
             let data;
@@ -262,9 +407,9 @@ if (isHotFe) {
             if (action === 'create') {
                 if (!name) return sendDuoJson(res, 400, { ok: false, error: 'NAME_REQUIRED' });
                 const code = duoRoomCode();
-                const room = { code, round: 1, status: 'waiting', blessing: cleanDuoBlessing(data.blessing), host: { id: playerId, name, state: cleanDuoState(), finished: false, final: null, down: false, downAt: null }, guest: null, createdAt: Date.now(), updatedAt: Date.now(), duoEntry: null };
+                const room = { code, round: 1, rev: 0, status: 'waiting', blessing: cleanDuoBlessing(data.blessing), host: { id: playerId, name, state: cleanDuoState(), seq: 0, finished: false, final: null, down: false, downAt: null }, guest: null, createdAt: Date.now(), updatedAt: Date.now(), duoEntry: null, sceneHistory: new Map() };
                 duoRooms.set(code, room);
-                return sendDuoJson(res, 200, { ok: true, role: 'host', room: publicDuoRoom(room) });
+                return sendKnownDuoJson(res, 200, { ok: true, role: 'host' }, room, 'host', data.sceneHash, false);
             }
             const code = safeText(data.room, 6).toUpperCase();
             const room = duoRooms.get(code);
@@ -275,39 +420,61 @@ if (isHotFe) {
             if (reqRole === 'host' && room.host.id === playerId) player = room.host;
             else if (reqRole === 'guest' && room.guest && room.guest.id === playerId) player = room.guest;
             else player = room.host.id === playerId ? room.host : room.guest?.id === playerId ? room.guest : null;
+            let viewer = player === room.host ? 'host' : player === room.guest ? 'guest' : null;
+            const respondKnown = (status, payload) => {
+                if (!viewer) return sendDuoJson(res, status, payload);
+                room.updatedAt = Date.now();
+                return sendKnownDuoJson(res, status, payload, room, viewer, data.sceneHash);
+            };
             if (action === 'join') {
-                if (!name) return sendDuoJson(res, 400, { ok: false, error: 'NAME_REQUIRED' });
+                // 同一浏览器的两个标签页共享 localStorage playerId。客机刷新后 role 尚未恢复，
+                // join 的语义仍是恢复 guest 席位，不能因 fallback 先命中 host 而串号。
+                if (reqRole !== 'host' && room.guest?.id === playerId) {
+                    player = room.guest;
+                    viewer = 'guest';
+                }
+                if (!name) return respondKnown(400, { ok: false, error: 'NAME_REQUIRED' });
                 if (!room.guest) {
-                    room.guest = { id: playerId, name, state: cleanDuoState(), finished: false, final: null, down: false, downAt: null };
+                    room.guest = { id: playerId, name, state: cleanDuoState(), seq: 0, finished: false, final: null, down: false, downAt: null };
                     room.status = 'ready';
                     player = room.guest;
+                    viewer = 'guest';
                 } else if (!player) {
                     return sendDuoJson(res, 409, { ok: false, error: 'ROOM_FULL' });
                 }
             }
             if (!player) return sendDuoJson(res, 403, { ok: false, error: 'NOT_IN_ROOM' });
+            viewer = player === room.host ? 'host' : 'guest';
             if (name && name !== player.name) player.name = name;
             if (action === 'start') {
-                if (player !== room.host || !room.guest) return sendDuoJson(res, 409, { ok: false, error: 'WAITING_FOR_FRIEND' });
+                if (player !== room.host || !room.guest) return respondKnown(409, { ok: false, error: 'WAITING_FOR_FRIEND' });
                 room.status = 'running';
                 room.startedAt = Date.now();
             } else if (action === 'restart') {
-                if (player !== room.host) return sendDuoJson(res, 403, { ok: false, error: 'ONLY_HOST_CAN_RESTART' });
-                if (!room.guest || room.status !== 'finished') return sendDuoJson(res, 409, { ok: false, error: 'WAITING_FOR_FRIEND' });
+                if (player !== room.host) return respondKnown(403, { ok: false, error: 'ONLY_HOST_CAN_RESTART' });
+                if (!room.guest || room.status !== 'finished') return respondKnown(409, { ok: false, error: 'WAITING_FOR_FRIEND' });
                 room.round = (room.round || 1) + 1;
                 room.status = 'running';
                 room.startedAt = Date.now();
                 room.duoEntry = null;
+                room.sceneHistory = new Map();
                 for (const member of [room.host, room.guest]) {
                     member.state = cleanDuoState();
                     member.finished = false;
                     member.final = null;
                     member.down = false;
                     member.downAt = null;
+                    bumpPlayerSeq(member);
                 }
             } else if (action === 'state') {
-                if (room.status !== 'running') return sendDuoJson(res, 409, { ok: false, error: 'ROOM_NOT_RUNNING', room: publicDuoRoom(room) });
-                player.state = cleanDuoState(data.state);
+                if (room.status !== 'running') return respondKnown(409, { ok: false, error: 'ROOM_NOT_RUNNING' });
+                const nextState = cleanDuoState(data.state);
+                if (player === room.host) {
+                    rememberDuoScene(room, player.state?.scene);
+                    rememberDuoScene(room, nextState.scene);
+                }
+                player.state = nextState;
+                bumpPlayerSeq(player);
             } else if (action === 'profile') {
                 // 大厅阶段也允许同步皮肤/调色板，避免开局前看不到对方皮肤
                 const skin = DUCK_SKIN_IDS.has(data?.skin) ? data.skin : 'classic';
@@ -324,14 +491,21 @@ if (isHotFe) {
                 } else {
                     delete player.state.palette;
                 }
+                // profile 只更新外观；不得把上一次 state 中的一次性拾取声明用新 seq 重放。
+                delete player.state.ci;
+                bumpPlayerSeq(player);
             } else if (action === 'down') {
-                if (room.status !== 'running') return sendDuoJson(res, 409, { ok: false, error: 'ROOM_NOT_RUNNING', room: publicDuoRoom(room) });
-                player.state = cleanDuoState(data.state);
+                if (room.status !== 'running') return respondKnown(409, { ok: false, error: 'ROOM_NOT_RUNNING' });
+                const nextState = cleanDuoState(data.state);
+                // 房主倒地包不再重复上传整份道具数组，但服务端仍保留最后一份权威场景供客机续跑。
+                if (player === room.host && !nextState.scene && player.state?.scene) nextState.scene = player.state.scene;
+                if (player === room.host) rememberDuoScene(room, nextState.scene);
+                player.state = nextState;
                 player.down = true;
                 player.downAt = Date.now();
-                resolveDuoRespawn(room);
+                bumpPlayerSeq(player);
             } else if (action === 'finish') {
-                if (room.status === 'waiting' || room.status === 'ready') return sendDuoJson(res, 409, { ok: false, error: 'ROOM_NOT_RUNNING' });
+                if (room.status === 'waiting' || room.status === 'ready') return respondKnown(409, { ok: false, error: 'ROOM_NOT_RUNNING' });
                 player.finished = true;
                 player.final = { score: Math.max(0, Math.floor(Number(data.score) || 0)), playTime: Math.max(0, Math.floor(Number(data.playTime) || 0)) };
                 if (room.host.finished && room.guest?.finished) {
@@ -339,11 +513,11 @@ if (isHotFe) {
                     saveDuoEntry(room);
                 }
             } else if (action !== 'status' && action !== 'join') {
-                return sendDuoJson(res, 400, { ok: false, error: 'UNKNOWN_ACTION' });
+                return respondKnown(400, { ok: false, error: 'UNKNOWN_ACTION' });
             }
             resolveDuoRespawn(room);
             room.updatedAt = Date.now();
-            return sendDuoJson(res, 200, { ok: true, role: player === room.host ? 'host' : 'guest', room: publicDuoRoom(room) });
+            return respondKnown(200, { ok: true, role: viewer });
         });
     };
 

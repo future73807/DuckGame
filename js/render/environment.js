@@ -265,11 +265,13 @@ export function createEnvironment(ctx){
     let stormW=0,stormH=0;
     function sizeStormCv(){const dpr=quality.renderPixelRatio;stormW=innerWidth;stormH=innerHeight;stormCv.width=stormW*dpr;stormCv.height=stormH*dpr;stormCtx.setTransform(dpr,0,0,dpr,0,0)}
     sizeStormCv();
-    // duoBoltSeq：闪电序列号，基于 gameClock 确定性触发，确保两端闪电时间和形状一致
-    let duoBoltSeq=-1,duoBoltNextTime=0;
+    // 闪电调度使用绝对 gameClock。客机只消费房主下发的“下一次”时间，绝不补算历史闪电。
+    let duoBoltSeq=-1,duoBoltNextTime=0,stormCycleActive=false;
+    let hostBoltSyncSeq=-Infinity,hostBoltSyncNext=-Infinity;
+    const stormDebug={updates:0,totalTriggers:0,lastTriggers:0,maxTriggersPerUpdate:0,thunderCalls:0,audioBuffersCreated:0,camShakeWrites:0,lastUpdateMs:0,maxUpdateMs:0,lastThunderBuildMs:0,maxThunderBuildMs:0,enteredAt:null,history:[]};
     const rainDrops=[];for(let i=0;i<190;i++)rainDrops.push({x:duoRand(i+1),y:duoRand(i*7+3),v:.7+duoRand(i*13+5)*.6,l:.02+duoRand(i*17+7)*.03,a:.15+duoRand(i*23+11)*.3});
     const mistBlobs=[];for(let i=0;i<8;i++)mistBlobs.push({x:duoRand(i*31+13),y:.55+duoRand(i*37+17)*.5,r:.18+duoRand(i*41+19)*.22,vx:(duoRand(i*43+23)-.5)*.02,ph:duoRand(i*47+29)*6});
-    let boltTimer=2,boltLife=0,boltPts=[],boltBranches=[];
+    let boltLife=0,boltPts=[],boltBranches=[];
     function genBolt(seed){
         boltPts=[];boltBranches=[];
         let bx=.15+duoRand(seed+1)*.7;
@@ -287,11 +289,14 @@ export function createEnvironment(ctx){
         }
     }
     function playThunder(delay){
+        stormDebug.thunderCalls++;
         const audioCtx=getAudioCtx();
         if(!audioCtx||!getMusicOn())return;
         try{
+            const buildStarted=performance.now();
             const dur=1.2+Math.random()*.8;
             const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*dur,audioCtx.sampleRate);
+            stormDebug.audioBuffersCreated++;
             const ch=buf.getChannelData(0);let last=0;
             for(let i=0;i<ch.length;i++){const w=Math.random()*2-1;last=(last+.03*w)/1.03;const t=i/ch.length;ch[i]=last*4*Math.pow(1-t,1.5)*Math.min(1,t*20)}
             const src=audioCtx.createBufferSource();src.buffer=buf;
@@ -299,13 +304,68 @@ export function createEnvironment(ctx){
             const g=audioCtx.createGain();g.gain.value=.5;
             src.connect(f);f.connect(g);g.connect(audioCtx.destination);
             src.start(audioCtx.currentTime+delay);
+            stormDebug.lastThunderBuildMs=performance.now()-buildStarted;
+            stormDebug.maxThunderBuildMs=Math.max(stormDebug.maxThunderBuildMs,stormDebug.lastThunderBuildMs);
         }catch(e){}
     }
+    function nextBoltDelay(seed,useHostRandom=false){
+        return 2.2+(useHostRandom?Math.random():duoRand(seed))*4.5;
+    }
+    function beginStormCycle(gameClock){
+        stormCycleActive=true;hostBoltSyncSeq=-Infinity;hostBoltSyncNext=-Infinity;
+        stormDebug.enteredAt=gameClock;
+        // 即使客机在对局进行很久后才收到首次暴风雨快照，首个闪电也只会排在“现在”之后。
+        duoBoltNextTime=gameClock+nextBoltDelay(Math.floor(gameClock*100)+17,!duoIsGuest());
+    }
+    function endStormCycle(){
+        stormCycleActive=false;duoBoltNextTime=0;
+        hostBoltSyncSeq=-Infinity;hostBoltSyncNext=-Infinity;stormDebug.enteredAt=null;
+    }
+    function triggerBolt(gameClock){
+        const scheduledTime=duoBoltNextTime;
+        duoBoltSeq++;
+        genBolt(duoBoltSeq*1000+Math.floor(scheduledTime*100));
+        boltLife=.28;state.lightningFlash=1;state.camShake=.6;stormDebug.camShakeWrites++;
+        playThunder(.2+(duoIsGuest()?duoRand(duoBoltSeq*7+13):Math.random())*.7);
+        // 从当前时刻重新排期。不能在旧时间上累加，否则掉帧/晚加入会形成 catch-up 循环。
+        duoBoltNextTime=gameClock+nextBoltDelay(duoBoltSeq*11+Math.floor(gameClock*10)+17,!duoIsGuest());
+        stormDebug.lastTriggers++;stormDebug.totalTriggers++;
+    }
+    function getStormSync(){return{a:state.stormActive?1:0,s:duoBoltSeq,n:duoBoltNextTime}}
+    function applyStormSync(sync){
+        if(!duoIsGuest()||!sync||typeof sync!=='object')return;
+        if(!sync.a){if(stormCycleActive)endStormCycle();return}
+        const seq=Number(sync.s),next=Number(sync.n);
+        if(!Number.isFinite(seq)||!Number.isFinite(next)||next<=0)return;
+        // 同一个旧快照不能反复把客机时间拨回过去，否则仍会重复触发同一道闪电。
+        const newer=seq>hostBoltSyncSeq||(seq===hostBoltSyncSeq&&next>hostBoltSyncNext+.001);
+        if(!newer)return;
+        if(!stormCycleActive)stormDebug.enteredAt=getGameClock();
+        stormCycleActive=true;hostBoltSyncSeq=seq;hostBoltSyncNext=next;
+        duoBoltSeq=seq;duoBoltNextTime=next;
+    }
+    function getStormDebug(){return{
+        active:stormCycleActive,seq:duoBoltSeq,nextTime:duoBoltNextTime,
+        updates:stormDebug.updates,totalTriggers:stormDebug.totalTriggers,lastTriggers:stormDebug.lastTriggers,
+        maxTriggersPerUpdate:stormDebug.maxTriggersPerUpdate,thunderCalls:stormDebug.thunderCalls,
+        audioBuffersCreated:stormDebug.audioBuffersCreated,camShakeWrites:stormDebug.camShakeWrites,
+        lastUpdateMs:stormDebug.lastUpdateMs,maxUpdateMs:stormDebug.maxUpdateMs,
+        lastThunderBuildMs:stormDebug.lastThunderBuildMs,maxThunderBuildMs:stormDebug.maxThunderBuildMs,
+        enteredAt:stormDebug.enteredAt,history:stormDebug.history.slice()
+    }}
+    function finishStormDebug(updateStarted){
+        stormDebug.lastUpdateMs=performance.now()-updateStarted;
+        stormDebug.maxUpdateMs=Math.max(stormDebug.maxUpdateMs,stormDebug.lastUpdateMs);
+    }
     function updateStormFx(dt){
+        const updateStarted=performance.now();
         const sf=state.stormFactor,x=stormCtx,W=stormW,H=stormH;
         const gameClock=getGameClock();
+        stormDebug.updates++;stormDebug.lastTriggers=0;
+        if(state.stormActive&&!stormCycleActive)beginStormCycle(gameClock);
+        else if(!state.stormActive&&stormCycleActive)endStormCycle();
         stormCv.style.opacity=Math.min(1,sf*1.4+(boltLife>0?1:0));
-        if(sf<=0.01&&boltLife<=0){x.clearRect(0,0,W,H);return}
+        if(sf<=0.01&&boltLife<=0){x.clearRect(0,0,W,H);finishStormDebug(updateStarted);return}
         x.clearRect(0,0,W,H);
         if(sf>0.01){
             // 屏幕水雾（边缘漂移的薄雾团 + 底部雨雾带）
@@ -332,31 +392,13 @@ export function createEnvironment(ctx){
                 x.strokeStyle='rgba(190,215,245,'+(d.a*sf)+')';x.lineWidth=1.4;
                 x.beginPath();x.moveTo(px,py);x.lineTo(px-len*slant,py-len);x.stroke();
             }
-            // 闪电计时（仅暴风雨充分展开后）
-            // 双人模式：基于 gameClock 确定性触发，确保两端闪电时间和形状完全一致
-            if(duoIsGuest()){
-                // 客机端：按 gameClock 确定性触发闪电（与房主端使用相同的 gameClock 和算法）
-                while(gameClock>=duoBoltNextTime&&sf>.4){
-                    duoBoltSeq++;
-                    genBolt(duoBoltSeq*1000+Math.floor(duoBoltNextTime*100));
-                    boltLife=.28;state.lightningFlash=1;state.camShake=.6;
-                    playThunder(.2+duoRand(duoBoltSeq*7+13)*.7);
-                    duoBoltNextTime+=2.2+duoRand(duoBoltSeq*11+17)*4.5;
-                }
-                // 客机端如果落后太多，跳过积压的闪电（避免连环触发）
-                if(duoBoltNextTime<gameClock-10)duoBoltNextTime=gameClock+2.2;
-            }else{
-                // 房主端/单人模式：使用原来的随机逻辑，但同步 gameClock 确保客机端能跟随
-                boltTimer-=dt;
-                if(boltTimer<=0&&sf>.4){
-                    duoBoltSeq++;
-                    genBolt(duoBoltSeq*1000+Math.floor(gameClock*100));
-                    boltLife=.28;boltTimer=2.2+Math.random()*4.5;state.lightningFlash=1;state.camShake=.6;
-                    playThunder(.2+Math.random()*.7);
-                    // 记录下一次闪电的 gameClock，客机端通过相同的 gameClock 触发
-                    duoBoltNextTime=gameClock+boltTimer;
-                }
-            }
+            // 每次环境更新至多触发一次；落后的绝对时间会在 triggerBolt 内直接重排到当前时间之后。
+            if(stormCycleActive&&gameClock>=duoBoltNextTime&&sf>.4)triggerBolt(gameClock);
+        }
+        stormDebug.maxTriggersPerUpdate=Math.max(stormDebug.maxTriggersPerUpdate,stormDebug.lastTriggers);
+        if(stormDebug.lastTriggers){
+            stormDebug.history.push({update:stormDebug.updates,clock:gameClock,triggers:stormDebug.lastTriggers,nextTime:duoBoltNextTime});
+            if(stormDebug.history.length>32)stormDebug.history.shift();
         }
         // 闪电绘制（全屏闪光 + 分叉闪电链）
         if(boltLife>0){
@@ -371,6 +413,7 @@ export function createEnvironment(ctx){
             for(const br of boltBranches){x.beginPath();br.forEach((p,i)=>i?x.lineTo(p[0]*W,p[1]*H):x.moveTo(p[0]*W,p[1]*H));x.stroke()}
             x.restore();
         }
+        finishStormDebug(updateStarted);
     }
 
     // ===== 24小时天空关键帧（天顶/中带/地平线三色，余弦平滑插值） =====
@@ -953,6 +996,9 @@ export function createEnvironment(ctx){
         updateStormFx,
         updateSkyFx,
         updateSkyAmbience,
+        getStormSync,
+        applyStormSync,
+        getStormDebug,
         cycleTime,
         setTime,
         resize,

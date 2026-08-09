@@ -7,6 +7,7 @@
 //   - state: 共享状态对象，含 waveBoost/waveClock/waveSpeed/renderedWaveClock 的 getter/setter 与 whirlZones 数组
 // 返回：
 //   - waveHeight(x,z,t): 唯一波浪高度函数（水面/鸭子/道具/漩涡共用）
+//   - renderedWaveHeight(x,z): 当前可见水网格的三角插值高度（大型漂浮物贴合低细分浪面用）
 //   - mkWaveRing/mkWaveDisk: 贴浪面网格工具
 //   - setWaveDetail(segments): 切换波浪细分
 //   - updatePhase(dt, waveSpeedTarget): 推进波浪相位
@@ -99,6 +100,23 @@ export function createWater(ctx){
         if(previous)previous.dispose();
     }
 
+    // ===== 当前可见水网格高度 =====
+    // waveHeight 是连续解析曲面，但屏幕上的 PlaneGeometry 会在相邻顶点间做三角插值。
+    // 普通小道具体型有限，差异不明显；大型漂浮物跨在漩涡漏斗上时需读取真实可见高度，避免粗网格穿模。
+    function renderedWaveHeight(x,z){
+        const detail=waveGeo.userData.detail;
+        const size=200,half=size*.5,step=size/detail;
+        const gx=(x-waveMesh.position.x+half)/step,gz=(z-waveMesh.position.z+half)/step;
+        if(gx<0||gz<0||gx>detail||gz>detail)return waveHeight(x,z,state.renderedWaveClock);
+        const ix=Math.min(detail-1,Math.floor(gx)),iz=Math.min(detail-1,Math.floor(gz));
+        const fx=gx-ix,fz=gz-iz,row=detail+1,p=waveGeo.attributes.position;
+        // PlaneGeometry 每格索引为 (a,b,d) / (b,c,d)，旋转到 XZ 平面后行方向为 +Z。
+        const a=iz*row+ix,d=a+1,b=a+row,c=b+1;
+        const ya=p.getY(a),yb=p.getY(b),yc=p.getY(c),yd=p.getY(d);
+        if(fx+fz<=1)return ya+(yd-ya)*fx+(yb-ya)*fz;
+        return yc+(yb-yc)*(1-fx)+(yd-yc)*(1-fz);
+    }
+
     // ===== 贴浪面圆环（顶点逐帧贴合 waveHeight，不会被海浪遮挡） =====
     // 用于：漩涡边缘浪花/引力圈、鲨鱼鳍根浪花、磁铁范围圈/脉冲环
     function mkWaveRing(radialSegs,thetaSegs,material,uvRepeat=1){
@@ -131,7 +149,7 @@ export function createWater(ctx){
 
     // ===== 贴浪面圆盘（实心圆，顶点逐帧贴合 waveHeight，不会被海浪遮挡） =====
     // 用于：漩涡主体/泡沫/中心暗洞等需要"贴图直接映射在水面"的场景
-    function mkWaveDisk(radius,radialSegs,thetaSegs,material,uvRepeatU=1,uvRepeatV=1){
+    function mkWaveDisk(radius,radialSegs,thetaSegs,material,uvRepeatU=1,uvRepeatV=1,uvMode='polar'){
         const pos=new Float32Array((radialSegs+1)*(thetaSegs+1)*3);
         const uv=new Float32Array((radialSegs+1)*(thetaSegs+1)*2);
         const idx=[];
@@ -143,8 +161,17 @@ export function createWater(ctx){
                 pos[i*3]=Math.cos(a)*rr;
                 pos[i*3+1]=0;
                 pos[i*3+2]=Math.sin(a)*rr;
-                uv[i*2]=t/thetaSegs*uvRepeatU;
-                uv[i*2+1]=r/radialSegs*uvRepeatV;
+                if(uvMode==='planar'){
+                    // 普通二维圆形贴图（如中心暗洞）需要笛卡尔 UV；若沿用极坐标 UV，
+                    // 同一个圆心会采到一整排不同像素，视觉上就会变成月牙或扇形。
+                    const nr=r/radialSegs;
+                    uv[i*2]=(.5+Math.cos(a)*nr*.5)*uvRepeatU;
+                    uv[i*2+1]=(.5+Math.sin(a)*nr*.5)*uvRepeatV;
+                }else{
+                    // 水流与泡沫使用“角度 + 半径”展开，斜纹映射后自然形成螺旋。
+                    uv[i*2]=t/thetaSegs*uvRepeatU;
+                    uv[i*2+1]=r/radialSegs*uvRepeatV;
+                }
             }
         }
         for(let r=0;r<radialSegs;r++)for(let t=0;t<thetaSegs;t++){
@@ -158,15 +185,16 @@ export function createWater(ctx){
         geo.computeVertexNormals();
         const mesh=new THREE.Mesh(geo,material);
         mesh.frustumCulled=false;
-        // 每帧更新：圆盘中心 (cx,cz)，缩放 ws（对应 group.scale），yOff 抬高避免被浪面遮挡
-        // 采样 renderedWaveClock：与渲染中的浪面网格严格同相，漩涡贴图紧贴水面漏斗
+        // 每帧更新：圆盘中心 (cx,cz)，缩放 ws（对应 group.scale），yOff 抬高避免被浪面遮挡。
+        // 必须采样当前真正显示的低细分网格；解析 waveHeight 在漩涡漏斗处可能比三角面低近 2 个单位，
+        // 即使 renderOrder 更高也会因深度测试而被主水面盖住。
         mesh.userData.update=function(cx,cz,ws,yOff){
             const p=geo.attributes.position;
             for(let i=0;i<p.count;i++){
                 const lx=p.getX(i),lz=p.getZ(i);
                 const wx=cx+lx*ws,wz=cz+lz*ws;
-                // y 需除以 ws 抵消 group 缩放，使世界 y = waveHeight + yOff
-                p.setY(i,(waveHeight(wx,wz,state.renderedWaveClock)+yOff)/ws);
+                // y 需除以 ws 抵消 group 缩放，使世界 y = 可见水面高度 + yOff
+                p.setY(i,(renderedWaveHeight(wx,wz)+yOff)/ws);
             }
             p.needsUpdate=true;
             // MeshBasicMaterial 不参与光照，无需 computeVertexNormals（每帧省下数千次法线重算）
@@ -227,7 +255,7 @@ export function createWater(ctx){
 
     return {
         // 唯一 waveHeight（其他模块不得复制水面算法）
-        waveHeight,
+        waveHeight,renderedWaveHeight,
         // 贴浪面工具
         mkWaveRing,mkWaveDisk,
         // 画质控制

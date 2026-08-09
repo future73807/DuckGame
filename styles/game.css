@@ -473,9 +473,9 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 #settings-modal .set-body::-webkit-scrollbar{display:none;width:0;height:0}
 #settings-modal .set-blessing{margin:0 2px 12px;padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
 #settings-modal .set-blessing .sb-icon{font-size:18px;color:#fff;flex-shrink:0;width:22px;text-align:center}
-#settings-modal .set-blessing .sb-body{flex:1;min-width:0;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+#settings-modal .set-blessing .sb-body{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:2px}
 #settings-modal .set-blessing .sb-name{font-size:13px;font-weight:700;color:#fff;margin-top:1px;white-space:nowrap}
-#settings-modal .set-blessing .sb-desc{font-size:11px;color:rgba(255,255,255,.6);margin-top:1px;line-height:1.4;text-align:right}
+#settings-modal .set-blessing .sb-desc{width:100%;font-size:11px;color:rgba(255,255,255,.6);margin-top:1px;line-height:1.5;text-align:left;white-space:pre-line;overflow-wrap:anywhere}
 #settings-modal .set-sec-t{font-size:10px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase;margin:4px 4px 8px}
 #settings-modal .set-row{display:flex;align-items:center;gap:11px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;margin-bottom:7px}
 #settings-modal .set-row .sr-icon{font-size:13px;color:#fff;width:18px;text-align:center;flex-shrink:0}
@@ -627,7 +627,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
     #pwd-modal .pwd-desc{margin-bottom:9px}
 }
 @media(max-height:360px){
-    #settings-modal .set-blessing .sb-desc,#pause-overlay .pause-sub,#help .help-sub{display:none}
+    #pause-overlay .pause-sub,#help .help-sub{display:none}
     #settings-modal .set-row{min-height:42px;padding-top:5px;padding-bottom:5px}
     #tutorial .tut-step .tut-icon{display:none}
     #tutorial .tut-header{padding-top:8px}
