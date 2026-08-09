@@ -22,10 +22,15 @@ export function createRuntime(){
         basePixelRatio:Math.min(devicePixelRatio,1.35),
         drsScale:1,
         drsTimer:0,
+        waveUpdateHz:30,
+        stormWaveUpdateHz:40,
+        waveNormalHz:8,
         waveUpdateInterval:3,
         waveNormalInterval:12,
         environmentUpdateInterval:2,
         shadowUpdateInterval:2,
+        shadowUpdateHz:20,
+        restricted:false,
     };
 
     renderer.setSize(innerWidth,innerHeight);

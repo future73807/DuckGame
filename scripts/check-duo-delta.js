@@ -72,7 +72,7 @@ async function main() {
         ]);
         const scene = {
             clk: 1, evT: 30, evN: null, evTm: 0, wS: 1, wST: 1, eWT: 1, ih: 111,
-            items, whirls: [], waveDir: [1, 0], waveStr: 0, waveActive: 0, waveDur: 0,
+            items, whirls: [[12.5, -8.25, 1.2]], waveDir: [.6, .8], waveStr: 3, waveActive: 1, waveDur: 4.5,
             shark: null, windAct: 0, windMul: 1, evWindDir: [1, 0], stormAct: 0, rbAct: 0
         };
         const hostState = () => ({ x: 0, y: 0, z: 0, ry: 0, score: 0, hearts: 3, skin: 'classic', scene });
@@ -85,15 +85,18 @@ async function main() {
         const initialScene = initial.data.room.host.state.scene;
         assert.equal(initialScene.items.length, 244);
         assert.equal(initialScene.itemDelta, undefined);
+        assert.deepEqual(initialScene.whirls, [[12.5, -8.25, 1.2]]);
 
         const unchanged = await guestUpdate(111);
         const unchangedScene = unchanged.data.room.host.state.scene;
         assert.equal(unchangedScene.items, undefined);
         assert.equal(unchangedScene.itemDelta, undefined);
+        assert.deepEqual(unchangedScene.whirls, [[12.5, -8.25, 1.2]], '相同 ih 的 metadata 包必须保留 whirls');
 
         scene.items[0][1] += .2;
         scene.ih = 222;
         scene.clk = 1.2;
+        scene.whirls = [[-6.75, 14.5, .85]];
         await hostUpdate();
         const moved = await guestUpdate(111);
         const movedScene = moved.data.room.host.state.scene;
@@ -101,7 +104,26 @@ async function main() {
         assert.equal(movedScene.itemDelta.baseHash, 111);
         assert.equal(movedScene.itemDelta.upserts.length, 1);
         assert.deepEqual(movedScene.itemDelta.removed, []);
+        assert.deepEqual(movedScene.whirls, [[-6.75, 14.5, .85]], 'item delta 包必须保留最新 whirls');
         assert.ok(moved.bytes < initial.bytes * .2, `增量包 ${moved.bytes} 未显著小于全量包 ${initial.bytes}`);
+
+        // 漩涡和海浪只改变元数据、不改变物品 hash 时，也必须把“已清空/已结束”明确传给客机。
+        scene.clk = 1.3;
+        scene.whirls = [];
+        scene.waveDir = [0, 0];
+        scene.waveStr = 0;
+        scene.waveActive = 0;
+        scene.waveDur = 0;
+        await hostUpdate();
+        const inactive = await guestUpdate(222);
+        const inactiveScene = inactive.data.room.host.state.scene;
+        assert.equal(inactiveScene.items, undefined);
+        assert.equal(inactiveScene.itemDelta, undefined);
+        assert.deepEqual(inactiveScene.whirls, [], 'whirls 从有到空时，metadata 包必须显式返回空数组');
+        assert.deepEqual(inactiveScene.waveDir, [0, 0]);
+        assert.equal(inactiveScene.waveStr, 0);
+        assert.equal(inactiveScene.waveActive, 0, '海浪 inactive 状态必须在 metadata 包中透传');
+        assert.equal(inactiveScene.waveDur, 0);
 
         scene.items.splice(1, 1);
         scene.ih = 333;

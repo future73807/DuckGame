@@ -1,8 +1,8 @@
 // 水面渲染：深水底板 / 波浪层 / 唯一 waveHeight 实现 / 贴浪面圆环圆盘工具
 // 依赖通过 createWater(ctx) 注入：
 //   - scene: THREE.Scene
-//   - quality: 画质状态对象（waveUpdateInterval / waveNormalInterval）
-//   - getFrameCount: () => number （主循环帧计数 getter）
+//   - quality: 画质状态对象（waveUpdateHz / stormWaveUpdateHz / waveNormalHz）
+//   - getFrameCount: () => number （旧调用兼容；水面更新不再依赖帧计数）
 //   - getWaveEventDir: () => {x, z}  （海浪事件方向 getter）
 //   - state: 共享状态对象，含 waveBoost/waveClock/waveSpeed/renderedWaveClock 的 getter/setter 与 whirlZones 数组
 // 返回：
@@ -12,22 +12,45 @@
 //   - setWaveDetail(segments): 切换波浪细分
 //   - updatePhase(dt, waveSpeedTarget): 推进波浪相位
 //   - followTarget(x, z): 水面网格跟随目标
-//   - updateVertices(gameClock): 更新波浪顶点位移与顶点色
+//   - updateVertices(gameClock,targetX,targetZ,nowMs): 按时间调度更新波浪顶点位移与顶点色
+//   - getUpdateStats(): 返回波面实际更新次数与更新间隔统计
 //   - waterMesh/waveMesh/waterMat/waterColDeep/waterColLight/waterColFoam: 供环境系统昼夜调色
 
 import * as THREE from 'three';
+import {createRafTimeGate} from './time-gate.js';
 
 /**
  * 创建水面渲染系统
  * @param {{scene:THREE.Scene,quality:object,getFrameCount:()=>number,getWaveEventDir:()=>{x:number,z:number},state:object}} ctx
  */
 export function createWater(ctx){
-    const {scene,quality,getFrameCount,getWaveEventDir,state}=ctx;
+    const {scene,quality,getWaveEventDir,state}=ctx;
 
-    // ===== 波浪更新闸口：暴风雨时波浪推进快，自动加密更新保持视觉顺滑 =====
-    function waveFrameDue(){
-        const iv=state.waveSpeed>1.6?Math.min(2,quality.waveUpdateInterval):quality.waveUpdateInterval;
-        return getFrameCount()%iv===0;
+    // ===== 波浪更新时间调度 =====
+    // 不再用 frameCount % N：窗口被浏览器降到约 30 FPS 时，按帧取模会产生 33/66ms 交替，
+    // 令水面、鸭子和相机的垂直位置呈阶梯跳动。时间闸口在接近目标频率时允许每个 rAF 更新一次。
+    const DEFAULT_WAVE_HZ=30,DEFAULT_STORM_WAVE_HZ=40,DEFAULT_NORMAL_HZ=10;
+    let pendingWaveX=0,pendingWaveZ=0;
+    let lastSurfaceUpdateMs=null;
+    const surfaceTimeGate=createRafTimeGate({defaultHz:DEFAULT_WAVE_HZ,fullRateEnabled:true});
+    const normalTimeGate=createRafTimeGate({defaultHz:DEFAULT_NORMAL_HZ,fullRateEnabled:false});
+    const updateStats={updates:0,maxGapMs:0,lastGapMs:0};
+    const stats=Object.freeze({
+        get updates(){return updateStats.updates},
+        get maxGapMs(){return updateStats.maxGapMs},
+        get lastGapMs(){return updateStats.lastGapMs},
+    });
+
+    function positiveHz(value,fallback){
+        const hz=Number(value);
+        return Number.isFinite(hz)&&hz>0?hz:fallback;
+    }
+    function resolveNowMs(nowMs){
+        if(Number.isFinite(nowMs))return nowMs;
+        return globalThis.performance?.now?.()??Date.now();
+    }
+    function getUpdateStats(){
+        return{updates:updateStats.updates,maxGapMs:updateStats.maxGapMs,lastGapMs:updateStats.lastGapMs};
     }
 
     // ===== 主涌浪：三组不同方向/波长的低频大浪 + 两组中频碎波 =====
@@ -92,6 +115,9 @@ export function createWater(ctx){
     scene.add(waveMesh);
 
     function setWaveDetail(segments){
+        // 即使细分数未改变，画质重应用后也要让下一帧重新同步曲面与法线。
+        surfaceTimeGate.forceNext();
+        normalTimeGate.forceNext();
         if(waveGeo?.userData.detail===segments)return;
         const previous=waveGeo;
         waveGeo=createWaveGeometry(segments);
@@ -210,20 +236,30 @@ export function createWater(ctx){
 
     // ===== 水面网格跟随目标（鸭子位置） =====
     function followTarget(x,z){
+        pendingWaveX=x;
+        pendingWaveZ=z;
         waterMesh.position.x=x;
         waterMesh.position.z=z;
-        waveMesh.position.x=x;
-        waveMesh.position.z=z;
     }
 
-    // ===== 波浪顶点位移 + 顶点色更新（闸口控制频率） =====
+    // ===== 波浪顶点位移 + 顶点色更新（performance.now 时间闸口控制频率） =====
     // 更新后定格 renderedWaveClock：鸭子/道具/涟漪/鲨鱼都以它采样，与渲染浪面严格一致
-    function updateVertices(gameClock){
-        if(!waveFrameDue())return;
+    function updateVertices(gameClock,targetX,targetZ,nowMs){
+        if(Number.isFinite(targetX))pendingWaveX=targetX;
+        if(Number.isFinite(targetZ))pendingWaveZ=targetZ;
+
+        const now=resolveNowMs(nowMs);
+        const surfaceHz=state.waveSpeed>1.6
+            ?positiveHz(quality.stormWaveUpdateHz,DEFAULT_STORM_WAVE_HZ)
+            :positiveHz(quality.waveUpdateHz,DEFAULT_WAVE_HZ);
+        if(!surfaceTimeGate.shouldUpdate(now,surfaceHz))return false;
+
+        // waveMesh 的世界中心与顶点高度必须原子更新，否则移动中心后会短暂显示旧世界坐标的波形。
+        waveMesh.position.x=pendingWaveX;
+        waveMesh.position.z=pendingWaveZ;
         state.renderedWaveClock=state.waveClock;
         const wp=waveGeo.attributes.position,wcA=waveGeo.attributes.color;
         const wmx=waveMesh.position.x,wmz=waveMesh.position.z;
-        const frameCount=getFrameCount();
         const boost=state.waveBoost;
         const clk=state.waveClock;
         for(let i=0;i<wp.count;i++){
@@ -243,7 +279,20 @@ export function createWater(ctx){
             wcA.setXYZ(i,_wc.r,_wc.g,_wc.b);
         }
         wp.needsUpdate=true;wcA.needsUpdate=true;
-        if(frameCount%quality.waveNormalInterval===0)waveGeo.computeVertexNormals();
+
+        const normalHz=positiveHz(quality.waveNormalHz,DEFAULT_NORMAL_HZ);
+        if(normalTimeGate.shouldUpdate(now,normalHz)){
+            waveGeo.computeVertexNormals();
+        }
+
+        if(lastSurfaceUpdateMs!==null){
+            const gap=Math.max(0,now-lastSurfaceUpdateMs);
+            updateStats.lastGapMs=gap;
+            if(gap>updateStats.maxGapMs)updateStats.maxGapMs=gap;
+        }else updateStats.lastGapMs=0;
+        updateStats.updates++;
+        lastSurfaceUpdateMs=now;
+        return true;
     }
 
     function dispose(){
@@ -262,6 +311,8 @@ export function createWater(ctx){
         setWaveDetail,
         // 主循环调用
         updatePhase,followTarget,updateVertices,
+        // 轻量性能诊断（stats 为只读实时视图，getUpdateStats 返回快照）
+        stats,getUpdateStats,
         // 网格引用（main.js 跟随鸭子位置等）
         waterMesh,waveMesh,
         // 材质/颜色引用（环境系统昼夜调色）

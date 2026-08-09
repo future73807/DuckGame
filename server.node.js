@@ -211,11 +211,12 @@ if (isHotFe) {
         const copied = { ...scene };
         if (metadataOnly) {
             delete copied.items;
-            delete copied.whirls;
         } else {
             copied.items = Array.isArray(scene.items) ? scene.items.map(item => Array.isArray(item) ? item.slice() : item) : [];
-            copied.whirls = Array.isArray(scene.whirls) ? scene.whirls.map(whirl => Array.isArray(whirl) ? whirl.slice() : whirl) : [];
         }
+        // 漩涡不属于 items hash：即使道具列表未变化，漩涡仍会生成、缩放和消失。
+        // metadata-only 包也必须显式携带 []，否则客机会永久保留已消失的旧漩涡。
+        copied.whirls = Array.isArray(scene.whirls) ? scene.whirls.map(whirl => Array.isArray(whirl) ? whirl.slice() : whirl) : [];
         for (const key of ['waveDir', 'shark', 'evWindDir']) {
             if (Array.isArray(scene[key])) copied[key] = scene[key].slice();
         }

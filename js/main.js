@@ -498,7 +498,7 @@ let renderedWaveClock=0;
 const whirlZones=[]; // 活跃漩涡对水体的凹陷 {x,z,r,depth}
 // waterState：连接 main.js 顶层 let 变量与 water.js 内部读取的桥接对象
 const waterState={get waveBoost(){return waveBoost},set waveBoost(v){waveBoost=v},get waveClock(){return waveClock},set waveClock(v){waveClock=v},get waveSpeed(){return waveSpeed},set waveSpeed(v){waveSpeed=v},get renderedWaveClock(){return renderedWaveClock},set renderedWaveClock(v){renderedWaveClock=v},whirlZones};
-const{waveHeight,renderedWaveHeight,mkWaveRing,mkWaveDisk,setWaveDetail,updatePhase:waterUpdatePhase,followTarget:waterFollowTarget,updateVertices:waterUpdateVertices,waterMesh,waveMesh,waterMat,waterColDeep,waterColLight,waterColFoam}=createWater({scene,quality,getFrameCount:()=>frameCount,getWaveEventDir:()=>waveEventDir,state:waterState});
+const{waveHeight,renderedWaveHeight,mkWaveRing,mkWaveDisk,setWaveDetail,updatePhase:waterUpdatePhase,followTarget:waterFollowTarget,updateVertices:waterUpdateVertices,getUpdateStats:waterGetUpdateStats,waterMesh,waveMesh,waterMat,waterColDeep,waterColLight,waterColFoam}=createWater({scene,quality,getFrameCount:()=>frameCount,getWaveEventDir:()=>waveEventDir,state:waterState});
 // envState：连接 main.js 顶层 let 变量与 environment.js 内部读写的桥接对象
 // timeOfDay/evWindDir/envBright/stormFactor/lightningFlash/camShake/windActive/rainbowActive/stormActive/windSpeedMul
 // 均为 main.js 顶层 let 变量（部分在后续代码才声明，getter 延迟访问避免 TDZ）
@@ -628,17 +628,115 @@ function removeItemAt(index){
     scene.remove(item.mesh);disposeItemVisual(item);items.splice(index,1);
 }
 function mkRock(p,s){const g=new THREE.DodecahedronGeometry(1,1);const a=g.attributes.position;for(let i=0;i<a.count;i++){let x=a.getX(i),y=a.getY(i),z=a.getZ(i);const n=Math.sin(x*3.7)*Math.cos(y*2.3)*Math.sin(z*4.1)*.15;x+=n;y+=n*.5;z+=n;y*=.55;a.setXYZ(i,x,y,z)}g.computeVertexNormals();const tint=.92+Math.random()*.16;const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:new THREE.Color(0x8d8177).multiplyScalar(tint),roughness:.85,flatShading:true}));m.position.copy(p);m.scale.setScalar(s);m.rotation.set(Math.random(),Math.random(),0);m.castShadow=true;m.receiveShadow=true;return m}
-function mkGrass(x,z,n){const g=new THREE.Group();const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide});const cRoot=new THREE.Color(0x1d5c22),cTip=new THREE.Color(0x8fdd55),cc=new THREE.Color();for(let i=0;i<n;i++){const h=.4+Math.random()*.35,w=.05+Math.random()*.035;const geo=new THREE.PlaneGeometry(w,h,1,6);const a=geo.attributes.position;const cols=new Float32Array(a.count*3);const bend=(Math.random()-.5)*.4;for(let j=0;j<a.count;j++){let px=a.getX(j),py=a.getY(j);const t=py/h+.5;px*=1-t*.85;px+=t*t*bend;a.setX(j,px);cc.copy(cRoot).lerp(cTip,t);cols[j*3]=cc.r;cols[j*3+1]=cc.g;cols[j*3+2]=cc.b}geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();const b=new THREE.Mesh(geo,mat);b.position.set((Math.random()-.5)*.6,h*.5,(Math.random()-.5)*.6);b.rotation.y=Math.random()*Math.PI;b.castShadow=true;g.add(b)}g.position.set(x,0,z);return g}
-function mkLily(x,z,s){const g=new THREE.Group();const pg=new THREE.CircleGeometry(s,24,0,Math.PI*1.85);const pa=pg.attributes.position;const pcols=new Float32Array(pa.count*3);const cIn=new THREE.Color(0x46a857),cOut=new THREE.Color(0x1e6b31),cc=new THREE.Color();for(let i=0;i<pa.count;i++){const px=pa.getX(i),py=pa.getY(i);const r=Math.min(Math.sqrt(px*px+py*py)/s,1);pa.setZ(i,r*r*.14*s);cc.copy(cIn).lerp(cOut,r);pcols[i*3]=cc.r;pcols[i*3+1]=cc.g;pcols[i*3+2]=cc.b}pg.setAttribute('color',new THREE.BufferAttribute(pcols,3));pg.computeVertexNormals();const pad=new THREE.Mesh(pg,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.55,side:THREE.DoubleSide}));pad.rotation.x=-Math.PI/2;pad.receiveShadow=true;g.add(pad);
-// 卡通莲花：一圈微翘的粉色花瓣 + 黄色花心
-const petalMat=new THREE.MeshStandardMaterial({color:0xff9ec7,roughness:.45,emissive:0x40001a,emissiveIntensity:.25});for(let i=0;i<6;i++){const a=i/6*Math.PI*2;const p=new THREE.Mesh(new THREE.SphereGeometry(s*.22,10,8),petalMat);p.scale.set(1,.42,1.6);p.position.set(Math.cos(a)*s*.2,s*.13,Math.sin(a)*s*.2);p.rotation.y=Math.PI/2-a;p.rotateX(-.35);g.add(p)}const heart=new THREE.Mesh(new THREE.SphereGeometry(s*.13,10,8),new THREE.MeshStandardMaterial({color:0xffd94d,roughness:.4,emissive:0x553300,emissiveIntensity:.4}));heart.position.y=s*.16;heart.scale.y=.75;g.add(heart);g.position.set(x,.01,z);return g}
-function mkFlower(x,z){const g=new THREE.Group();g.add(new THREE.Mesh(new THREE.CylinderGeometry(.015,.02,.5,8),new THREE.MeshStandardMaterial({color:0x2a6a2a})).translateY(.25));
-// 花茎叶子
-const leafMat=new THREE.MeshStandardMaterial({color:0x3f8f3f,roughness:.6});for(const s of[-1,1]){const leaf=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),leafMat);leaf.scale.set(1.7,.25,.7);leaf.position.set(s*.09,.16,0);leaf.rotation.z=s*.5;g.add(leaf)}
-// 外层花瓣（暖黄、尖端微翘）
-const pm=new THREE.MeshStandardMaterial({color:0xffd93c,roughness:.45,emissive:0x442200,emissiveIntensity:.25});for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2;const p=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),pm);p.scale.set(1,.4,1.7);p.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);p.rotation.y=Math.PI/2-a;p.rotateX(-.3);g.add(p)}
-// 花心
-const core=new THREE.Mesh(new THREE.SphereGeometry(.055,12,10),new THREE.MeshStandardMaterial({color:0xff8c1a,roughness:.4,emissive:0x552200,emissiveIntensity:.35}));core.position.y=.52;core.scale.y=.7;g.add(core);g.position.set(x,-.02,z);return g}
+function bakeItemPart(geometry,configure){
+    const transform=new THREE.Object3D();
+    configure(transform);transform.updateMatrix();geometry.applyMatrix4(transform.matrix);
+    return geometry;
+}
+function colorItemPart(geometry,color){
+    const c=new THREE.Color(color),count=geometry.attributes.position.count,colors=new Float32Array(count*3);
+    for(let i=0;i<count;i++){colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b}
+    geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));return geometry;
+}
+
+// 水草原先每片叶子都是一个 Mesh，最坏俯视角会把约 600 个叶片分别提交给 GPU。
+// 每丛把 5–8 片同材质叶子烘焙成一个网格，并缓存两种形态；实例只共享资源和随机旋转。
+const grassTemplates=new Map();
+const grassMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide});
+function buildGrassTemplate(n){
+    const parts=[],cRoot=new THREE.Color(0x1d5c22),cTip=new THREE.Color(0x8fdd55),cc=new THREE.Color();
+    for(let i=0;i<n;i++){
+        const h=.4+Math.random()*.35,w=.05+Math.random()*.035;
+        const geo=new THREE.PlaneGeometry(w,h,1,6),a=geo.attributes.position;
+        const cols=new Float32Array(a.count*3),bend=(Math.random()-.5)*.4;
+        for(let j=0;j<a.count;j++){
+            let px=a.getX(j);const py=a.getY(j),t=py/h+.5;
+            px*=1-t*.85;px+=t*t*bend;a.setX(j,px);
+            cc.copy(cRoot).lerp(cTip,t);cols[j*3]=cc.r;cols[j*3+1]=cc.g;cols[j*3+2]=cc.b;
+        }
+        geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
+        bakeItemPart(geo,o=>{o.position.set((Math.random()-.5)*.6,h*.5,(Math.random()-.5)*.6);o.rotation.y=Math.random()*Math.PI});
+        parts.push(geo);
+    }
+    const merged=mergeGeometries(parts,false);parts.forEach(geometry=>geometry.dispose());
+    if(!merged)throw new Error('水草几何合并失败');
+    merged.computeBoundingSphere();
+    const mesh=new THREE.Mesh(merged,grassMat);
+    // 水草叶片很小，投影会令中画质的阴影 pass 再次提交数百次，视觉收益却几乎不可见。
+    mesh.castShadow=false;
+    const group=new THREE.Group();group.add(mesh);group.userData.sharedItemResources=true;
+    return group;
+}
+function mkGrass(x,z,n){
+    const count=THREE.MathUtils.clamp(Math.round(n)||7,5,8),variant=Math.random()<.5?0:1,key=count+'|'+variant;
+    if(!grassTemplates.has(key))grassTemplates.set(key,buildGrassTemplate(count));
+    const instance=grassTemplates.get(key).clone(true);
+    instance.userData.sharedItemResources=true;instance.position.set(x,0,z);instance.rotation.y=Math.random()*Math.PI*2;
+    return instance;
+}
+
+// 荷叶/荷花烘焙为一个顶点色 Mesh：轮廓和颜色不变，最坏俯视角每片荷叶只提交一次。
+const LILY_TEMPLATE_SIZE=.4;
+let lilyTemplate=null;
+function buildLilyTemplate(){
+    const s=LILY_TEMPLATE_SIZE,g=new THREE.Group();
+    const pg=new THREE.CircleGeometry(s,24,0,Math.PI*1.85),pa=pg.attributes.position,pcols=new Float32Array(pa.count*3);
+    const cIn=new THREE.Color(0x46a857),cOut=new THREE.Color(0x1e6b31),cc=new THREE.Color();
+    for(let i=0;i<pa.count;i++){
+        const px=pa.getX(i),py=pa.getY(i),r=Math.min(Math.hypot(px,py)/s,1);
+        pa.setZ(i,r*r*.14*s);cc.copy(cIn).lerp(cOut,r);pcols[i*3]=cc.r;pcols[i*3+1]=cc.g;pcols[i*3+2]=cc.b;
+    }
+    pg.setAttribute('color',new THREE.BufferAttribute(pcols,3));pg.computeVertexNormals();
+    bakeItemPart(pg,o=>{o.rotation.x=-Math.PI/2});
+    const parts=[pg];
+    for(let i=0;i<6;i++){
+        const a=i/6*Math.PI*2,geo=new THREE.SphereGeometry(s*.22,10,8);
+        bakeItemPart(geo,o=>{o.scale.set(1,.42,1.6);o.position.set(Math.cos(a)*s*.2,s*.13,Math.sin(a)*s*.2);o.rotation.y=Math.PI/2-a;o.rotateX(-.35)});
+        parts.push(colorItemPart(geo,0xff9ec7));
+    }
+    const heartGeo=new THREE.SphereGeometry(s*.13,10,8);
+    bakeItemPart(heartGeo,o=>{o.position.y=s*.16;o.scale.y=.75});parts.push(colorItemPart(heartGeo,0xffd94d));
+    const merged=mergeGeometries(parts,false);parts.forEach(geometry=>geometry.dispose());
+    if(!merged)throw new Error('荷叶几何合并失败');
+    merged.computeBoundingSphere();
+    const mesh=new THREE.Mesh(merged,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,side:THREE.DoubleSide}));
+    mesh.receiveShadow=true;g.add(mesh);
+    g.userData.sharedItemResources=true;return g;
+}
+function mkLily(x,z,s){
+    if(!lilyTemplate)lilyTemplate=buildLilyTemplate();
+    const instance=lilyTemplate.clone(true);
+    instance.userData.sharedItemResources=true;instance.position.set(x,.01,z);instance.scale.setScalar(s/LILY_TEMPLATE_SIZE);
+    return instance;
+}
+
+// 花朵的茎/叶/花瓣/花心统一烘焙成一个顶点色 Mesh；小尺寸下保留颜色和轮廓最重要。
+let flowerTemplate=null;
+function buildFlowerTemplate(){
+    const g=new THREE.Group(),parts=[];
+    const stemGeo=new THREE.CylinderGeometry(.015,.02,.5,8);
+    bakeItemPart(stemGeo,o=>{o.position.y=.25});parts.push(colorItemPart(stemGeo,0x2a6a2a));
+    for(const side of[-1,1]){
+        const geo=new THREE.SphereGeometry(.07,8,6);
+        bakeItemPart(geo,o=>{o.scale.set(1.7,.25,.7);o.position.set(side*.09,.16,0);o.rotation.z=side*.5});parts.push(colorItemPart(geo,0x3f8f3f));
+    }
+    for(let i=0;i<8;i++){
+        const a=i/8*Math.PI*2,geo=new THREE.SphereGeometry(.07,10,8);
+        bakeItemPart(geo,o=>{o.scale.set(1,.4,1.7);o.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);o.rotation.y=Math.PI/2-a;o.rotateX(-.3)});parts.push(colorItemPart(geo,0xffd93c));
+    }
+    const coreGeo=new THREE.SphereGeometry(.055,12,10);
+    bakeItemPart(coreGeo,o=>{o.position.y=.52;o.scale.y=.7});parts.push(colorItemPart(coreGeo,0xff8c1a));
+    const merged=mergeGeometries(parts,false);parts.forEach(geometry=>geometry.dispose());
+    if(!merged)throw new Error('花朵几何合并失败');
+    merged.computeBoundingSphere();g.add(new THREE.Mesh(merged,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5})));
+    g.userData.sharedItemResources=true;return g;
+}
+function mkFlower(x,z){
+    if(!flowerTemplate)flowerTemplate=buildFlowerTemplate();
+    const instance=flowerTemplate.clone(true);
+    instance.userData.sharedItemResources=true;instance.position.set(x,-.02,z);instance.rotation.y=Math.random()*Math.PI*2;
+    return instance;
+}
 // 卡通横向 U 形马蹄铁磁铁（一体化：TubeGeometry 沿 U 形曲线生成单根管子，groups 多材质分段着色）
 function mkMagnet(x,z){
     const poleLen=.5,poleR=.13,gap=.22;
@@ -714,7 +812,6 @@ function spawnAround(cx,cz){
     if(mesh){scene.add(mesh);items.push({mesh,type,r:radius,coll:false});cnt[type]++}}}
     for(let i=items.length-1;i>=0;i--){const it=items[i];const dx=it.mesh.position.x-cx,dz=it.mesh.position.z-cz;if(Math.sqrt(dx*dx+dz*dz)>DESPAWN_R||(it.coll&&!it.respawning))removeItemAt(i)}
 }
-spawnAround(0,0);
 
 // ===== 双人模式场景同步（房主权威） =====
 let duoItemsHash=null,duoNextItemId=1,duoLastSceneSeq=-1;
@@ -864,7 +961,7 @@ function duoApplySceneDelta(sc,sceneSeq){
         if(item){duoApplyItemSnapshot(item,snap);reused++}
         else{item=duoCreateItemFromSnapshot(snap);if(item){byId.set(snap.id,item);created++}}
     }
-    duoReconcileWhirls(sc.whirls);duoItemsHash=sc.ih;duoSceneStats.deltaPackets++;
+    duoItemsHash=sc.ih;duoSceneStats.deltaPackets++;
     const reconcile={mode:'delta',seq:Number.isFinite(sceneSeq)?sceneSeq:null,hash:sc.ih,upserts:delta.upserts.length,removed,created,reused,after:items.length};
     duoSceneStats.reconciles++;duoSceneStats.totalCreated+=created;duoSceneStats.totalRemoved+=removed;duoSceneStats.totalReused+=reused;duoSceneStats.last=reconcile;
     return true;
@@ -894,7 +991,7 @@ function duoApplyScene(sc,sceneSeq){
         waveEventDir=newDir;waveEventStrength=sc.waveStr||0;waveEventActive=!!sc.waveActive;waveEventDuration=sc.waveDur||0;
         // 方向变化时重绘箭头贴图（与房主一致）
         if(dirChanged&&waveEventActive){const ang=Math.atan2(newDir.z,newDir.x);drawArrowTexture(ang);arrowTex.needsUpdate=true}
-        if(!waveEventActive){arrowPlane.material.opacity=0}
+        if(!waveEventActive){cur.x=0;cur.z=0;arrowPlane.material.opacity=0}
     }
     // 鲨鱼同步（房主权威）：客机端按房主数据创建/更新/销毁本地鲨鱼
     if(sc.shark){
@@ -922,6 +1019,8 @@ function duoApplyScene(sc,sceneSeq){
         }
     }
     duoSceneStats.packets++;
+    // 漩涡生命周期独立于道具 hash；必须先应用，再决定是否跳过 items 调和。
+    if(Array.isArray(sc.whirls))duoReconcileWhirls(sc.whirls);
     if(sc.ih===duoItemsHash){duoSceneStats.hashSkips++;finishApply();return}
     if(duoApplySceneDelta(sc,sceneSeq)){finishApply();return}
     // hash 不同却没有数组，说明服务端按请求发出后客户端已前进到更新快照；等待下一包，绝不拿空数组清场。
@@ -972,8 +1071,6 @@ function duoApplyScene(sc,sceneSeq){
     }
     // 快照里有而本地没有 → 新建（仅增量，通常每次 0~2 个）
     for(const it of want.values())if(duoCreateItemFromSnapshot(it))reconcile.created++;
-    // 漩涡增量调和：按坐标指纹匹配，只增删差异，存活漩涡不动（避免吸力环/贴图相位重置闪跳）
-    duoReconcileWhirls(sc.whirls);
     reconcile.after=items.length;duoSceneStats.reconciles++;duoSceneStats.totalCreated+=reconcile.created;duoSceneStats.totalRemoved+=reconcile.removed;duoSceneStats.totalReused+=reconcile.reused;duoSceneStats.last=reconcile;finishApply();
 }
 
@@ -1199,7 +1296,7 @@ function updateCur(dt){
             cur.x=0;cur.z=0;
             arrowPlane.material.opacity=0;
         }
-    }
+    }else{cur.x=0;cur.z=0}
     // 浪高振幅随海浪事件平滑增减（事件时波涛汹涌，平时平缓）
     waveBoost+=((Math.max(waveEventActive?1.55:1,eventWaveTarget))-waveBoost)*Math.min(1,dt*1.2);
     return cur}
@@ -1523,6 +1620,9 @@ function startGameSession(){
     gameActive=true;playStartTime=Date.now();
     // 双人模式：本地鸭子初始偏移到一侧（房主=-3.5，客机=+3.5），避免两只鸭子重叠
     if(Duo.active&&duckModel){const duoOffsetX=Duo.role==='guest'?3.5:Duo.role==='host'?-3.5:0;duckModel.position.set(duoOffsetX,.05,0);duckModel.rotation.set(0,0,0);duckModel.scale.setScalar(.72)}
+    // 大厅不再提前构建约 2000 个子 Mesh。单人/房主开局时只构建一次；客机等待房主首个权威场景包。
+    // 必须放在 Blessings.apply 之后，确保首局端午粽子/国庆蛋糕等节日替换正确生效。
+    if(items.length===0&&(!Duo.active||Duo.role==='host'))spawnAround(duckModel?.position.x||0,duckModel?.position.z||0);
     autoStartMusic();
     if(Duo.active)Duo.beginGame();
     setTimeout(()=>showBlessingSplash(),350);
@@ -1555,9 +1655,9 @@ function resetRunState(){
     heartTimer=8;whirlSpawnTimer=0;globalEventTimer=30;activeEventTime=0;pendingEvent=null;warnedFor=null;waveSpeed=1;waveSpeedTarget=1;eventWaveTarget=1;
     if(duckModel){duckModel.visible=true;const duoOffsetX=(typeof Duo!=='undefined'&&Duo.active&&Duo.role==='guest')?3.5:(typeof Duo!=='undefined'&&Duo.active&&Duo.role==='host')?-3.5:0;duckModel.position.set(duoOffsetX,.05,0);duckModel.rotation.set(0,0,0);duckModel.scale.setScalar(.72)}
     if(controls){controls.target.set(0,1,0);camSmoothY=1}
-    document.getElementById('score').textContent='0';updateHeartsUI();updateStreakUI();if(!duoIsGuest())spawnAround(0,0);
-    // 重开后重新发放节日特效：Blessings.apply 重算护盾/生命，FestivalFx.start 重建月亮/覆盖层粒子
-    Blessings.apply();FestivalFx.start();updateHeartsUI();
+    document.getElementById('score').textContent='0';updateHeartsUI();updateStreakUI();
+    // 重开后先重算节日替换，再生成本局物品；客机仍等待房主权威快照。
+    Blessings.apply();FestivalFx.start();updateHeartsUI();if(!duoIsGuest())spawnAround(0,0);
 }
 function hideModeEntry(){
     const solo=document.getElementById('start-btn'),duo=document.getElementById('duo-btn');
@@ -1823,7 +1923,8 @@ if(joyActive){
 // 目标速度
 const tv=moveDir.clone().multiplyScalar(duckSpeed);
 // 水流影响（始终影响，增强效果）
-const c=updateCur(dt);
+// 水流/浪幅已在本帧水面更新前推进；鸭子读取同一份当前值，避免水面与漂浮高度错一帧。
+const c=cur;
 tv.x+=c.x*1.5; tv.z+=c.z*1.5;
 if(windActive){tv.multiplyScalar(windSpeedMul);}
 duckVel.lerp(tv,tv.length()>.1?Math.min(.32,.12*bigMul):.06);
@@ -2129,6 +2230,7 @@ const Duo={
         const applyStarted=performance.now();
         if(Number.isFinite(nextRev))this._roomRev=nextRev;
         const wasDown=this._down,previousRound=this.room?.round,previousStatus=this.room?.status,startsNewRound=previousRound!=null&&room.round!==previousRound;this.room=room;
+        if(room.status!=='running'&&whirlpools.length)duoReconcileWhirls([]);
         if(startsNewRound&&room.status==='running'){
             this._started=false;this._down=false;this._teamDefeated=false;resetRunState();
         }
@@ -2672,8 +2774,9 @@ function spawnWhirlpool(){
 }
 window.__whirlTest={
     spawn:near=>{if(!duckModel)return;const d=near||6;whirlpools.push(mkWhirlpool(duckModel.position.x+d,duckModel.position.z));return whirlpools.length},
-    spawnAt:(x,z,scale=1)=>{const w=mkWhirlpool(Number(x)||0,Number(z)||0,Math.max(.5,Number(scale)||1));whirlpools.push(w);return whirlpools.length},
+    spawnAt:(x,z,scale=1,visualOnly=false)=>{const w=mkWhirlpool(Number(x)||0,Number(z)||0,Math.max(.5,Number(scale)||1));w.visualOnly=!!visualOnly;if(w.visualOnly)w.life=60;whirlpools.push(w);return whirlpools.length},
     clear:()=>{for(const w of whirlpools)w.life=0;return whirlpools.length}, // 全部标记消散（下一帧清理）
+    suppress:seconds=>{whirlSpawnTimer=-Math.max(1,Number(seconds)||120);return-whirlSpawnTimer}, // QA 平静场景：指定时间内不随机生成
     info:()=>whirlpools.map(w=>({lantern:!!w.isLanternFx,hasDisk:!!w.disk,diskLift:w.disk&&w.disk.userData.update?'sync':'no',diskDepthWrite:w.disk?w.disk.material.depthWrite:null,diskPolygonOffset:w.disk?w.disk.material.polygonOffset:null,diskRenderOrder:w.disk?w.disk.renderOrder:null})),
     // 检查漩涡 disk 顶点与实际可见水面的差值（应等于抬升 .12/ws）
     checkSync:()=>{const w=whirlpools[0];if(!w)return'no whirl';if(!w.disk)return'lantern whirlpool (no disk)';const ws=w.scale||1;const pos=w.disk.geometry.attributes.position;let maxDiff=0,samples=0;const cx=w.x,cz=w.z;for(let i=0;i<pos.count;i+=20){const lx=pos.getX(i),lz=pos.getZ(i);const wx=cx+lx*ws,wz=cz+lz*ws;const wh=renderedWaveHeight(wx,wz);const expected=(wh+.12)/ws;const actual=pos.getY(i);const diff=Math.abs(actual-expected);if(diff>maxDiff)maxDiff=diff;samples++}return{maxDiff:samples?maxDiff.toFixed(4):0,samples}}
@@ -2761,13 +2864,13 @@ window.__gameState=()=>({
 });
 window.__resourceState=()=>{
     const sceneGeometries=new Set(),sceneMaterials=new Set(),itemGeometries=new Set(),itemMaterials=new Set();
-    let sceneMeshes=0,itemMeshes=0;
-    const collect=(root,geometries,materials,isScene)=>root?.traverse(node=>{if(!node.isMesh&&!node.isPoints&&!node.isLine&&!node.isSprite)return;if(isScene)sceneMeshes++;else itemMeshes++;if(node.geometry)geometries.add(node.geometry);if(node.material){const mats=Array.isArray(node.material)?node.material:[node.material];for(const mat of mats)if(mat)materials.add(mat)}});
+    let sceneMeshes=0,itemMeshes=0,sceneObjects=0,itemObjects=0;
+    const collect=(root,geometries,materials,isScene)=>root?.traverse(node=>{if(isScene)sceneObjects++;else itemObjects++;if(!node.isMesh&&!node.isPoints&&!node.isLine&&!node.isSprite)return;if(isScene)sceneMeshes++;else itemMeshes++;if(node.geometry)geometries.add(node.geometry);if(node.material){const mats=Array.isArray(node.material)?node.material:[node.material];for(const mat of mats)if(mat)materials.add(mat)}});
     collect(scene,sceneGeometries,sceneMaterials,true);for(const item of items)collect(item.mesh,itemGeometries,itemMaterials,false);
-    return{renderer:{geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures},scene:{geometries:sceneGeometries.size,materials:sceneMaterials.size,meshes:sceneMeshes},items:{count:items.length,geometries:itemGeometries.size,materials:itemMaterials.size,meshes:itemMeshes,respawning:items.filter(item=>item.respawning).length,hidden:items.filter(item=>item.duoHidden).length},transient:{active:transientFx.length,...transientResourceStats},skinTextures:{cached:duckSkinTextureCache.size,limit:DUCK_SKIN_TEXTURE_CACHE_LIMIT},disposed:{...itemResourceStats}};
+    return{renderer:{geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures},scene:{geometries:sceneGeometries.size,materials:sceneMaterials.size,meshes:sceneMeshes,objects:sceneObjects},items:{count:items.length,geometries:itemGeometries.size,materials:itemMaterials.size,meshes:itemMeshes,objects:itemObjects,respawning:items.filter(item=>item.respawning).length,hidden:items.filter(item=>item.duoHidden).length},quality:{requested:graphicsQuality,effective:quality.effectiveTier||graphicsQuality,segments:waveMesh.geometry.userData.detail,shadows:renderer.shadowMap.enabled,waveHz:quality.waveUpdateHz,normalHz:quality.waveNormalHz,shadowHz:quality.shadowUpdateHz,drs:quality.drsScale},water:waterGetUpdateStats(),transient:{active:transientFx.length,...transientResourceStats},skinTextures:{cached:duckSkinTextureCache.size,limit:DUCK_SKIN_TEXTURE_CACHE_LIMIT},disposed:{...itemResourceStats}};
 };
 window.__perfState=()=>({
-    visibility:document.visibilityState,role:Duo.active?Duo.role:null,fps:fpsValue,clock:gameClock,drs:quality.drsScale,
+    visibility:document.visibilityState,role:Duo.active?Duo.role:null,fps:fpsValue,clock:gameClock,drs:quality.drsScale,quality:{requested:graphicsQuality,effective:quality.effectiveTier||graphicsQuality,shadows:renderer.shadowMap.enabled,waveHz:quality.waveUpdateHz,normalHz:quality.waveNormalHz,shadowHz:quality.shadowUpdateHz},water:waterGetUpdateStats(),
     frames:{...framePerf},network:snapshotDuoNetStats(),sceneSync:{...duoSceneStats,last:duoSceneStats.last?{...duoSceneStats.last}:null},
     camera:{x:camera.position.x,y:camera.position.y,z:camera.position.z},duck:duckModel?{x:duckModel.position.x,y:duckModel.position.y,z:duckModel.position.z}:null,
     camShake,screenShakeT,items:items.length,renderer:{geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}
@@ -2777,7 +2880,7 @@ const _lanternNormal=new THREE.Vector3();
 const _lanternTiltQ=new THREE.Quaternion();
 const _lanternYawQ=new THREE.Quaternion();
 const _lanternTargetQ=new THREE.Quaternion();
-function updateWhirlpools(dt){
+function updateWhirlpools(dt,surfaceChanged=true){
     // 漩涡贴图旋转动画：沿圆周方向（UV-U）滚动 = 螺旋水流旋转，泡沫反向转更有层次
     whirlWaterTex.offset.x=(whirlWaterTex.offset.x+dt*.09)%1;
     whirlFoamTex.offset.x=(whirlFoamTex.offset.x-dt*.13+1)%1;
@@ -2789,13 +2892,14 @@ function updateWhirlpools(dt){
         const R=12*ws;              // 影响半径（大幅扩大，让鸭子更易进入吸力范围）
         const SINK_R=1.0*ws;       // 进入中心阈值：到达此处触发沉没动画
         // ---- 漩涡本体（元宵/常规完全一致的视觉与动画） ----
-        // 圆盘逐顶点拟合实际可见的水面三角网格；小幅有序抬高只负责防止近共面闪烁。
-        w.disk.userData.update(w.x,w.z,ws,.12);
-        w.foam.userData.update(w.x,w.z,ws,.14);
-        w.core.userData.update(w.x,w.z,ws,.16);
-        // 浪花环/引力圈逐帧贴合浪面
-        w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.52);
-        w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.24);
+        // 五层网格合计约 3156 个顶点；水面未变化时重复拟合没有任何视觉收益。
+        if(surfaceChanged){
+            w.disk.userData.update(w.x,w.z,ws,.12);
+            w.foam.userData.update(w.x,w.z,ws,.14);
+            w.core.userData.update(w.x,w.z,ws,.16);
+            w.rim.userData.update(w.x,w.z,2.3*ws,3.9*ws,.52);
+            w.field.userData.update(w.x,w.z,4.6*ws,5*ws,.24);
+        }
         // 漩涡贴图随昼夜变暗（MeshBasicMaterial 自发光，否则夜晚亮得突兀）
         w.disk.material.color.setScalar(envBright);w.foam.material.color.setScalar(envBright);
         w.core.material.color.setScalar(envBright);w.rim.material.color.setScalar(envBright);
@@ -2839,6 +2943,11 @@ function updateWhirlpools(dt){
             _lanternTargetQ.copy(_lanternTiltQ).multiply(_lanternYawQ);
             // 与水面本帧姿态保持同相；若做滞后插值，高侧会在巨浪突变时短暂切进水面。
             w.lantern.quaternion.copy(_lanternTargetQ);
+        }
+        // 定向视觉回归只验证水面贴合与 UI 层级，不允许测试漩涡改变玩家/道具状态。
+        if(w.visualOnly){
+            if(!duoIsGuest()&&w.life<=0){disposeWhirlpoolVisuals(w);const zi=whirlZones.indexOf(w.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1)}
+            continue;
         }
         if(gameActive&&duckModel&&duckSink.state==='none'){
             const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
@@ -4247,20 +4356,29 @@ function applyDuoBlessing(blessing){
 
 // 设置面板
 let graphicsQuality=['low','mid','high'].includes(localStorage.getItem('duck_quality'))?localStorage.getItem('duck_quality'):(isMobile?'low':'mid');
+function getGraphicsPreset(level){
+    const presets={
+        low:{ratio:Math.min(devicePixelRatio,.85),wave:5,normals:24,waveHz:30,normalHz:4,environment:4,segments:36,shadows:false,shadowEvery:0,shadowHz:0},
+        mid:{ratio:Math.min(devicePixelRatio,1),wave:4,normals:18,waveHz:30,normalHz:6,environment:3,segments:48,shadows:true,shadowEvery:4,shadowHz:15},
+        high:{ratio:Math.min(devicePixelRatio*1.15,1.5),wave:3,normals:12,waveHz:30,normalHz:8,environment:2,segments:56,shadows:true,shadowEvery:3,shadowHz:20}
+    };
+    return presets[level]||presets.high;
+}
 function applyGraphicsQuality(level){
     graphicsQuality=['low','mid','high'].includes(level)?level:'high';
-    const presets={
-        low:{ratio:Math.min(devicePixelRatio,.85),wave:5,normals:24,environment:4,segments:36,shadows:false,shadowEvery:0},
-        mid:{ratio:Math.min(devicePixelRatio,1),wave:4,normals:18,environment:3,segments:48,shadows:true,shadowEvery:4},
-        high:{ratio:Math.min(devicePixelRatio*1.15,1.5),wave:3,normals:12,environment:2,segments:56,shadows:true,shadowEvery:3}
-    };
-    const preset=presets[graphicsQuality];
+    const preset=getGraphicsPreset(graphicsQuality);
     quality.basePixelRatio=preset.ratio;quality.drsScale=1; // 切档时重置动态分辨率
     quality.renderPixelRatio=preset.ratio;
     quality.waveUpdateInterval=preset.wave;
     quality.waveNormalInterval=preset.normals;
+    quality.waveUpdateHz=preset.waveHz;
+    quality.stormWaveUpdateHz=40;
+    quality.waveNormalHz=preset.normalHz;
     quality.environmentUpdateInterval=preset.environment;
     quality.shadowUpdateInterval=preset.shadowEvery;
+    quality.shadowUpdateHz=preset.shadowHz;
+    quality.restricted=false;
+    quality.effectiveTier=graphicsQuality;
     setWaveDetail(preset.segments);
     renderer.setPixelRatio(quality.renderPixelRatio);
     renderer.setSize(innerWidth,innerHeight);
@@ -4268,7 +4386,31 @@ function applyGraphicsQuality(level){
     renderer.shadowMap.autoUpdate=false;
     renderer.shadowMap.needsUpdate=true;
     if(typeof resizeEnvironment==='function')resizeEnvironment();
+    restrictedLowSeconds=0;restrictedRecoverySeconds=0;
     localStorage.setItem('duck_quality',graphicsQuality);
+}
+let restrictedLowSeconds=0,restrictedRecoverySeconds=0;
+function setPerformanceRestricted(restricted){
+    if(quality.restricted===restricted)return;
+    const preset=getGraphicsPreset(graphicsQuality);
+    quality.restricted=restricted;quality.effectiveTier=restricted?'restricted':graphicsQuality;
+    quality.waveNormalHz=restricted?Math.min(3,preset.normalHz):preset.normalHz;
+    quality.environmentUpdateInterval=restricted?Math.max(4,preset.environment):preset.environment;
+    quality.shadowUpdateHz=restricted?0:preset.shadowHz;
+    renderer.shadowMap.enabled=restricted?false:preset.shadows;
+    setWaveDetail(restricted?Math.min(36,preset.segments):preset.segments);
+    if(!restricted&&preset.shadows)renderer.shadowMap.needsUpdate=true;
+    restrictedLowSeconds=0;restrictedRecoverySeconds=0;
+}
+function updatePerformanceRestriction(dt){
+    if(!gameActive||document.visibilityState!=='visible'){restrictedLowSeconds=0;restrictedRecoverySeconds=0;return}
+    if(!quality.restricted){
+        if(fpsValue<45&&quality.drsScale<=.7)restrictedLowSeconds+=dt;else restrictedLowSeconds=Math.max(0,restrictedLowSeconds-dt*2);
+        if(restrictedLowSeconds>=3)setPerformanceRestricted(true);
+    }else{
+        if(fpsValue>57&&quality.drsScale>=.9)restrictedRecoverySeconds+=dt;else restrictedRecoverySeconds=0;
+        if(restrictedRecoverySeconds>=12)setPerformanceRestricted(false);
+    }
 }
 function setSwitchState(id,on){
     const el=document.getElementById(id);
@@ -4651,9 +4793,10 @@ setAchievementsCtx({
 
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
 let fpsAccum=0,fpsFrames=0,fpsValue=60;
+let lastShadowUpdateMs=0;
 const framePerf={samples:0,over33:0,over50:0,maxMs:0,lastMs:0};
 (function loop(){requestAnimationFrame(loop);
-    const rawDt=clock.getDelta(),dt=Math.min(rawDt,.05),frameMs=rawDt*1000;
+    const rawDt=clock.getDelta(),dt=Math.min(rawDt,.05),frameMs=rawDt*1000,frameNow=performance.now();
     framePerf.samples++;framePerf.lastMs=frameMs;framePerf.maxMs=Math.max(framePerf.maxMs,frameMs);if(frameMs>33.34)framePerf.over33++;if(frameMs>50)framePerf.over50++;
     // FPS 统计（即使暂停也统计，因为仍在渲染）
     // 必须使用未截断的真实帧间隔；旧逻辑在 5~10 FPS 时仍会错误显示成 20 FPS。
@@ -4667,12 +4810,15 @@ const framePerf={samples:0,over33:0,over50:0,maxMs:0,lastMs:0};
             fpsEl.className='fps-hud show'+(fpsValue<30?' bad':fpsValue<50?' warn':'');
         }
     }
-    // 动态分辨率（DRS）：帧率低时自动降低渲染像素比，充裕时回升，4060/核显都稳住帧率
-    quality.drsTimer+=dt;
-    if(quality.drsTimer>1.5){
-        quality.drsTimer=0;
-        if(fpsValue<46&&quality.drsScale>.62){quality.drsScale=Math.max(.6,quality.drsScale-.15);applyDRS({sizeStormCv:resizeEnvironment})}
-        else if(fpsValue>57&&quality.drsScale<1){quality.drsScale=Math.min(1,quality.drsScale+.1);applyDRS({sizeStormCv:resizeEnvironment})}
+    // 暂停/设置页不改变动态画质，避免轻负载界面把 DRS 和阴影误恢复，回到游戏瞬间再次卡顿。
+    if(!isPaused){
+        quality.drsTimer+=dt;
+        if(quality.drsTimer>1.5){
+            quality.drsTimer=0;
+            if(fpsValue<46&&quality.drsScale>.62){quality.drsScale=Math.max(.6,quality.drsScale-.15);applyDRS({sizeStormCv:resizeEnvironment})}
+            else if(fpsValue>57&&quality.drsScale<1){quality.drsScale=Math.min(1,quality.drsScale+.1);applyDRS({sizeStormCv:resizeEnvironment})}
+        }
+        updatePerformanceRestriction(dt);
     }
     // 上一帧的随机抖动只是渲染偏移，先精确撤销，绝不写进 OrbitControls 的轨道基准。
     clearCameraShakeOffset();
@@ -4685,6 +4831,12 @@ const framePerf={samples:0,over33:0,over50:0,maxMs:0,lastMs:0};
     gameClock+=dt;updateDuoClock(dt);timeOfDay=(timeOfDay+dt*TIME_SPEED/60)%24;
 // 波浪相位独立推进：暴风雨/海浪事件加速，平静时刻减速（平滑过渡）
 waterUpdatePhase(dt,waveSpeedTarget);
+// 先推进海浪事件、水流和 waveBoost；随后水面与鸭子都读取这一帧的同一状态。
+if(duckModel&&gameActive)updateCur(dt);
+// 先更新本帧真正显示的水面，再让鸭子、远端角色和相机采样同一个 renderedWaveClock。
+// 旧顺序是鸭子/相机先读旧水面、随后水面跳到新相位，30 FPS 时会出现一帧错相和明显阶梯抖动。
+if(duckModel)waterFollowTarget(duckModel.position.x,duckModel.position.z);
+const waterSurfaceChanged=waterUpdateVertices(gameClock,duckModel?.position.x,duckModel?.position.z,frameNow);
 // 暴风雨强度 / 闪电余晖 平滑过渡
 stormFactor+=((stormActive?1:0)-stormFactor)*Math.min(1,dt*.9);
 lightningFlash=Math.max(0,lightningFlash-dt*2.6);
@@ -4699,11 +4851,8 @@ if(frameCount%6===0){
     // 注：hearts/score 输入显示在面板打开时初始化一次，避免每帧覆盖用户输入导致应用修改无效
 }
 if(duckModel){waterFollowTarget(duckModel.position.x,duckModel.position.z);arrowPlane.position.x=duckModel.position.x;arrowPlane.position.z=duckModel.position.z}
-// 波浪动画（顶点按世界坐标采样 waveHeight，与鸭子/道具完全同步）
-// 更新后定格 renderedWaveClock：鸭子/道具/涟漪/鲨鱼都以它采样，与渲染浪面严格一致
-waterUpdateVertices(gameClock);
-// 漩涡更新放在水面网格之后：贴图重采样总能读到最新顶点（同节奏闸口在函数内部）
-updateWhirlpools(dt);
+// 漩涡仅在波面真正变化时重拟合数千个顶点；吸力、寿命和贴图旋转仍逐帧推进。
+updateWhirlpools(dt,waterSurfaceChanged);
 // 方向箭头贴合浪面起伏（以渲染时钟采样，与水面网格严格一致）
 if(arrowPlane.material.opacity>.01){const ap=arrowPlane.geometry.attributes.position;for(let i=0;i<ap.count;i++){const lx=ap.getX(i),ly=ap.getY(i);ap.setZ(i,waveHeight(lx+arrowPlane.position.x,-ly+arrowPlane.position.z,renderedWaveClock)+.14)}ap.needsUpdate=true}
 // 花朵/海草/荷叶随海浪漂浮
@@ -4729,6 +4878,8 @@ it.magT=Math.max(0,(it.magT||0)-dt*1.5);const mLift=it.magT*it.magT*.55,itSpin=i
 if(it.type==='lily'){it.mesh.position.y=floatY+.04+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.2+ix)*.06;it.mesh.rotation.x=Math.cos(gameClock*1.0+iz)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='flower'){it.mesh.position.y=floatY-.02+mLift;it.mesh.rotation.z=Math.sin(gameClock*1.5+ix*2)*.08;it.mesh.rotation.x=Math.cos(gameClock*1.3+iz*2)*.05;it.mesh.rotation.y+=itSpin}else if(it.type==='grass'){it.mesh.position.y=floatY-.06+(it.mesh.userData.floatLift||0)+mLift;it.mesh.rotation.z=Math.sin(gameClock*2+ix*3)*.1;it.mesh.rotation.x=Math.cos(gameClock*1.8+iz*3)*.06;it.mesh.rotation.y+=itSpin}else if(it.type==='rock'){it.mesh.position.y=floatY-.12}else if(it.type==='heart'){it.mesh.position.y=floatY+.4+mLift+Math.sin(gameClock*2+ix)*.12;it.mesh.rotation.y=gameClock*1.6}else if(it.type==='magnet'){it.mesh.position.y=floatY+.65+mLift;it.mesh.rotation.y=gameClock*1.2+it.magT*2}}
 // 连胜边框柔和呼吸
 if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('combo-border').style.opacity=s}
+// OrbitControls 的 dampingFactor 是“每次 update”的比例；换算到真实 dt 后，30/60/120 FPS 衰减手感一致。
+controls.dampingFactor=1-Math.pow(1-.06,Math.min(dt,.05)*60);
 controls.update();
 // 节日漂浮物在水面与最终相机轨道更新后采样：旗座贴浪，镜头外回收也不会被阻尼转动带入本帧视野。
 FestivalFx.update(dt);
@@ -4736,8 +4887,8 @@ FestivalFx.update(dt);
 applyCameraShake(dt);
 // 吸入结束后滤镜继续旋转着褪去（sinkFx 衰减到 0）
 if(duckSink.state==='none'&&sinkFx>0)sinkFx=Math.max(0,sinkFx-dt*.9);
-// 阴影比主画面更昂贵：按画质每 2–3 帧更新一次，动态物体仍有稳定阴影。
-if(renderer.shadowMap.enabled&&quality.shadowUpdateInterval>0&&frameCount%quality.shadowUpdateInterval===0)renderer.shadowMap.needsUpdate=true;
+// 阴影按真实时间而不是显示器帧数更新；120/165Hz 屏不再比60Hz多提交两三倍 shadow pass。
+if(renderer.shadowMap.enabled&&quality.shadowUpdateHz>0&&frameNow-lastShadowUpdateMs>=1000/quality.shadowUpdateHz){renderer.shadowMap.needsUpdate=true;lastShadowUpdateMs=frameNow}
 // 漩涡吸入时走后处理滤镜（涡旋+模糊+暗角），平时直渲
 try{
     if(sinkFx>0.004)swirlPostfx.render(sinkFx);
