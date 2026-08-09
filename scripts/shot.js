@@ -19,6 +19,7 @@ const mode = process.argv[2] || 'all';
         defaultViewport: { width: 1280, height: 720 },
     });
     const page = await browser.newPage();
+    await page.setCacheEnabled(false);
     const errors = [];
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
@@ -60,8 +61,8 @@ const mode = process.argv[2] || 'all';
         await sleep(400);
         await dismiss();
         await page.screenshot({ path: path.join(OUT, 'lantern-far.png') });
-        // 侧面平视（接近真实游玩视角，看孔明灯轮廓与烛火）
-        await page.evaluate((p) => window.__lookAt(p[0], 1.8, p[1], 9, 2.4), pos);
+        // 侧面平视（贴近水面看孔明灯侧面轮廓）
+        await page.evaluate((p) => window.__lookAt(p[0], 0.6, p[1], 5, 1.0), pos);
         await sleep(400);
         await dismiss();
         await page.screenshot({ path: path.join(OUT, 'lantern-side.png') });

@@ -2478,12 +2478,10 @@ function updateWhirlpools(dt){
             // 灯罩边缘处浪面最多比中心高 ~1.3，恰好不碰竹圈；暴风雨再按浪强补高）
             const lift=w.lantern.children[0].userData.bottomExtent*w.lantern.children[0].scale.x+1.3+3*Math.max(0,waveBoost-1);
             w.lantern.position.set(w.x,waveHeight(w.x,w.z,renderedWaveClock)+lift,w.z);
-            // 孔明灯缓缓自旋 + 随风轻摆 + 烛火闪烁
+            // 孔明灯缓缓自旋 + 随风轻摆
             w.lantern.rotation.y+=dt*.15;
             w.lantern.rotation.z=Math.sin(gameClock*.8+w.x)*.05;
             w.lantern.rotation.x=Math.cos(gameClock*.6+w.z)*.04;
-            const fl=w.lantern.children[0].userData.flame;
-            if(fl){const fk=1+Math.sin(gameClock*11+w.x*7)*.12+Math.sin(gameClock*23)*.06;fl.scale.set(1,1.5*fk,1)}
         }
         if(gameActive&&duckModel&&duckSink.state==='none'){
             const dx=w.x-duckModel.position.x,dz=w.z-duckModel.position.z;const d=Math.sqrt(dx*dx+dz*dz);
@@ -3304,115 +3302,146 @@ const FestivalFx={
 let _skyLanternTex=null;
 function getSkyLanternTex(){
     if(_skyLanternTex)return _skyLanternTex;
-    _skyLanternTex=mkTex(1024,512,x=>{
-        // 纸面底色：横向包覆无接缝，纵向底亮顶暗（烛光从下往上照），深橙红防止阳光下洗白
+    _skyLanternTex=mkTex(512,512,x=>{
+        // 纸面底色：暖橙红（深一点防止阳光下洗白）
         const bg=x.createLinearGradient(0,512,0,0);
         bg.addColorStop(0,'#d95a14');bg.addColorStop(.35,'#c8430c');bg.addColorStop(.8,'#a83308');bg.addColorStop(1,'#8f2806');
-        x.fillStyle=bg;x.fillRect(0,0,1024,512);
+        x.fillStyle=bg;x.fillRect(0,0,512,512);
         // 纸面纤维颗粒（宣纸质感）
-        for(let i=0;i<900;i++){
-            x.fillStyle=`rgba(${120+Math.random()*80|0},${40+Math.random()*40|0},10,${.03+Math.random()*.05})`;
-            x.fillRect(Math.random()*1024,Math.random()*512,1+Math.random()*3,1+Math.random()*2);
+        for(let i=0;i<600;i++){
+            x.fillStyle=`rgba(${120+Math.random()*80|0},${40+Math.random()*40|0},10,${.02+Math.random()*.04})`;
+            x.fillRect(Math.random()*512,Math.random()*512,1+Math.random()*2,1+Math.random()*2);
         }
-        // 横向纤维丝（竹帘纹）
-        x.strokeStyle='rgba(255,220,170,.06)';x.lineWidth=1;
-        for(let i=0;i<60;i++){
-            const y0=Math.random()*512;
-            x.beginPath();x.moveTo(0,y0);x.lineTo(1024,y0+(Math.random()-.5)*8);x.stroke();
-        }
-        // 竖向竹骨/纸筋阴影（8 条，与 3D 竹骨对应）
-        for(let i=0;i<8;i++){
-            const x0=i*128+16;
-            const g=x.createLinearGradient(x0,0,x0+44,0);
-            g.addColorStop(0,'rgba(110,30,6,0)');g.addColorStop(.5,'rgba(110,30,6,.4)');g.addColorStop(1,'rgba(110,30,6,0)');
-            x.fillStyle=g;x.fillRect(x0,0,44,512);
-        }
-        // 顶部收拢褶皱（扇形汇聚暗纹，向下渐隐，让圆顶有"纸糊收口"结构感）
-        for(let i=0;i<24;i++){
-            const x0=i*42.7;
-            const g2=x.createLinearGradient(0,0,0,220);
-            g2.addColorStop(0,'rgba(90,22,4,.55)');g2.addColorStop(1,'rgba(90,22,4,0)');
-            x.strokeStyle=g2;x.lineWidth=5;
-            x.beginPath();x.moveTo(x0+14,0);x.lineTo(x0,220);x.stroke();
-        }
-        // 灯身"福"字（祈福手写感，只占一格不重复）
+        // 中间烛光光晕（居中，从内部透出的暖光）
+        const centerGlow=x.createRadialGradient(256,300,15,256,300,200);
+        centerGlow.addColorStop(0,'rgba(255,250,200,.45)');
+        centerGlow.addColorStop(.4,'rgba(255,210,120,.18)');
+        centerGlow.addColorStop(1,'rgba(255,210,120,0)');
+        x.fillStyle=centerGlow;x.fillRect(30,50,452,412);
+        // 底部烛光光晕
+        const gl=x.createLinearGradient(0,512,0,320);
+        gl.addColorStop(0,'rgba(255,230,170,.28)');gl.addColorStop(1,'rgba(255,230,170,0)');
+        x.fillStyle=gl;x.fillRect(0,320,512,192);
+        // 灯身"福"字（居中）
         x.save();
-        x.translate(256,300);x.rotate(-.04);
+        x.translate(256,280);x.rotate(-.03);
         x.fillStyle='rgba(120,18,6,.5)';
-        x.font='bold 150px "KaiTi","STKaiti","SimSun",serif';
+        x.font='bold 140px "KaiTi","STKaiti","SimSun",serif';
         x.textAlign='center';x.textBaseline='middle';
         x.fillText('福',0,0);
         x.restore();
-        // 底部烛光光晕
-        const gl=x.createLinearGradient(0,512,0,300);
-        gl.addColorStop(0,'rgba(255,220,160,.4)');gl.addColorStop(1,'rgba(255,220,160,0)');
-        x.fillStyle=gl;x.fillRect(0,300,1024,212);
     });
     _skyLanternTex.wrapS=THREE.RepeatWrapping;_skyLanternTex.wrapT=THREE.ClampToEdgeWrapping;
+    _skyLanternTex.repeat.set(4,1); // 横向重复 4 次包裹方筒
     return _skyLanternTex;
 }
+// 孔明灯 emissive 贴图：中间亮、四周暗（烛光从内部透出的效果）
+let _skyLanternEmissiveTex=null;
+function getSkyLanternEmissiveTex(){
+    if(_skyLanternEmissiveTex)return _skyLanternEmissiveTex;
+    _skyLanternEmissiveTex=mkTex(512,256,x=>{
+        // 中间暖黄亮区（烛光位置，居中）
+        const g=x.createRadialGradient(256,140,10,256,140,130);
+        g.addColorStop(0,'rgba(255,255,230,1)');
+        g.addColorStop(.3,'rgba(255,230,150,.8)');
+        g.addColorStop(.7,'rgba(255,200,100,.25)');
+        g.addColorStop(1,'rgba(200,120,40,0)');
+        x.fillStyle=g;x.fillRect(0,0,512,256);
+        // 底部更亮（烛光在下，横向连续）
+        const bg=x.createLinearGradient(0,256,0,100);
+        bg.addColorStop(0,'rgba(255,220,120,.2)');bg.addColorStop(1,'rgba(255,220,120,0)');
+        x.fillStyle=bg;x.fillRect(0,100,512,156);
+    });
+    _skyLanternEmissiveTex.wrapS=THREE.RepeatWrapping;_skyLanternEmissiveTex.wrapT=THREE.ClampToEdgeWrapping;
+    _skyLanternEmissiveTex.repeat.set(4,1); // 横向重复 4 次包裹方筒
+    return _skyLanternEmissiveTex;
+}
 function mkWhirlLantern(){
-    // 孔明灯：圆角方筒纸灯罩 + 棱角竹骨 + 顶部收口结 + 底部竹圈/十字竹条 + 内部烛火
+    // 孔明灯：上下等宽方筒纸灯罩 + 棱角竹骨 + 顶部封口 + 底部竹圈 + 中间烛光发光
     const g=new THREE.Group();
-    const RO=20; // renderOrder：高于漩涡贴图（5-8），花灯永不被漩涡贴图遮挡
-    // 灯罩轮廓：底部开口小、直筒腹、顶部收成圆顶（高:宽≈1.2:1，真孔明灯比例，压扁了会像球）
-    const prof=[[.26,0],[.38,.08],[.44,.22],[.45,.45],[.44,.65],[.38,.82],[.28,.95],[.14,1.05],[.02,1.10]]
-        .map(p=>new THREE.Vector2(p[0],p[1]));
+    const RO=20;
+    const bambooMat=new THREE.MeshStandardMaterial({color:0xb9904f,roughness:.6});
     const paperMat=new THREE.MeshStandardMaterial({
         map:getSkyLanternTex(),roughness:.7,metalness:0,
         side:THREE.DoubleSide,
-        emissive:0xff8040,emissiveIntensity:.18 // 烛光自发光，夜晚也是暖的
+        emissive:0xffaa40,emissiveIntensity:.5,
+        emissiveMap:getSkyLanternEmissiveTex()
     });
-    const bodyGeo=new THREE.LatheGeometry(prof,64);
-    // 真孔明灯是四张纸糊的【圆角方筒】：截面按 superellipse 外鼓（4 条圆角棱在 45° 方向），
-    // 混合 70% 方形因子 → 纸面微鼓、棱圆润，不是硬纸盒
     const sqF=th=>{const c=Math.abs(Math.cos(th)),s=Math.abs(Math.sin(th));
-        return 1+(Math.pow(Math.pow(c,4)+Math.pow(s,4),-.25)-1)*.7};
-    const bp=bodyGeo.attributes.position;
-    for(let i=0;i<bp.count;i++){
-        const bx=bp.getX(i),bz=bp.getZ(i);
-        if(bx*bx+bz*bz<1e-8)continue;
-        const f=sqF(Math.atan2(bz,bx));
-        bp.setX(i,bx*f);bp.setZ(i,bz*f);
+        return Math.pow(Math.pow(c,4)+Math.pow(s,4),-.25)};
+    // 上下等宽方筒
+    const H=1.0, R=.44;
+    const faceArc=Math.PI/2;
+    for(let f=0;f<4;f++){
+        const baseAng=f*Math.PI/2;
+        const SEG_U=8, SEG_V=8;
+        const geo=new THREE.PlaneGeometry(1,1,SEG_U,SEG_V);
+        const p=geo.attributes.position;
+        const uv=geo.attributes.uv;
+        for(let i=0;i<p.count;i++){
+            const u=uv.getX(i), v=uv.getY(i);
+            const th=baseAng+u*faceArc;
+            const r=R*sqF(th);
+            p.setXYZ(i,Math.cos(th)*r, v*H, Math.sin(th)*r);
+            // UV 映射：每个面都覆盖完整贴图（0~1），这样每个面都能看到完整的发光效果
+            uv.setXY(i, u, v);
+        }
+        geo.computeVertexNormals();
+        const face=new THREE.Mesh(geo,paperMat);
+        face.renderOrder=RO;g.add(face);
     }
-    bodyGeo.computeVertexNormals();
-    const body=new THREE.Mesh(bodyGeo,paperMat);
-    body.renderOrder=RO;g.add(body);
-    // 纵向竹骨条：4 根细管立在方筒圆角棱上（真孔明灯骨架就在纸面接缝处）
-    const bambooMat=new THREE.MeshStandardMaterial({color:0xb9904f,roughness:.6});
-    const ribPts=prof.map(p=>new THREE.Vector3(p.x*sqF(Math.PI/4)+.012,p.y,0)); // 沿 45° 棱外鼓
-    const ribCurve=new THREE.CatmullRomCurve3(ribPts);
-    for(let i=0;i<4;i++){
-        const rib=new THREE.Mesh(new THREE.TubeGeometry(ribCurve,24,.009,5),bambooMat);
-        rib.rotation.y=Math.PI/4+i*Math.PI/2;rib.renderOrder=RO;g.add(rib);
+    // 纵向竹骨条：4 根立在接缝上
+    for(let f=0;f<4;f++){
+        const ang=f*Math.PI/2+Math.PI/4;
+        const pts=[];
+        for(let v=0;v<=8;v++){
+            const y=v/8*H;
+            const r=R*sqF(ang);
+            pts.push(new THREE.Vector3(Math.cos(ang)*r,y,Math.sin(ang)*r));
+        }
+        const rib=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),8,.01,5),bambooMat);
+        rib.renderOrder=RO;g.add(rib);
     }
-    // 顶部收口结（纸张收拢捆扎处）
-    const knot=new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,.09,10),bambooMat);
-    knot.position.y=1.11;knot.renderOrder=RO;g.add(knot);
-    // 底部竹圈（贴合方口的圆角方形）+ 十字竹条（托烛火用）
+    // 顶部封口（覆盖整个方口的纸片）
+    const topShape=new THREE.Shape();
+    const topSegs=16;
+    for(let i=0;i<=topSegs;i++){
+        const th=i/topSegs*Math.PI*2;
+        const rr=R*sqF(th);
+        if(i===0) topShape.moveTo(Math.cos(th)*rr,Math.sin(th)*rr);
+        else topShape.lineTo(Math.cos(th)*rr,Math.sin(th)*rr);
+    }
+    const topGeo=new THREE.ShapeGeometry(topShape);
+    const topMesh=new THREE.Mesh(topGeo,paperMat);
+    topMesh.position.y=H;topMesh.rotation.x=Math.PI/2;topMesh.renderOrder=RO;g.add(topMesh);
+    // 顶部竹圈
+    const topRingPts=[];
+    for(let i=0;i<=16;i++){
+        const th=i/16*Math.PI*2;
+        const rr=R*sqF(th)+.008;
+        topRingPts.push(new THREE.Vector3(Math.cos(th)*rr,H,Math.sin(th)*rr));
+    }
+    const topRing=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(topRingPts,true),32,.018,6),bambooMat);
+    topRing.renderOrder=RO;g.add(topRing);
+    // 底部方竹圈
     const ringPts=[];
-    for(let i=0;i<=32;i++){const th=i/32*Math.PI*2;const rr=.26*sqF(th)+.008;
-        ringPts.push(new THREE.Vector3(Math.cos(th)*rr,.01,Math.sin(th)*rr))}
-    const ring=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ringPts,true),64,.02,6),bambooMat);
-    ring.renderOrder=RO;g.add(ring);
-    for(let i=0;i<2;i++){
-        const stick=new THREE.Mesh(new THREE.CylinderGeometry(.011,.011,.52,5),bambooMat);
-        stick.rotation.z=Math.PI/2;stick.rotation.y=i*Math.PI/2;stick.position.y=.02;
-        stick.renderOrder=RO;g.add(stick);
+    for(let i=0;i<=16;i++){
+        const th=i/16*Math.PI*2;
+        const rr=R*sqF(th)+.008;
+        ringPts.push(new THREE.Vector3(Math.cos(th)*rr,.01,Math.sin(th)*rr));
     }
-    // 内部暖光晕（隔着纸罩透出的烛光团）
-    const glow=new THREE.Mesh(new THREE.SphereGeometry(.17,12,10),
-        new THREE.MeshBasicMaterial({color:0xffd9a0,transparent:true,opacity:.14,fog:false,depthWrite:false}));
-    glow.position.y=.2;glow.renderOrder=RO;g.add(glow);
-    // 烛火：外焰（暖黄）+ 内芯（亮橙），双层拉长的火苗形（userData.flame 供闪烁动画）
-    const flameOut=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),
-        new THREE.MeshBasicMaterial({color:0xffc46e,transparent:true,opacity:.9,fog:false,depthWrite:false}));
-    flameOut.scale.set(1,1.5,1);flameOut.position.y=.13;flameOut.renderOrder=RO+1;g.add(flameOut);
-    const flameIn=new THREE.Mesh(new THREE.SphereGeometry(.04,8,6),
-        new THREE.MeshBasicMaterial({color:0xff8a2a,fog:false,depthWrite:false}));
-    flameIn.scale.set(1,1.4,1);flameIn.position.y=.11;flameIn.renderOrder=RO+1;g.add(flameIn);
-    g.userData.flame=flameOut;
-    // 最低点（竹圈底部）局部坐标，供外部计算防穿模抬升高度
+    const ring=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ringPts,true),32,.02,6),bambooMat);
+    ring.renderOrder=RO;g.add(ring);
+    // 底部封口
+    const botShape=new THREE.Shape();
+    for(let i=0;i<=16;i++){const th=i/16*Math.PI*2;const rr=R*sqF(th);if(i===0)botShape.moveTo(Math.cos(th)*rr,Math.sin(th)*rr);else botShape.lineTo(Math.cos(th)*rr,Math.sin(th)*rr);}
+    const botGeo=new THREE.ShapeGeometry(botShape);
+    const botMesh=new THREE.Mesh(botGeo,paperMat);
+    botMesh.position.y=0;botMesh.rotation.x=Math.PI/2;botMesh.renderOrder=RO;g.add(botMesh);
+    ring.renderOrder=RO;g.add(ring);
+    // 中间烛光：只用点光源照亮内部，纸罩 emissive 让光"透"出来
+    const light=new THREE.PointLight(0xff9040,2.5,2.5);
+    light.position.y=H*.4;g.add(light);
     g.userData.bottomExtent=.04;
     return g;
 }
@@ -3574,21 +3603,33 @@ function mkZongzi(x,z){
         lg.computeVertexNormals();
         leafFrame.add(new THREE.Mesh(lg,leafMat));
     }
-    // 麻绳十字捆扎：腰横一圈 + 过顶纵一圈（绞纹稻草绳），微陷入粽身显"勒紧"感
+    // 麻绳十字捆扎：腰横一圈 + 过顶纵一圈（绞纹稻草绳），沿粽身表面贴合
     const ropeMat=new THREE.MeshStandardMaterial({map:getRopeTex(),roughness:.65});
-    const ropeH=new THREE.Mesh(new THREE.TorusGeometry(.245,.024,10,48),ropeMat);
-    ropeH.rotation.x=Math.PI/2;ropeH.position.y=.24;g.add(ropeH);
-    const ropeV=new THREE.Mesh(new THREE.TorusGeometry(.235,.024,10,48),ropeMat);
-    ropeV.rotation.y=Math.PI/4;ropeV.scale.set(1,1.5,1);ropeV.position.y=.27;g.add(ropeV);
-    // 绳结（侧面小球 + 两根翘起的线头）
-    const knot=new THREE.Mesh(new THREE.SphereGeometry(.045,12,10),ropeMat);
-    knot.position.set(.21,.28,.11);g.add(knot);
-    for(let i=0;i<2;i++){
-        const tail=new THREE.Mesh(new THREE.CylinderGeometry(.011,.006,.12,6),ropeMat);
-        tail.position.set(.24+i*.04,.22-i*.03,.13);
-        tail.rotation.z=.5+i*.4;tail.rotation.x=.3;
-        g.add(tail);
+    // 横向绳：沿三个底角绕一圈（在腰线高度）
+    const waistR=.245;
+    const waistPts=[];
+    for(let i=0;i<=36;i++){
+        const a=i/36*Math.PI*2;
+        // 沿四面体底面三角形绕圈（近似圆）
+        waistPts.push(new THREE.Vector3(Math.cos(a)*waistR,.24,Math.sin(a)*waistR));
     }
+    const waistRope=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(waistPts,true),36,.022,6),ropeMat);
+    g.add(waistRope);
+    // 纵向绳：从底角过顶再到底角（十字交叉）
+    const vertR=.235;
+    for(let vi=0;vi<2;vi++){
+        const ang=vi*Math.PI/2;
+        const vertPts=[];
+        for(let i=0;i<=24;i++){
+            const t=i/24;
+            const a=ang+(t<.5?t*2:(2-t*2))*Math.PI; // 绕半圈
+            const yOff=Math.sin(t*Math.PI)*.15; // 过顶时抬高
+            vertPts.push(new THREE.Vector3(Math.cos(a)*vertR,.24+yOff,Math.sin(a)*vertR));
+        }
+        const vertRope=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(vertPts,true),24,.022,6),ropeMat);
+        g.add(vertRope);
+    }
+    // 绳结和线头已去掉（用户反馈不需要）
     g.position.set(x,0,z);
     // 防穿模：道具漂浮逻辑对 grass 固定下沉 .06（水草从水里长出才压水面），
     // 粽子是"浮"在水上的，需要净抬高，否则底面被浪面切片
