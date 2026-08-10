@@ -1,10 +1,22 @@
 // 分享卡片：Canvas 1200×800 绘制、二维码生成、预览与下载
-// 依赖通过 setShareCardCtx 注入：{ Leaderboard, Duo, toast }
+// 依赖通过 setShareCardCtx 注入：{ Leaderboard, Duo, toast, getRunHighlight }
 // 这样可避免与 main.js 产生循环导入，同时保持 UI 模块无状态侵入
 
 import {formatScore} from '../core/format.js';
 
 let _ctx=null;
+
+const DEFAULT_RUN_HIGHLIGHT=Object.freeze({kind:'steady',icon:'✨',text:'勇敢完成本局'});
+
+function normalizeRunHighlight(value){
+    if(typeof value==='string')value={text:value};
+    if(!value||typeof value!=='object')return {...DEFAULT_RUN_HIGHLIGHT};
+    const rawText=typeof value.text==='string'?value.text.trim():'';
+    const text=rawText.replace(/^本局高光\s*[\u00b7・:：\-]?\s*/,'').trim()||DEFAULT_RUN_HIGHLIGHT.text;
+    const icon=typeof value.icon==='string'&&value.icon.trim()?value.icon.trim():DEFAULT_RUN_HIGHLIGHT.icon;
+    const kind=typeof value.kind==='string'&&value.kind.trim()?value.kind.trim().toLowerCase():DEFAULT_RUN_HIGHLIGHT.kind;
+    return {kind,icon,text};
+}
 
 /** 由 main.js 在初始化阶段注入依赖 */
 export function setShareCardCtx(ctx){
@@ -120,8 +132,12 @@ _bindShareResize();
 
 // 生成分享卡片 dataURL（预览和下载共用，确保一模一样）
 async function generateShareCardDataURL(){
-    const {Leaderboard,Duo}=(_ctx||{});
+    const {Leaderboard,Duo,getRunHighlight}=(_ctx||{});
     if(!Leaderboard)throw new Error('ShareCard ctx not initialized');
+    // 在任何异步等待前只读取一次，保证整张卡片使用同一份本局快照。
+    let rawRunHighlight=null;
+    try{rawRunHighlight=typeof getRunHighlight==='function'?getRunHighlight():null}catch(e){rawRunHighlight=null}
+    const runHighlight=normalizeRunHighlight(rawRunHighlight);
     const myBest=Leaderboard.myBest();
     const myName=Leaderboard.getCachedName()||'勇敢鸭鸭';
     const duoShare=!!(Duo&&Duo.active&&Duo.room);
@@ -270,6 +286,29 @@ async function generateShareCardDataURL(){
     ctx.shadowColor='rgba(255,210,140,.5)';ctx.shadowBlur=36;
     ctx.fillText(scoreStr,LX,midCenterY+40);
     ctx.shadowBlur=0;
+    // 本局单项高光：保持单行，与二维码区域留出安全间距。
+    const highlightColors={
+        multiplier:[255,202,83],combo:[255,202,83],
+        collection:[99,220,255],collector:[99,220,255],streak:[99,220,255],
+        clutch:[255,126,145],survivor:[255,126,145],rescue:[255,126,145]
+    };
+    const highlightRGB=highlightColors[runHighlight.kind]||[255,205,103];
+    const highlightFullText=`本局高光 · ${runHighlight.icon} ${runHighlight.text}`;
+    const highlightX=LX,highlightY=midCenterY+79,highlightMaxW=380,highlightH=46;
+    ctx.font='700 20px "Microsoft YaHei","Segoe UI Emoji",sans-serif';
+    const highlightText=ellipsizeText(ctx,highlightFullText,highlightMaxW-30);
+    const highlightW=Math.min(highlightMaxW,Math.ceil(ctx.measureText(highlightText).width)+30);
+    const highlightBg=ctx.createLinearGradient(highlightX,0,highlightX+highlightW,0);
+    highlightBg.addColorStop(0,`rgba(${highlightRGB.join(',')},.16)`);
+    highlightBg.addColorStop(1,`rgba(${highlightRGB.join(',')},.045)`);
+    ctx.fillStyle=highlightBg;
+    roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.fill();
+    ctx.strokeStyle=`rgba(${highlightRGB.join(',')},.28)`;ctx.lineWidth=1;
+    roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.stroke();
+    ctx.fillStyle=`rgb(${highlightRGB.join(',')})`;
+    ctx.textBaseline='middle';
+    ctx.fillText(highlightText,highlightX+15,highlightY+1);
+    ctx.textBaseline='alphabetic';
     // ===== 底部 URL 区（对应 sm-bottom）=====
     // 上方分割线
     ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
@@ -389,6 +428,13 @@ function wrapText(ctx,text,x,y,maxW,lh){
         else line=test;
     }
     if(line)ctx.fillText(line,x,y);
+}
+
+function ellipsizeText(ctx,text,maxW){
+    if(ctx.measureText(text).width<=maxW)return text;
+    const chars=[...text];
+    while(chars.length&&ctx.measureText(chars.join('')+'…').width>maxW)chars.pop();
+    return chars.join('')+'…';
 }
 
 function roundRect(ctx,x,y,w,h,r){

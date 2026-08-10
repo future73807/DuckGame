@@ -120,6 +120,7 @@ if (isHotFe) {
             skin: DUCK_SKIN_IDS.has(state?.skin) ? state.skin : 'classic',
             sh: Math.max(0, num(state?.sh)),
             mt: Math.max(0, num(state?.mt)),
+            cm: Math.max(0, Math.min(2, num(state?.cm))),
             bt: Math.max(0, num(state?.bt)),
             iv: Math.max(0, num(state?.iv)),
             sk: Math.max(0, num(state?.sk))

@@ -16,7 +16,7 @@
 <div id="err-popup"><div><i class="fa-solid fa-triangle-exclamation"></i> 加载失败</div><div class="msg" id="err-msg"></div><button onclick="location.reload()">重试</button></div>
 <div id="ui">
     <div id="duo-hud"><i class="fa-solid fa-user-group"></i><span id="duo-hud-text"></span></div>
-    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div class="hi" id="invincible-hud"><i class="fa-solid fa-shield-halved"></i> 无敌 <span class="inv-time" id="inv-time">0</span>s</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span></div></div>
+    <div id="hud"><div id="hearts-hud"></div><div class="hi sc"><i class="fa-solid fa-trophy"></i> <span id="score">0</span></div><div class="hi sh" id="shield-hud"><i class="fa-solid fa-shield-halved"></i> 护盾</div><div class="hi" id="invincible-hud"><i class="fa-solid fa-shield-halved"></i> 无敌 <span class="inv-time" id="inv-time">0</span>s</div><div id="streak-hud"><span class="si" id="s0"></span><span class="si" id="s1"></span><span class="si" id="s2"></span> <span id="streak-timer" style="color:#ffd700;display:none">60s</span><span id="combo-goal-hint" aria-live="polite"></span></div></div>
 
     <div id="combo-border"></div>
     <div id="multi-text"></div>
@@ -33,6 +33,7 @@
             <div class="go-mode" id="go-mode">单人模式</div>
             <div class="go-score">本次得分 <b id="go-score">0</b></div>
             <div class="go-best" id="go-best">历史最高：0</div>
+            <div class="go-highlight" id="go-highlight" data-kind="steady" aria-live="polite"><span class="go-highlight-icon" aria-hidden="true">✨</span><span class="go-highlight-label">本局高光 ·</span><span class="go-highlight-text">勇敢完成本局</span></div>
             <div class="go-name-wrap" id="go-name-wrap"><div class="greeting">请输入昵称</div><div class="go-name-row"><input class="go-name" id="go-name" maxlength="12" placeholder="输入昵称"><button class="go-name-ok" id="go-name-ok" onclick="confirmName()">确定</button></div></div>
             <div class="lb"><h3><i class="fa-solid fa-medal"></i> 排行榜 Top 20 <button onclick="showDetailModal()" style="float:right;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);font-size:11px;cursor:pointer"><i class="fa-solid fa-list"></i> 详情</button></h3><div class="lb-list" id="lb-list"></div></div>
             <div class="go-btns">
@@ -50,7 +51,7 @@
         </div>
     </div>
     <div id="share-modal">
-        <button class="close-x" onclick="document.getElementById('share-modal').classList.remove('show');_cachedShareDataURLPromise=null"><i class="fa-solid fa-xmark"></i></button>
+        <button class="close-x" onclick="closeShareModal()"><i class="fa-solid fa-xmark"></i></button>
         <div class="sm-wrap">
             <div class="sm-stage">
                 <div class="sm-card">

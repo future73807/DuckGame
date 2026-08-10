@@ -120,7 +120,7 @@ async function main() {
             shark: null, windAct: 0, windMul: 1, evWindDir: [1, 0], stormAct: 0, rbAct: 0
         };
         const hostState = scenePayload => ({ x: 0, y: 0, z: 0, ry: 0, score: 0, hearts: 3, skin: 'classic', scene: scenePayload });
-        const guestState = { x: 3.5, y: 0, z: 0, ry: 0, score: 0, hearts: 3, skin: 'classic' };
+        const guestState = { x: 3.5, y: 0, z: 0, ry: 0, score: 0, hearts: 3, skin: 'classic', cm: 1.75 };
         const hostUpdate = (scenePayload = scene, expectedStatus = 200) => request({ action: 'state', playerId: hostId, name: 'host', role: 'host', room, state: hostState(scenePayload) }, expectedStatus);
         const guestUpdate = sceneHash => request({ action: 'state', playerId: guestId, name: 'guest', role: 'guest', room, sceneHash, state: guestState });
         const metadataUpload = (snapshot, baseRev) => {
@@ -150,6 +150,7 @@ async function main() {
         assert.equal(uploadRev, 1);
         const initialItemsRev = uploadRev;
         const initial = await guestUpdate(null);
+        assert.equal(initial.data.room.guest.state.cm, 1.75, '三连小磁吸计时必须安全透传给伙伴');
         const initialScene = initial.data.room.host.state.scene;
         assert.equal(initialScene.ih, initialItemsRev, '服务端必须覆盖房主自报 ih');
         assert.equal(initialScene.items.length, 244);
@@ -349,6 +350,24 @@ async function main() {
         assert.equal(evictedScene.itemDelta, undefined);
         assert.ok(Array.isArray(evictedScene.items));
         assert.equal(evictedScene.items.length, scene.items.length);
+
+        // 房主本地倒地后仍是场景权威：客机残血时，房主的看护同步必须能新增救场血瓶。
+        guestState.hearts = 1;
+        await guestUpdate(uploadRev);
+        await request({ action: 'down', playerId: hostId, name: 'host', role: 'host', room, state: { ...hostState(scene), hearts: 0 } });
+        const caretakerBaseRev = uploadRev;
+        const rescueScene = { ...scene, clk: scene.clk + .1, items: scene.items.map(item => item.slice()) };
+        const nextItemId = Math.max(0, ...rescueScene.items.map(item => Number(item[5]) || 0)) + 1;
+        const rescueHeart = ['heart', 6, 0, 1, null, nextItemId, 0, 0];
+        rescueScene.items.push(rescueHeart);
+        const caretaker = await request({
+            action: 'state', playerId: hostId, name: 'host', role: 'host', room,
+            state: { ...hostState(deltaUpload(rescueScene, caretakerBaseRev, [rescueHeart], [])), hearts: 0 }
+        });
+        assert.equal(caretaker.data.sceneAck.mode, 'delta');
+        assert.equal(caretaker.data.room.host.down, true, '场景看护同步不得把房主误判为已复活');
+        const rescueDown = (await guestUpdate(caretakerBaseRev)).data.room.host.state.scene;
+        assert.ok(rescueDown.itemDelta.upserts.some(item => item[0] === 'heart' && item[5] === nextItemId), '客机未收到倒地房主同步的救场血瓶');
 
         console.log(`OK: host upload ${initialHost.requestBytes}B full -> ${metadataHost.requestBytes}B metadata / ${movedHost.requestBytes}B delta; guest download ${initial.bytes}B full -> ${moved.bytes}B delta`);
     } finally {

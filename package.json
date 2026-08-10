@@ -11,7 +11,8 @@
     "check:server": "node --check server.node.js",
     "check:duo": "node scripts/check-duo-delta.js",
     "check:water": "node scripts/check-water-scheduler.js",
-    "check": "npm run check:client && npm run check:server && npm run check:duo && npm run check:water",
+    "check:feedback": "node scripts/check-run-feedback.js",
+    "check": "npm run check:client && npm run check:server && npm run check:duo && npm run check:water && npm run check:feedback",
     "test": "npm run check"
   },
   "keywords": [
