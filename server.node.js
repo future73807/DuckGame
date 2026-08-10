@@ -72,7 +72,8 @@ if (isHotFe) {
     };
     const safeText = (value, max = 18) => String(value || '').replace(/[<>]/g, '').trim().slice(0, max);
     const MAX_STABLE_ITEM_ID = 0x7fffffff;
-    const MAX_DUO_ITEMS = 1200;
+    // 游戏常态约 244 项，但节日/道具雨/调试生成可能短时越过客户端 MAX_I=1200。
+    const MAX_DUO_ITEMS = 2048;
     const nextSyncCounter = value => {
         const current = Number.isSafeInteger(value) && value >= 0 ? value : 0;
         return current < Number.MAX_SAFE_INTEGER ? current + 1 : current;
@@ -232,6 +233,84 @@ if (isHotFe) {
         for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false;
         return true;
     };
+    const sameDuoItems = (left, right) => {
+        if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+        for (let i = 0; i < left.length; i++) if (!sameDuoItem(left[i], right[i])) return false;
+        return true;
+    };
+    const cleanDuoDeltaItem = raw => {
+        const cleaned = cleanDuoState({ scene: { items: [raw] } }).scene?.items;
+        return Array.isArray(cleaned) && cleaned.length === 1 ? cleaned[0] : null;
+    };
+    const rebuildDuoHostScene = (rawScene, baseScene, currentRev) => {
+        if (!rawScene || typeof rawScene !== 'object') return { ok: true, scene: null, mode: null, itemsChanged: false };
+        const hasFullItems = Array.isArray(rawScene.items);
+        const hasDelta = Object.prototype.hasOwnProperty.call(rawScene, 'itemDelta');
+        if (hasFullItems && hasDelta) return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+
+        // 旧客户端始终上传 items 全量；服务端继续原样接受并建立新的上行版本令牌。
+        if (hasFullItems) {
+            if (rawScene.items.length > MAX_DUO_ITEMS) return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+            const scene = cleanDuoState({ scene: rawScene }).scene;
+            const wantsDeltaAck = Number(rawScene.uploadProtocol) === 2;
+            if (wantsDeltaAck) {
+                if (scene.items.length !== rawScene.items.length) return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+                const ids = new Set();
+                for (let i = 0; i < scene.items.length; i++) {
+                    const id = stableDuoItemId(scene.items[i]);
+                    if (id === null || ids.has(id) || !sameDuoItem(scene.items[i], rawScene.items[i])) {
+                        return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+                    }
+                    ids.add(id);
+                }
+            }
+            return { ok: true, scene, mode: 'full', ackProtocol: wantsDeltaAck ? 2 : 1, itemsChanged: !baseScene || !sameDuoItems(scene.items, baseScene.items) };
+        }
+
+        const baseRev = Number(rawScene.baseRev);
+        if (!baseScene || !Array.isArray(baseScene.items) || !Number.isSafeInteger(baseRev) || baseRev <= 0 || baseRev !== currentRev) {
+            return { ok: false, status: 409, error: 'SCENE_BASE_MISMATCH' };
+        }
+        const cleanedScene = cleanDuoState({ scene: rawScene }).scene;
+        if (!hasDelta) {
+            // metadata-only 仍必须匹配服务端签发的版本；绝不依赖可碰撞的 ih 判断基线。
+            cleanedScene.items = baseScene.items;
+            return { ok: true, scene: cleanedScene, mode: 'metadata', ackProtocol: 2, itemsChanged: false };
+        }
+
+        const delta = rawScene.itemDelta;
+        if (!delta || typeof delta !== 'object' || !Array.isArray(delta.upserts) || !Array.isArray(delta.removed)
+            || delta.upserts.length > MAX_DUO_ITEMS || delta.removed.length > MAX_DUO_ITEMS) {
+            return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+        }
+        const byId = new Map();
+        for (const item of baseScene.items) {
+            const id = stableDuoItemId(item);
+            if (id === null || byId.has(id)) return { ok: false, status: 409, error: 'SCENE_BASE_MISMATCH' };
+            byId.set(id, item);
+        }
+        const removed = new Set();
+        for (const rawId of delta.removed) {
+            const id = Number(rawId);
+            if (!Number.isSafeInteger(id) || id <= 0 || id > MAX_STABLE_ITEM_ID || removed.has(id) || !byId.has(id)) {
+                return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+            }
+            removed.add(id);
+        }
+        const upserts = new Map();
+        for (const raw of delta.upserts) {
+            const item = cleanDuoDeltaItem(raw), id = stableDuoItemId(item);
+            if (!item || id === null || upserts.has(id) || removed.has(id) || !sameDuoItem(item, raw)) {
+                return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+            }
+            upserts.set(id, item);
+        }
+        for (const id of removed) byId.delete(id);
+        for (const [id, item] of upserts) byId.set(id, item);
+        if (byId.size > MAX_DUO_ITEMS) return { ok: false, status: 400, error: 'INVALID_SCENE_DELTA' };
+        cleanedScene.items = Array.from(byId.values());
+        return { ok: true, scene: cleanedScene, mode: 'delta', ackProtocol: 2, itemsChanged: !sameDuoItems(cleanedScene.items, baseScene.items) };
+    };
     const copyDuoSceneDelta = (scene, baseScene) => {
         if (!scene || !baseScene || !Array.isArray(scene.items) || !Array.isArray(baseScene.items)) return null;
         const before = new Map();
@@ -258,7 +337,7 @@ if (isHotFe) {
         const hash = Number(scene?.ih);
         if (!room || !scene || !Number.isFinite(hash)) return;
         if (!(room.sceneHistory instanceof Map)) room.sceneHistory = new Map();
-        // cleanDuoState 每次都会生成一棵新的不可变快照，可直接保留引用，避免再复制最多 1200 项数组。
+        // cleanDuoState 每次都会生成一棵新的不可变快照，可直接保留引用，避免再复制最多 2048 项数组。
         room.sceneHistory.delete(hash);
         room.sceneHistory.set(hash, scene);
         while (room.sceneHistory.size > DUO_SCENE_HISTORY_LIMIT) room.sceneHistory.delete(room.sceneHistory.keys().next().value);
@@ -408,7 +487,7 @@ if (isHotFe) {
             if (action === 'create') {
                 if (!name) return sendDuoJson(res, 400, { ok: false, error: 'NAME_REQUIRED' });
                 const code = duoRoomCode();
-                const room = { code, round: 1, rev: 0, status: 'waiting', blessing: cleanDuoBlessing(data.blessing), host: { id: playerId, name, state: cleanDuoState(), seq: 0, finished: false, final: null, down: false, downAt: null }, guest: null, createdAt: Date.now(), updatedAt: Date.now(), duoEntry: null, sceneHistory: new Map() };
+                const room = { code, round: 1, rev: 0, status: 'waiting', blessing: cleanDuoBlessing(data.blessing), host: { id: playerId, name, state: cleanDuoState(), seq: 0, sceneRev: 0, finished: false, final: null, down: false, downAt: null }, guest: null, createdAt: Date.now(), updatedAt: Date.now(), duoEntry: null, sceneHistory: new Map() };
                 duoRooms.set(code, room);
                 return sendKnownDuoJson(res, 200, { ok: true, role: 'host' }, room, 'host', data.sceneHash, false);
             }
@@ -427,6 +506,7 @@ if (isHotFe) {
                 room.updatedAt = Date.now();
                 return sendKnownDuoJson(res, status, payload, room, viewer, data.sceneHash);
             };
+            let sceneAck = null;
             if (action === 'join') {
                 // 同一浏览器的两个标签页共享 localStorage playerId。客机刷新后 role 尚未恢复，
                 // join 的语义仍是恢复 guest 席位，不能因 fallback 先命中 host 而串号。
@@ -446,7 +526,6 @@ if (isHotFe) {
             }
             if (!player) return sendDuoJson(res, 403, { ok: false, error: 'NOT_IN_ROOM' });
             viewer = player === room.host ? 'host' : 'guest';
-            if (name && name !== player.name) player.name = name;
             if (action === 'start') {
                 if (player !== room.host || !room.guest) return respondKnown(409, { ok: false, error: 'WAITING_FOR_FRIEND' });
                 room.status = 'running';
@@ -459,6 +538,7 @@ if (isHotFe) {
                 room.startedAt = Date.now();
                 room.duoEntry = null;
                 room.sceneHistory = new Map();
+                // sceneRev 在同一房间生命周期内保持单调，避免上一局延迟 delta 在新一局复用相同 token。
                 for (const member of [room.host, room.guest]) {
                     member.state = cleanDuoState();
                     member.finished = false;
@@ -471,7 +551,21 @@ if (isHotFe) {
                 if (room.status !== 'running') return respondKnown(409, { ok: false, error: 'ROOM_NOT_RUNNING' });
                 const nextState = cleanDuoState(data.state);
                 if (player === room.host) {
+                    const currentSceneRev = Number.isSafeInteger(player.sceneRev) && player.sceneRev >= 0 ? player.sceneRev : 0;
+                    const rebuilt = rebuildDuoHostScene(data.state?.scene, player.state?.scene, currentSceneRev);
+                    if (!rebuilt.ok) return sendDuoJson(res, rebuilt.status, {
+                        ok: false,
+                        error: rebuilt.error,
+                        expectedSceneRev: currentSceneRev
+                    });
                     rememberDuoScene(room, player.state?.scene);
+                    if (rebuilt.scene) {
+                        // ih 是客机下行的道具版本：仅 items 实际变化时递增，不信任房主提供的可碰撞哈希。
+                        player.sceneRev = currentSceneRev > 0 && !rebuilt.itemsChanged ? currentSceneRev : nextSyncCounter(currentSceneRev);
+                        rebuilt.scene.ih = player.sceneRev;
+                        nextState.scene = rebuilt.scene;
+                        sceneAck = { protocol: rebuilt.ackProtocol || 1, rev: player.sceneRev, mode: rebuilt.mode };
+                    } else if (player.state?.scene) nextState.scene = player.state.scene;
                     rememberDuoScene(room, nextState.scene);
                 }
                 player.state = nextState;
@@ -498,9 +592,12 @@ if (isHotFe) {
             } else if (action === 'down') {
                 if (room.status !== 'running') return respondKnown(409, { ok: false, error: 'ROOM_NOT_RUNNING' });
                 const nextState = cleanDuoState(data.state);
-                // 房主倒地包不再重复上传整份道具数组，但服务端仍保留最后一份权威场景供客机续跑。
-                if (player === room.host && !nextState.scene && player.state?.scene) nextState.scene = player.state.scene;
-                if (player === room.host) rememberDuoScene(room, nextState.scene);
+                // down 只更新玩家状态；即使旧/异常客户端夹带 scene，也不得绕过上行版本校验覆盖权威场景。
+                if (player === room.host) {
+                    if (player.state?.scene) nextState.scene = player.state.scene;
+                    else delete nextState.scene;
+                    rememberDuoScene(room, nextState.scene);
+                }
                 player.state = nextState;
                 player.down = true;
                 player.downAt = Date.now();
@@ -516,9 +613,10 @@ if (isHotFe) {
             } else if (action !== 'status' && action !== 'join') {
                 return respondKnown(400, { ok: false, error: 'UNKNOWN_ACTION' });
             }
+            if (name && name !== player.name) player.name = name;
             resolveDuoRespawn(room);
             room.updatedAt = Date.now();
-            return respondKnown(200, { ok: true, role: viewer });
+            return respondKnown(200, { ok: true, role: viewer, ...(sceneAck ? { sceneAck } : {}) });
         });
     };
 

@@ -390,7 +390,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 #blessing-splash .fx-p{position:absolute;border-radius:50%;background:var(--fxc,#ffd166);box-shadow:0 0 10px 2px var(--fxc,#ffd166);opacity:0;animation:fxRise linear infinite}
 @keyframes fxRise{0%{transform:translateY(0) scale(.6);opacity:0}10%{opacity:1}75%{opacity:.65}100%{transform:translateY(-56vh) scale(1.1);opacity:0}}
 /* 节日场景特效画布（烟花/雪花）：浮在 3D 场景上、HUD 下 */
-.festival-fx-cv{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:6}
+.festival-fx-cv{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:6;transition:opacity .2s ease;contain:strict}
 #blessing-splash .bs-icon{font-size:54px;margin:14px 0 10px;color:#fff}
 #blessing-splash .bs-name{font-size:34px;font-weight:700;color:#fff;letter-spacing:3px}
 #blessing-splash .bs-desc{font-size:18px;color:rgba(255,255,255,.78);margin-top:12px;line-height:1.7}

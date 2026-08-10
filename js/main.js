@@ -13,9 +13,12 @@ import {createSwirlPostfx} from './render/postfx.js';
 import {createRuntime} from './render/runtime.js';
 import {createWater} from './render/water.js';
 import {createEnvironment} from './render/environment.js';
+import {createFestivalScreenFx,FESTIVAL_SCREEN_FX_IDS,FESTIVAL_SCREEN_FX_THEMES} from './render/festival-screen-fx.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
+const storedFestivalMotion=localStorage.getItem('duck_reduce_festival_motion');
+let reduceFestivalMotion=storedFestivalMotion===null?!!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches:storedFestivalMotion==='1';
 function checkO(){if(isMobile&&innerHeight>innerWidth){document.getElementById('rotate-hint').style.display='flex';return false}document.getElementById('rotate-hint').style.display='none';return true}
 checkO();window.addEventListener('resize',checkO);window.addEventListener('orientationchange',()=>setTimeout(checkO,300));
 if(isMobile)document.getElementById('joy-zone').style.display='block';
@@ -815,6 +818,7 @@ function spawnAround(cx,cz){
 
 // ===== 双人模式场景同步（房主权威） =====
 let duoItemsHash=null,duoNextItemId=1,duoLastSceneSeq=-1;
+let duoHostSceneBase=null,duoHostSceneBaseRev=null,duoHostSceneDeltaCapable=false;
 let duoClockTarget=null,duoClockTargetAt=0;
 const duoSceneStats={packets:0,hashSkips:0,fullPackets:0,deltaPackets:0,reconciles:0,totalCreated:0,totalRemoved:0,totalReused:0,lastApplyMs:0,maxApplyMs:0,totalApplyMs:0,last:null};
 const duoLocalCollected=new Map();
@@ -851,7 +855,7 @@ function duoApplyGuestCollections(claims){
     }
 }
 function resetDuoSceneSync(resetItemIds=false){
-    duoItemsHash=null;duoLastSceneSeq=-1;duoClockTarget=null;duoClockTargetAt=0;duoLocalCollected.clear();duoCollectedPending.clear();
+    duoItemsHash=null;duoLastSceneSeq=-1;duoClockTarget=null;duoClockTargetAt=0;duoHostSceneBase=null;duoHostSceneBaseRev=null;duoHostSceneDeltaCapable=false;duoLocalCollected.clear();duoCollectedPending.clear();
     if(resetItemIds){duoNextItemId=1;for(const it of items){delete it.duoId;delete it.duoGen;delete it.duoHX;delete it.duoHZ;delete it.duoTargetX;delete it.duoTargetZ}}
 }
 function updateDuoClock(dt){
@@ -886,6 +890,33 @@ function duoSerializeScene(){
         shark:sharkData,
         windAct:windActive?1:0,windMul:windSpeedMul,evWindDir:[evWindDir.x,evWindDir.z],
         stormAct:stormActive?1:0,stormBolt:getStormSync(),rbAct:rainbowActive?1:0};
+}
+function duoSameSerializedItem(left,right){
+    if(!Array.isArray(left)||!Array.isArray(right)||left.length!==right.length)return false;
+    for(let i=0;i<left.length;i++)if(left[i]!==right[i])return false;
+    return true;
+}
+function duoBuildHostSceneUpload(fullScene){
+    const fullUpload=()=>({...fullScene,uploadProtocol:2});
+    if(!duoHostSceneDeltaCapable||!duoHostSceneBase||!Number.isSafeInteger(duoHostSceneBaseRev)||duoHostSceneBaseRev<=0||!Array.isArray(fullScene?.items)||!Array.isArray(duoHostSceneBase.items))return fullUpload();
+    const before=new Map();
+    for(const item of duoHostSceneBase.items){const id=Array.isArray(item)?item[5]:null;if(!Number.isSafeInteger(id)||id<=0||before.has(id))return fullUpload();before.set(id,item)}
+    const currentIds=new Set(),upserts=[];
+    for(const item of fullScene.items){
+        const id=Array.isArray(item)?item[5]:null;
+        if(!Number.isSafeInteger(id)||id<=0||currentIds.has(id))return fullUpload();
+        currentIds.add(id);if(!duoSameSerializedItem(before.get(id),item))upserts.push(item);
+    }
+    const removed=[];for(const id of before.keys())if(!currentIds.has(id))removed.push(id);
+    const upload={...fullScene,uploadProtocol:2,baseRev:duoHostSceneBaseRev};delete upload.items;
+    // 纯 metadata 包不带任何道具数组；发生变化时才携带 stable-id upsert/remove。
+    if(upserts.length||removed.length)upload.itemDelta={upserts,removed};
+    return upload;
+}
+function duoAcceptHostSceneAck(fullScene,ack){
+    if(ack?.protocol===2&&Number.isSafeInteger(Number(ack.rev))&&Number(ack.rev)>0){duoHostSceneDeltaCapable=true;duoHostSceneBase=fullScene;duoHostSceneBaseRev=Number(ack.rev);return true}
+    // 旧服务端没有 sceneAck：持续发送全量，避免把它无法重建的增量当作空场景。
+    duoHostSceneDeltaCapable=false;duoHostSceneBase=null;duoHostSceneBaseRev=null;return false;
 }
 const DUO_ITEM_BASE_RADIUS={rock:.6,flower:.4,grass:.4,lily:.4,magnet:.35,heart:.6};
 function duoParseItemSnapshot(raw){
@@ -1613,13 +1644,14 @@ function startGameSession(){
     activeRewards=rewards;
     MAX_HEARTS=Math.min(8,5+(rewards.maxHearts||0));
     Blessings.apply();
-    FestivalFx.start();
-    updateHeartsUI();
     runStats={items:0,distance:0,startTime:Date.now()};
     if(Duo.active)gameClock=0;
     gameActive=true;playStartTime=Date.now();
     // 双人模式：本地鸭子初始偏移到一侧（房主=-3.5，客机=+3.5），避免两只鸭子重叠
     if(Duo.active&&duckModel){const duoOffsetX=Duo.role==='guest'?3.5:Duo.role==='host'?-3.5:0;duckModel.position.set(duoOffsetX,.05,0);duckModel.rotation.set(0,0,0);duckModel.scale.setScalar(.72)}
+    // 常驻氛围先启动，标志性开场等玩家关闭祝福卡后再播放，避免动画被弹窗吞掉。
+    FestivalFx.start({deferIntro:true});
+    updateHeartsUI();
     // 大厅不再提前构建约 2000 个子 Mesh。单人/房主开局时只构建一次；客机等待房主首个权威场景包。
     // 必须放在 Blessings.apply 之后，确保首局端午粽子/国庆蛋糕等节日替换正确生效。
     if(items.length===0&&(!Duo.active||Duo.role==='host'))spawnAround(duckModel?.position.x||0,duckModel?.position.z||0);
@@ -1656,8 +1688,8 @@ function resetRunState(){
     if(duckModel){duckModel.visible=true;const duoOffsetX=(typeof Duo!=='undefined'&&Duo.active&&Duo.role==='guest')?3.5:(typeof Duo!=='undefined'&&Duo.active&&Duo.role==='host')?-3.5:0;duckModel.position.set(duoOffsetX,.05,0);duckModel.rotation.set(0,0,0);duckModel.scale.setScalar(.72)}
     if(controls){controls.target.set(0,1,0);camSmoothY=1}
     document.getElementById('score').textContent='0';updateHeartsUI();updateStreakUI();
-    // 重开后先重算节日替换，再生成本局物品；客机仍等待房主权威快照。
-    Blessings.apply();FestivalFx.start();updateHeartsUI();if(!duoIsGuest())spawnAround(0,0);
+    // 节日重算、特效与本局物品统一由随后唯一一次 startGameSession() 创建，避免重开双重分配。
+    updateHeartsUI();
 }
 function hideModeEntry(){
     const solo=document.getElementById('start-btn'),duo=document.getElementById('duo-btn');
@@ -1689,7 +1721,7 @@ function hideLoader(){
 let camSmoothY=1;
 const cameraShakeOffset=new THREE.Vector3();
 function clearCameraShakeOffset(){
-    if(cameraShakeOffset.lengthSq()>0)camera.position.sub(cameraShakeOffset);
+    if(cameraShakeOffset.lengthSq()>0){camera.position.sub(cameraShakeOffset);camera.updateMatrixWorld(true)}
     cameraShakeOffset.set(0,0,0);
 }
 function applyCameraShake(dt){
@@ -2202,8 +2234,8 @@ const Duo={
                 const responseText=await response.text();responseChars=responseText.length;const parseStarted=performance.now();const data=JSON.parse(responseText);parseMs=performance.now()-parseStarted;
                 recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,response.ok&&!!data?.ok);recorded=true;
                 if(response.ok&&data.ok){this._apiURL=url;return data}
-                if(data?.error)throw new Error(data.error);
-            }catch(error){lastError=error;if(!recorded)recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,false)}finally{clearTimeout(timeout)}
+                if(data?.error){const apiError=new Error(data.error);apiError.code=data.error;throw apiError}
+            }catch(error){lastError=error;if(!recorded)recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,false);if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA')throw error}finally{clearTimeout(timeout)}
         }
         throw lastError||new Error('SERVER_UNAVAILABLE');
     },
@@ -2309,8 +2341,11 @@ const Duo={
             sh:hasShield?shieldTimer:0,mt:magnetActive?magnetTimer:0,bt:bigTimer>0?bigTimer:0,iv:invincible>0?invincible:0,sk:streakActive?streakTimer:0};
         const collectedIds=duoPendingCollectionIds();if(collectedIds.length)st.ci=collectedIds;
         if(activeDuckSkin==='custom')st.palette=getDuckCustomPalette();
-        if(this.role==='host')st.scene=duoSerializeScene();
-        const result=await this.request('state',{room:this.room.code,state:st});this.applyRoom(result.room)}catch(error){}finally{this._statePending=false}
+        let fullScene=null;
+        if(this.role==='host'){fullScene=duoSerializeScene();st.scene=duoBuildHostSceneUpload(fullScene)}
+        const result=await this.request('state',{room:this.room.code,state:st});
+        if(fullScene)duoAcceptHostSceneAck(fullScene,result.sceneAck);
+        this.applyRoom(result.room)}catch(error){if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA'){duoHostSceneBase=null;duoHostSceneBaseRev=null}}finally{this._statePending=false}
     },
     async down(){
         if(!this.active||!this.room||!duckModel)return false;
@@ -3510,110 +3545,104 @@ function disposeFestivalObject(root){
 const _flagFrustum=new THREE.Frustum();
 const _flagViewProjection=new THREE.Matrix4();
 const _flagBounds=new THREE.Sphere(new THREE.Vector3(),1.65);
+const _festivalProjectPoint=new THREE.Vector3();
+const _festivalCameraPoint=new THREE.Vector3();
+const _festivalWorldScale=new THREE.Vector3();
+const FESTIVAL_SAFE_UI_SELECTORS=['#hud','#duo-hud','#fps-hud','#clock','#event-hud','#event-warn','#magnet-hud','#lb-btn-top','#fs-btn','#music-btn','#pause-btn','#ach-btn','#settings-btn','#help-btn','#dbg-btn'];
+function festivalElementRect(element,pad=16){
+    if(!element)return null;
+    const style=getComputedStyle(element);if(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)return null;
+    const rect=element.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return null;
+    return{left:rect.left-pad,top:rect.top-pad,width:rect.width+pad*2,height:rect.height+pad*2,kind:'ui',strength:.86,feather:14};
+}
+function festivalProjectObject(object,yOffset=0){
+    if(!object||object.visible===false)return null;
+    object.getWorldPosition(_festivalProjectPoint);_festivalProjectPoint.y+=yOffset;_festivalProjectPoint.project(camera);
+    if(_festivalProjectPoint.z<-1||_festivalProjectPoint.z>1)return null;
+    return{x:(_festivalProjectPoint.x*.5+.5)*innerWidth,y:(.5-_festivalProjectPoint.y*.5)*innerHeight};
+}
+function festivalPixelsPerWorld(object){
+    object.getWorldPosition(_festivalCameraPoint);_festivalCameraPoint.applyMatrix4(camera.matrixWorldInverse);
+    const depth=-_festivalCameraPoint.z;if(depth<=.01)return 0;
+    return innerHeight*.5*camera.projectionMatrix.elements[5]/depth;
+}
+function festivalProjectDuckRect(duck){
+    const point=festivalProjectObject(duck,.75);if(!point)return null;
+    duck.getWorldScale(_festivalWorldScale);const pixels=festivalPixelsPerWorld(duck);
+    const width=Math.min(innerWidth*.45,Math.max(116,pixels*Math.abs(_festivalWorldScale.x)*1.9+36));
+    const height=Math.min(innerHeight*.55,Math.max(108,pixels*Math.abs(_festivalWorldScale.y)*2.35+36));
+    return{left:point.x-width*.5,top:point.y-height*.5,width,height,kind:'duck',strength:.92,feather:20};
+}
+function festivalProjectLabelRect(label){
+    const point=festivalProjectObject(label);if(!point)return null;
+    label.getWorldScale(_festivalWorldScale);const pixels=festivalPixelsPerWorld(label);
+    const width=Math.min(innerWidth*.72,Math.max(128,pixels*Math.abs(_festivalWorldScale.x)+36));
+    const height=Math.min(innerHeight*.28,Math.max(60,pixels*Math.abs(_festivalWorldScale.y)+28));
+    return{left:point.x-width*.5,top:point.y-height*.5,width,height,kind:'label',strength:1,feather:18};
+}
+function getFestivalAvoidRects(){
+    const rects=[];
+    for(const selector of FESTIVAL_SAFE_UI_SELECTORS){const rect=festivalElementRect(document.querySelector(selector));if(rect)rects.push(rect)}
+    return rects;
+}
+function getFestivalDynamicAvoidRects(){
+    const rects=[];
+    for(const duck of[duckModel,duoRemoteDuck]){
+        const duckRect=festivalProjectDuckRect(duck);if(duckRect)rects.push(duckRect);
+        const label=duck===duckModel?duoLocalNameLabel:duck?.children?.find(node=>node.userData?.duoNameLabel);
+        const labelRect=festivalProjectLabelRect(label);if(labelRect)rects.push(labelRect);
+    }
+    return rects;
+}
+function festivalFxDimmed(){
+    return['#blessing-splash','#settings-modal','#pause-overlay','#tutorial','#ach-modal','#help','#gameover','#duo-respawn','#rotate-hint'].some(selector=>document.querySelector(selector)?.classList.contains('show'));
+}
+const festivalScreenFx=createFestivalScreenFx({
+    window,document,
+    getQuality:()=>quality.effectiveTier||graphicsQuality,
+    getReducedMotion:()=>reduceFestivalMotion,
+    getAvoidRects:getFestivalAvoidRects,
+    getDynamicAvoidRects:getFestivalDynamicAvoidRects,
+    getMoonScreenPoint:()=>{
+        const moon=FestivalFx.moonSprite,point=festivalProjectObject(moon);
+        return point?{...point,visible:moon.visible&&moon.material.opacity>.02}:{x:innerWidth*.8,y:innerHeight*.2,visible:false};
+    },
+    getWindX:()=>evWindDir.x,
+    isPaused:()=>isPaused,
+    isHidden:()=>document.hidden||!gameActive,
+    isDimmed:festivalFxDimmed
+});
 const FestivalFx={
-    fwCv:null,fwCx:null,fwParts:[],fwNext:0,fwUntil:0,
-    snowCv:null,snowCx:null,snowFlakes:null,
+    activeId:null,screen:festivalScreenFx,
     flagsGroup:null,
     moonSprite:null, // 中秋：夜空中的一轮满月（夜晚时段常驻显示）
-    ovCv:null,ovCx:null,ovKind:null,ovParts:[],
-    start(){
-        this.stop();
+    start(options={}){
         const id=Blessings.festival?.id;
-        if(!id)return;
-        // 除夕与春节共用烟花特效
-        if(id==='festival_spring'||id==='festival_eve')this.startFireworks();
-        if(id==='festival_new_year')this.startSnow();
+        if(!id){this.stop();return false}
+        if(this.activeId===id){if(!options.deferIntro)this.screen.playIntro();return true}
+        this.clearWorld();this.activeId=id;
+        this.screen.start(id,options);
         if(id==='festival_national_day')this.startFlags();
         if(id==='festival_mid_autumn')this.startMoon();
-        // 其余节日：统一画布覆盖层特效（各节日主题粒子；无特效节日在 startOverlay 内跳过）
-        this.startOverlay(id);
+        return true;
     },
-    stop(){
-        if(this.fwCv){this.fwCv.remove();this.fwCv=null;this.fwCx=null;this.fwParts=[]}
-        if(this.snowCv){this.snowCv.remove();this.snowCv=null;this.snowCx=null;this.snowFlakes=null}
+    clearWorld(){
         if(this.flagsGroup){disposeFestivalObject(this.flagsGroup);this.flagsGroup=null}
         if(this.moonSprite){disposeFestivalObject(this.moonSprite);this.moonSprite=null}
-        if(this.ovCv){this.ovCv.remove();this.ovCv=null;this.ovCx=null;this.ovKind=null;this.ovParts=[]}
     },
-    mkOverlayCanvas(){
-        const cv=document.createElement('canvas');
-        cv.className='festival-fx-cv';
-        cv.width=innerWidth;cv.height=innerHeight;
-        document.body.appendChild(cv);
-        return cv;
+    stop(){
+        this.screen.stop();this.activeId=null;
+        this.clearWorld();
     },
-    update(dt){
-        if(this.fwCv)this.updateFireworks(dt);
-        if(this.snowCv)this.updateSnow(dt);
+    playIntro(){return this.screen.playIntro()},
+    updateWorld(dt){
         if(this.flagsGroup)this.updateFlags(dt);
         if(this.moonSprite)this.updateMoon();
-        if(this.ovCv)this.updateOverlay(dt);
     },
-    // --- 春节：开局金鸭烟花（金红配色，持续约 9 秒） ---
-    // 双人模式：烟花使用基于 gameClock 的确定性 PRNG，确保两端烟花轨迹一致
-    startFireworks(){
-        this.fwCv=this.mkOverlayCanvas();this.fwCx=this.fwCv.getContext('2d');
-        this.fwParts=[];this.fwNext=gameClock;this.fwUntil=gameClock+9;this.fwSeq=0;
-    },
-    burst(x,y,golden,seed){
-        const colors=golden?['#ffd166','#ffb84d','#fff3d6','#ff9f43']:['#ff5a4e','#ffd166','#ff8b69','#fff'];
-        const n=golden?56:42;
-        for(let i=0;i<n;i++){
-            const a=duoRand(seed+i*3.1)*Math.PI*2,sp=60+duoRand(seed+i*7.3)*(golden?230:190);
-            this.fwParts.push({type:'spark',x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1.1+duoRand(seed+i*11.7)*.8,t:0,c:colors[i%colors.length],r:golden?2.4:2});
-        }
-    },
-    updateFireworks(dt){
-        const cx=this.fwCx,W=this.fwCv.width,H=this.fwCv.height;
-        cx.clearRect(0,0,W,H);
-        if(gameClock<this.fwUntil&&gameClock>=this.fwNext){
-            this.fwSeq=(this.fwSeq||0)+1;
-            const seed=this.fwSeq*100+Math.floor(gameClock*10);
-            this.fwNext=gameClock+.42+duoRand(seed+1)*.4;
-            const golden=this.fwParts.filter(p=>p.type==='rocket').length%2===0;
-            this.fwParts.push({type:'rocket',x:W*(.12+duoRand(seed+2)*.76),y:H+8,vx:(duoRand(seed+3)-.5)*36,vy:-(H*.62+duoRand(seed+4)*H*.2),t:0,golden,seed});
-        }
-        cx.globalCompositeOperation='lighter';
-        for(let i=this.fwParts.length-1;i>=0;i--){
-            const p=this.fwParts[i];p.t+=dt;
-            if(p.type==='rocket'){
-                p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=260*dt;
-                cx.strokeStyle='rgba(255,220,140,.85)';cx.lineWidth=2;
-                cx.beginPath();cx.moveTo(p.x-p.vx*.03,p.y-p.vy*.03);cx.lineTo(p.x,p.y);cx.stroke();
-                if(p.vy>-40){this.burst(p.x,p.y,p.golden,p.seed||0);if(p.golden)playSFX('firework');this.fwParts.splice(i,1)}
-            }else{
-                p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;p.vx*=(1-dt*.6);
-                const a=Math.max(0,1-p.t/p.life);
-                if(a<=0){this.fwParts.splice(i,1);continue}
-                cx.globalAlpha=a;
-                cx.fillStyle=p.c;
-                cx.beginPath();cx.arc(p.x,p.y,p.r*a+0.6,0,6.283);cx.fill();
-                cx.globalAlpha=1;
-            }
-        }
-        if(gameClock>=this.fwUntil&&this.fwParts.length===0){this.fwCv.remove();this.fwCv=null;this.fwCx=null}
-    },
-    // --- 元旦：雪花飘落 ---
-    // 双人模式：雪花使用基于 gameClock 的确定性 PRNG，确保两端雪花轨迹一致
-    startSnow(){
-        this.snowCv=this.mkOverlayCanvas();this.snowCx=this.snowCv.getContext('2d');
-        this.snowFlakes=[];
-        for(let i=0;i<110;i++)this.snowFlakes.push({x:duoRand(i*3+1)*innerWidth,y:duoRand(i*7+3)*innerHeight,r:1+duoRand(i*11+5)*2.4,sp:26+duoRand(i*13+7)*42,ph:duoRand(i*17+9)*6.28,sw:.4+duoRand(i*19+11)*.9,a:.45+duoRand(i*23+13)*.45});
-    },
-    updateSnow(dt){
-        const cx=this.snowCx,W=this.snowCv.width,H=this.snowCv.height;
-        cx.clearRect(0,0,W,H);
-        cx.fillStyle='#fff';
-        for(let i=0;i<this.snowFlakes.length;i++){
-            const f=this.snowFlakes[i];
-            f.y+=f.sp*dt;f.x+=Math.sin(gameClock*f.sw+f.ph)*20*dt;
-            if(f.y>H+5){f.y=-5;f.x=duoRand(gameClock*10+i*5.3+1)*W}
-            if(f.x<-5)f.x=W+5;else if(f.x>W+5)f.x=-5;
-            cx.globalAlpha=f.a;
-            cx.beginPath();cx.arc(f.x,f.y,f.r,0,6.283);cx.fill();
-        }
-        cx.globalAlpha=1;
-    },
+    updateScreen(dt){this.screen.update(dt)},
+    update(dt){this.updateWorld(dt);this.updateScreen(dt)},
+    resize(){this.screen.resize()},
+    info(){return{...this.screen.getDebugState(),flags:!!this.flagsGroup,moon:!!this.moonSprite,knownIds:FESTIVAL_SCREEN_FX_IDS.length}},
     // --- 国庆：全场景红旗飘扬 ---
     startFlags(){
         // 标准 3:2 比例与 30×20 国旗坐标；小星各有一个尖角准确朝向大星。
@@ -3758,10 +3787,17 @@ const FestivalFx={
             const h=x.createRadialGradient(128,128,90,128,128,128);
             h.addColorStop(0,'rgba(255,235,170,.5)');h.addColorStop(1,'rgba(255,225,150,0)');
             x.fillStyle=h;x.fillRect(0,0,256,256);
+            // 低对比度月海与环形山，让月盘缩小后仍有层次，而不是一块过曝白圆。
+            x.fillStyle='rgba(168,145,96,.13)';
+            for(const crater of[[91,87,19,11,-.35],[157,103,14,22,.42],[112,151,25,14,.18],[164,160,12,8,-.2],[75,139,10,17,.5]]){
+                x.beginPath();x.ellipse(crater[0],crater[1],crater[2],crater[3],crater[4],0,6.283);x.fill();
+            }
+            x.strokeStyle='rgba(255,249,222,.2)';x.lineWidth=2;
+            x.beginPath();x.arc(151,77,12,0,6.283);x.stroke();
         });
         const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0,fog:false,depthWrite:false});
         const s=new THREE.Sprite(mat);
-        s.scale.set(46,46,1);
+        s.scale.set(8.5,8.5,1);
         scene.add(s);this.moonSprite=s;
     },
     updateMoon(){
@@ -3774,100 +3810,14 @@ const FestivalFx={
         this.moonSprite.position.set(base.x+18,26+Math.sin(gameClock*.2)*1.5,base.z-34);
         this.moonSprite.material.opacity=nightF*.95;
         this.moonSprite.visible=nightF>.02&&gameActive;
-    },
-    // ============ 全节日画布覆盖层特效（统一引擎，各节日主题粒子） ============
-    // 精简策略（性能优先）：仅保留少量主题鲜明的节日粒子
-    //   元旦雪花/除夕+春节烟花/国庆红旗+金星 为独立系统；此处仅覆盖：
-    //   清明+端午=落叶（端午青绿 / 清明青绿偏蓝）、重阳=落叶（金黄）、七夕=粉紫小爱心、小年=金粒升起
-    // 设计原则：
-    //  1) 双人确定性：粒子生成用 duoRand(seed)（基于 gameClock 派生种子），两端画面一致；
-    //  2) 轻量：单 canvas 2D 绘制，粒子数量精简，满帧开销 <0.5ms。
-    startOverlay(id){
-        const W=innerWidth,H=innerHeight;
-        const rand=duoRand;
-        this.ovParts=[];
-        // 每个节日一个专属生成器：产生持续飘落的主题粒子
-        const mk=(kind,count,initFn)=>{
-            this.ovKind=kind;
-            for(let i=0;i<count;i++){
-                const p=initFn(i);
-                p.ph=rand(i*7.3+1)*6.28;p.sw=.3+rand(i*11.7+2)*.9;
-                this.ovParts.push(p);
-            }
-        };
-        switch(id){
-            case 'festival_dragon_boat': // 端午：青绿粽叶飘落
-                mk('leaf',16,i=>({x:rand(i*3.1+1)*W,y:rand(i*5.7+2)*H-H*.1,s:9+rand(i*9.3+3)*8,vy:30+rand(i*13.1+4)*34,vx:(rand(i*19.3+5)-.5)*26,rot:rand(i*29.1+7)*6.28,vr:(rand(i*31.7+8)-.5)*3,hue:95+rand(i*23.7+6)*30}));
-                break;
-            case 'festival_qingming': // 清明：与端午共用落叶（色调偏冷青）
-                mk('leaf',16,i=>({x:rand(i*3.1+1)*W,y:rand(i*5.7+2)*H-H*.1,s:8+rand(i*9.3+3)*7,vy:26+rand(i*13.1+4)*28,vx:(rand(i*19.3+5)-.5)*22,rot:rand(i*29.1+7)*6.28,vr:(rand(i*31.7+8)-.5)*2.4,hue:150+rand(i*23.7+6)*25}));
-                break;
-            case 'festival_double_ninth': // 重阳：与清明类似，叶子改金黄
-                mk('leaf',16,i=>({x:rand(i*3.1+1)*W,y:rand(i*5.7+2)*H-H*.1,s:9+rand(i*9.3+3)*7,vy:26+rand(i*13.1+4)*26,vx:(rand(i*19.3+5)-.5)*24,rot:rand(i*29.1+7)*6.28,vr:(rand(i*31.7+8)-.5)*3,hue:38+rand(i*23.7+6)*16}));
-                break;
-            case 'festival_qixi': // 七夕：粉紫小爱心
-                mk('heart',16,i=>({x:rand(i*3.1+1)*W,y:rand(i*5.7+2)*H-H*.1,s:5+rand(i*9.3+3)*6,vy:22+rand(i*13.1+4)*26,vx:(rand(i*19.3+5)-.5)*18,purple:rand(i*23.7+6)<.45}));
-                break;
-            case 'festival_xiaonian': // 小年：金色粒子自屏幕下方升起
-                mk('gold',24,i=>({x:rand(i*3.1+1)*W,y:H+10+rand(i*5.7+2)*H*.5,r:1.6+rand(i*9.3+3)*2.6,vy:-(36+rand(i*13.1+4)*44),vx:(rand(i*19.3+5)-.5)*12,tw:rand(i*23.7+6)*6.28}));
-                break;
-            default:return; // 其余节日无覆盖层特效（元宵灯笼在 3D 场景；龙抬头/劳动节/中元/腊八/冬至无屏幕特效）
-        }
-        this.ovCv=this.mkOverlayCanvas();this.ovCx=this.ovCv.getContext('2d');
-    },
-    updateOverlay(dt){
-        const cx=this.ovCx,W=this.ovCv.width,H=this.ovCv.height;
-        if(!cx)return;
-        cx.clearRect(0,0,W,H);
-        const kind=this.ovKind;
-        for(let i=0;i<this.ovParts.length;i++){
-            const p=this.ovParts[i];
-            // ---- 运动 ----
-            if(kind==='gold'){ // 小年：金粒自下方升起，到顶后回到屏幕底部重新开始
-                p.y+=p.vy*dt;p.x+=p.vx*dt+Math.sin(gameClock*p.sw+p.ph)*8*dt;
-                if(p.y<-16){p.y=H+12;p.x=duoRand(gameClock*10+i*3.7+1)*W}
-            }else{ // 飘落类（leaf/heart）
-                p.y+=p.vy*dt;p.x+=p.vx*dt+Math.sin(gameClock*p.sw+p.ph)*16*dt;
-                if(p.rot!==undefined&&p.vr)p.rot+=p.vr*dt;
-                if(p.y>H+20){p.y=-15;p.x=duoRand(gameClock*10+i*3.7+1)*W}
-                if(p.x<-20)p.x=W+15;else if(p.x>W+20)p.x=-15;
-            }
-            // ---- 绘制 ----
-            cx.save();cx.translate(p.x,p.y);
-            switch(kind){
-                case 'leaf':{ // 落叶：细长叶片 + 主叶脉 + 两条侧脉（端午青绿/清明冷青/重阳金黄，由 hue 区分）
-                    cx.rotate(p.rot||0);
-                    cx.fillStyle=`hsla(${p.hue},48%,40%,.85)`;
-                    cx.beginPath();cx.moveTo(-p.s,0);
-                    cx.quadraticCurveTo(-p.s*.4,-p.s*.5,p.s*.92,-p.s*.1);
-                    cx.quadraticCurveTo(p.s,p.s*.06,p.s*.92,p.s*.16);
-                    cx.quadraticCurveTo(-p.s*.4,p.s*.42,-p.s,0);
-                    cx.closePath();cx.fill();
-                    cx.strokeStyle=`hsla(${p.hue},42%,24%,.55)`;cx.lineWidth=1;
-                    cx.beginPath();cx.moveTo(-p.s*.92,0);cx.lineTo(p.s*.88,.02);cx.stroke();
-                    cx.beginPath();cx.moveTo(-p.s*.3,-p.s*.02);cx.lineTo(-p.s*.05,-p.s*.22);cx.moveTo(-p.s*.3,p.s*.04);cx.lineTo(-p.s*.05,p.s*.2);cx.stroke();
-                    break;
-                }
-                case 'heart':{ // 七夕小爱心（粉/紫双色）
-                    const s=p.s;
-                    cx.fillStyle=p.purple?'rgba(186,142,255,.85)':'rgba(255,158,199,.85)';
-                    cx.beginPath();cx.moveTo(0,s*.5);
-                    cx.bezierCurveTo(-s,-s*.1,-s*.5,-s*.9,0,-s*.25);
-                    cx.bezierCurveTo(s*.5,-s*.9,s,-s*.1,0,s*.5);cx.fill();
-                    break;
-                }
-                case 'gold':{ // 小年：金色光点 + 闪烁 + 微光晕
-                    const tw=.55+Math.abs(Math.sin(gameClock*3.2+p.tw))*.45;
-                    cx.fillStyle=`rgba(255,205,96,${tw*.28})`;
-                    cx.beginPath();cx.arc(0,0,p.r*2.4,0,6.283);cx.fill();
-                    cx.fillStyle=`rgba(255,214,110,${tw})`;
-                    cx.beginPath();cx.arc(0,0,p.r,0,6.283);cx.fill();
-                    break;
-                }
-            }
-            cx.restore();
-        }
     }
+};
+window.__festivalFxTest={
+    info:()=>FestivalFx.info(),
+    themes:()=>FESTIVAL_SCREEN_FX_IDS.map(id=>({id,label:FESTIVAL_SCREEN_FX_THEMES[id].label,theme:FESTIVAL_SCREEN_FX_THEMES[id].theme,quality:{...FESTIVAL_SCREEN_FX_THEMES[id].quality}})),
+    playIntro:()=>FestivalFx.playIntro(),
+    setReducedMotion:value=>{reduceFestivalMotion=!!value;FestivalFx.screen.setReducedMotion(reduceFestivalMotion);return FestivalFx.info()},
+    avoidRects:()=>{camera.updateMatrixWorld(true);return[...getFestivalAvoidRects(),...getFestivalDynamicAvoidRects()]}
 };
 window.__flagTest={
     info:()=>{
@@ -4569,6 +4519,7 @@ function updateSettingsPanel(){
     setSwitchState('set-music',musicOn);
     setSwitchState('set-sfx',sfxOn);
     setSwitchState('set-fps',document.getElementById('fps-hud').classList.contains('show'));
+    setSwitchState('set-reduced-motion',reduceFestivalMotion);
     document.querySelectorAll('#set-quality .seg-opt').forEach(el=>el.classList.toggle('sel',el.dataset.q===graphicsQuality));
     document.querySelectorAll('#set-skin .skin-opt').forEach(el=>el.classList.toggle('sel',el.dataset.skin===activeDuckSkin));
     // 自定义配色编辑器：选中"自定义"时展开，取色器回显当前调色板
@@ -4588,6 +4539,7 @@ document.getElementById('settings-btn').onclick=window.openSettings;
 document.getElementById('set-music').onclick=()=>{document.getElementById('music-btn').click();updateSettingsPanel()};
 document.getElementById('set-sfx').onclick=()=>{sfxOn=!sfxOn;localStorage.setItem('duck_sfx',sfxOn?'1':'0');updateSettingsPanel()};
 document.getElementById('set-fps').onclick=()=>{const hud=document.getElementById('fps-hud');hud.classList.toggle('show');localStorage.setItem('duck_fps',hud.classList.contains('show')?'1':'0');updateSettingsPanel()};
+document.getElementById('set-reduced-motion').onclick=()=>{reduceFestivalMotion=!reduceFestivalMotion;localStorage.setItem('duck_reduce_festival_motion',reduceFestivalMotion?'1':'0');FestivalFx.screen.setReducedMotion(reduceFestivalMotion);updateSettingsPanel()};
 document.querySelectorAll('#set-quality .seg-opt').forEach(el=>el.onclick=()=>{applyGraphicsQuality(el.dataset.q);updateSettingsPanel()});
 document.querySelectorAll('#set-skin .skin-opt').forEach(el=>el.onclick=()=>{applyDuckSkin(el.dataset.skin);updateSettingsPanel()});
 // 自定义配色：拖动取色即实时上身并持久化
@@ -4660,6 +4612,7 @@ document.getElementById('blessing-splash').addEventListener('click',()=>{
     const splash=document.getElementById('blessing-splash');
     splash.classList.remove('show');
     stopBlessingFx(splash);
+    FestivalFx.playIntro();
 });
 
 // ===== 成就 UI（已迁移到 js/ui/achievements.js） =====
@@ -4824,6 +4777,8 @@ const framePerf={samples:0,over33:0,over50:0,maxMs:0,lastMs:0};
     clearCameraShakeOffset();
     // 暂停时不更新游戏逻辑
     if(isPaused){
+        camera.updateMatrixWorld(true);
+        FestivalFx.updateScreen(0); // 冻结粒子，但立即把暂停/设置层下方的特效降到低透明度。
         renderer.render(scene,camera);
         return;
     }
@@ -4881,10 +4836,13 @@ if(streakActive){const s=.5+Math.sin(gameClock*2)*.5;document.getElementById('co
 // OrbitControls 的 dampingFactor 是“每次 update”的比例；换算到真实 dt 后，30/60/120 FPS 衰减手感一致。
 controls.dampingFactor=1-Math.pow(1-.06,Math.min(dt,.05)*60);
 controls.update();
-// 节日漂浮物在水面与最终相机轨道更新后采样：旗座贴浪，镜头外回收也不会被阻尼转动带入本帧视野。
-FestivalFx.update(dt);
+// 3D 节日物件在水面与最终相机轨道更新后采样：旗座贴浪，镜头外回收也不会被阻尼转动带入本帧视野。
+FestivalFx.updateWorld(dt);
 // 雷击/受伤只作为本帧最终渲染偏移；渲染完成立即撤销，不给两帧间的鼠标事件读到抖动坐标。
 applyCameraShake(dt);
+camera.updateMatrixWorld(true);
+// 屏幕特效最后投影鸭子和名牌安全区，和本帧最终相机位置一致，不会在抖动时错位遮挡。
+FestivalFx.updateScreen(dt);
 // 吸入结束后滤镜继续旋转着褪去（sinkFx 衰减到 0）
 if(duckSink.state==='none'&&sinkFx>0)sinkFx=Math.max(0,sinkFx-dt*.9);
 // 阴影按真实时间而不是显示器帧数更新；120/165Hz 屏不再比60Hz多提交两三倍 shadow pass。
@@ -4896,5 +4854,5 @@ try{
 }finally{clearCameraShakeOffset()}
 })();
 addEventListener('resize',()=>resizeRuntime(innerWidth,innerHeight,swirlPostfx));
-// 节日覆盖层画布跟随窗口尺寸（全屏粒子特效不因窗口变化而只覆盖一角）
-addEventListener('resize',()=>{for(const cv of[FestivalFx.fwCv,FestivalFx.snowCv,FestivalFx.ovCv]){if(cv){cv.width=innerWidth;cv.height=innerHeight}}});
+// 统一画布自行处理内部清晰度、粒子重映射和 HUD 安全区。
+addEventListener('resize',()=>FestivalFx.resize());
