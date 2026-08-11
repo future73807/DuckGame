@@ -13,7 +13,7 @@ import {createSwirlPostfx} from './render/postfx.js';
 import {createRuntime} from './render/runtime.js';
 import {createWater} from './render/water.js';
 import {createEnvironment} from './render/environment.js';
-import {createFestivalScreenFx,FESTIVAL_SCREEN_FX_IDS,FESTIVAL_SCREEN_FX_THEMES} from './render/festival-screen-fx.js';
+import {createFestivalScreenFx,FESTIVAL_SCREEN_FX_IDS,FESTIVAL_SCREEN_FX_THEMES,computeFestivalMoonLayout} from './render/festival-screen-fx.js';
 import {createRunStats,recordCollection,resetCollectionChain,recordComboMultiplier,beginLowHealth,finishLowHealth,selectRunHighlight,createNearMissState,updateNearMissState,criticalHeartPolicy,shouldSpawnHeart,isDownHostSceneCaretaker,circleClearance,selectSafeHeartCandidate,isOutsideAllPlayerRanges} from './core/run-feedback.js';
 
 // ===== 检测 =====
@@ -1277,30 +1277,22 @@ for(let i=0;i<MAGNET_TRAIL_COUNT;i++){
 }
 let magnetTrailCursor=0,magnetVisualAccumulator=0;
 // 两连目标标记池：最多提示 4 个近处可完成目标，几何/材质全局共享，扫描仅每 0.2 秒执行一次。
-const COMBO_TARGET_MARKER_COUNT=4,COMBO_TARGET_RANGE=30;
+// 圆环保留在 3D 世界中，倍率卡片使用固定 DOM 池，彻底避开鸭子/水面/透明特效的深度与排序干扰。
+const COMBO_TARGET_MARKER_COUNT=4,COMBO_TARGET_RANGE=30,COMBO_TARGET_RING_RENDER_ORDER=2100,COMBO_TARGET_CARD_MARGIN=8,COMBO_TARGET_CARD_GAP=13,COMBO_TARGET_CARD_FLIP_HYSTERESIS=8;
 const comboTargetRingGeo=new THREE.TorusGeometry(.4,.033,7,36);
 const comboTargetRingMats={
-    same:new THREE.MeshBasicMaterial({color:0xffcf55,transparent:true,opacity:.88,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,fog:false}),
-    diff:new THREE.MeshBasicMaterial({color:0x73ddff,transparent:true,opacity:.84,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,fog:false})
+    same:new THREE.MeshBasicMaterial({color:0xffcf55,transparent:true,opacity:.88,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,toneMapped:false,fog:false}),
+    diff:new THREE.MeshBasicMaterial({color:0x73ddff,transparent:true,opacity:.84,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,toneMapped:false,fog:false})
 };
-function makeComboTargetTexture(text,accent){
-    const tex=mkTex(192,80,(ctx)=>{
-        ctx.clearRect(0,0,192,80);ctx.shadowColor=accent;ctx.shadowBlur=14;
-        const bg=ctx.createLinearGradient(10,0,182,0);bg.addColorStop(0,'rgba(8,18,32,.15)');bg.addColorStop(.2,'rgba(8,18,32,.86)');bg.addColorStop(.8,'rgba(8,18,32,.86)');bg.addColorStop(1,'rgba(8,18,32,.15)');
-        ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(8,8,176,64,25);ctx.fill();ctx.shadowBlur=0;ctx.lineWidth=3;ctx.strokeStyle=accent;ctx.stroke();
-        ctx.fillStyle='#fff';ctx.font='900 40px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,96,42);
-    });
-    tex.colorSpace=THREE.SRGBColorSpace;return tex;
-}
-const comboTargetLabelMats={
-    same:new THREE.SpriteMaterial({map:makeComboTargetTexture('×10','#ffc94f'),transparent:true,depthTest:false,depthWrite:false,fog:false}),
-    diff:new THREE.SpriteMaterial({map:makeComboTargetTexture('×5','#64ddff'),transparent:true,depthTest:false,depthWrite:false,fog:false})
-};
-const comboTargetMarkers=[],comboTargetItems=[],comboTargetDistances=[];
+const comboTargetLayer=document.createElement('div');comboTargetLayer.id='combo-target-layer';comboTargetLayer.setAttribute('aria-hidden','true');document.getElementById('ui').appendChild(comboTargetLayer);
+const comboTargetMarkers=[],comboTargetCards=[],comboTargetCardStates=[],comboTargetItems=[],comboTargetDistances=[];
 for(let i=0;i<COMBO_TARGET_MARKER_COUNT;i++){
-    const group=new THREE.Group(),ring=new THREE.Mesh(comboTargetRingGeo,comboTargetRingMats.same),label=new THREE.Sprite(comboTargetLabelMats.same);
-    ring.renderOrder=46;label.position.y=.69;label.scale.set(.8,.34,1);label.renderOrder=47;group.add(ring,label);group.visible=false;group.userData={ring,label};scene.add(group);comboTargetMarkers.push(group);
+    const group=new THREE.Group(),ring=new THREE.Mesh(comboTargetRingGeo,comboTargetRingMats.same);
+    group.renderOrder=COMBO_TARGET_RING_RENDER_ORDER;ring.renderOrder=COMBO_TARGET_RING_RENDER_ORDER;group.add(ring);group.visible=false;group.userData={ring};scene.add(group);comboTargetMarkers.push(group);
+    const card=document.createElement('div');card.className='combo-target-card';card.dataset.kind='same';card.innerHTML='<span class="combo-target-card-value">×10</span>';comboTargetLayer.appendChild(card);comboTargetCards.push(card);
+    comboTargetCardStates.push({visible:false,reason:'no-target',kind:'same',x:null,y:null,anchorX:null,anchorY:null,ndcZ:null,placement:null,clamped:false,width:Math.max(48,card.offsetWidth),height:Math.max(26,card.offsetHeight)});
 }
+const comboTargetProjectPos=new THREE.Vector3(),comboTargetViewPos=new THREE.Vector3();
 let comboTargetScanTimer=0,comboTargetModeKey='';
 // 磁铁 HUD（激活时显示倒计时）
 const magnetHud=document.createElement('div');magnetHud.id='magnet-hud';
@@ -1334,7 +1326,18 @@ function setComboGoalHud(mode){
     else hint.innerHTML='<i class="fa-solid fa-arrow-right"></i> 新种类 ×5';
     hint.className='show '+mode.kind;
 }
-function hideComboTargetMarkers(){for(const marker of comboTargetMarkers)marker.visible=false}
+function hideComboTargetCard(index,reason){
+    const card=comboTargetCards[index],state=comboTargetCardStates[index];if(!card||!state)return;
+    if(state.visible){card.classList.remove('show');state.visible=false}
+    state.reason=reason;state.x=null;state.y=null;state.anchorX=null;state.anchorY=null;state.ndcZ=null;state.placement=null;state.clamped=false;
+}
+function setComboTargetCardKind(index,kind){
+    const card=comboTargetCards[index],state=comboTargetCardStates[index];if(!card||!state||state.kind===kind)return;
+    state.kind=kind;card.dataset.kind=kind;card.querySelector('.combo-target-card-value').textContent=kind==='same'?'×10':'×5';
+}
+function hideComboTargetMarkers(reason='no-target'){
+    for(let i=0;i<comboTargetMarkers.length;i++){comboTargetMarkers[i].visible=false;hideComboTargetCard(i,reason)}
+}
 function resetComboTargetHints(){comboTargetItems.length=0;comboTargetDistances.length=0;comboTargetScanTimer=0;comboTargetModeKey='';setComboGoalHud(null);hideComboTargetMarkers()}
 function scanComboTargets(mode){
     comboTargetItems.length=0;comboTargetDistances.length=0;if(!duckModel)return;
@@ -1350,16 +1353,52 @@ function scanComboTargets(mode){
 function updateComboTargetHints(dt){
     const mode=gameActive?getComboTargetMode():null,key=mode?.key||'';
     if(key!==comboTargetModeKey){comboTargetModeKey=key;comboTargetScanTimer=0;setComboGoalHud(mode)}
-    if(!mode||!duckModel){hideComboTargetMarkers();return}
+    if(!mode){comboTargetItems.length=0;comboTargetDistances.length=0;comboTargetScanTimer=0;hideComboTargetMarkers();return}
+    if(!duckModel){hideComboTargetMarkers();return}
     comboTargetScanTimer-=dt;
     if(comboTargetScanTimer<=0||comboTargetItems.some(item=>!isComboTargetItem(item,mode))){scanComboTargets(mode);comboTargetScanTimer=.2}
     for(let i=0;i<comboTargetMarkers.length;i++){
         const marker=comboTargetMarkers[i],item=comboTargetItems[i];
-        if(!item){marker.visible=false;continue}
+        if(!item){marker.visible=false;hideComboTargetCard(i,'no-target');continue}
         marker.visible=true;marker.position.copy(item.mesh.position);marker.position.y+=.72+Math.min(.3,item.r*.22);marker.quaternion.copy(camera.quaternion);
         const pulse=1+Math.sin(gameClock*5+i*1.7)*.12;marker.userData.ring.scale.setScalar(pulse);marker.userData.ring.rotation.z=gameClock*(i%2?-.9:.9)+i;
-        marker.userData.ring.material=comboTargetRingMats[mode.kind];marker.userData.label.material=comboTargetLabelMats[mode.kind];
+        marker.userData.ring.material=comboTargetRingMats[mode.kind];setComboTargetCardKind(i,mode.kind);
     }
+}
+// 必须在最终相机矩阵（包含本帧震屏偏移）更新后投影，否则 DOM 卡片会和 3D 圆环错开。
+function updateComboTargetCards(){
+    const width=innerWidth,height=innerHeight;
+    for(let i=0;i<comboTargetCards.length;i++){
+        const marker=comboTargetMarkers[i],item=comboTargetItems[i],card=comboTargetCards[i],state=comboTargetCardStates[i];
+        if(!marker?.visible||!item||item.coll||item.duoHidden){hideComboTargetCard(i,'no-target');continue}
+        comboTargetViewPos.copy(marker.position).applyMatrix4(camera.matrixWorldInverse);
+        if(comboTargetViewPos.z>=-camera.near){hideComboTargetCard(i,'behind-camera');continue}
+        comboTargetProjectPos.copy(marker.position).project(camera);
+        const{x,y,z}=comboTargetProjectPos;
+        if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z)||x<=-1||x>=1||y<=-1||y>=1||z<=-1||z>=1){hideComboTargetCard(i,'offscreen');continue}
+        const screenX=(x*.5+.5)*width,screenY=(-y*.5+.5)*height;
+        const halfWidth=state.width*.5,minX=COMBO_TARGET_CARD_MARGIN+halfWidth,maxX=width-COMBO_TARGET_CARD_MARGIN-halfWidth;
+        const cardX=minX<=maxX?Math.max(minX,Math.min(maxX,screenX)):width*.5;
+        const aboveTop=screenY-COMBO_TARGET_CARD_GAP-state.height;
+        // 保留上一帧方向并留出滞回带，避免浪高/震屏在顶部临界值附近造成约一张卡片高度的上下跳变。
+        const placement=state.placement==='below'
+            ?(aboveTop>=COMBO_TARGET_CARD_MARGIN+COMBO_TARGET_CARD_FLIP_HYSTERESIS?'above':'below')
+            :(aboveTop<COMBO_TARGET_CARD_MARGIN?'below':'above');
+        const offsetY=placement==='below'?`${COMBO_TARGET_CARD_GAP}px`:`calc(-100% - ${COMBO_TARGET_CARD_GAP}px)`;
+        card.style.transform=`translate3d(${cardX.toFixed(1)}px,${screenY.toFixed(1)}px,0) translate(-50%,${offsetY})`;
+        if(state.placement!==placement){card.dataset.placement=placement;state.placement=placement}
+        if(!state.visible){card.classList.add('show');state.visible=true}
+        state.reason='visible';state.anchorX=Math.round(screenX*10)/10;state.anchorY=Math.round(screenY*10)/10;state.x=Math.round(cardX*10)/10;state.y=state.anchorY;state.clamped=Math.abs(cardX-screenX)>.05;state.ndcZ=Math.round(z*1000)/1000;
+    }
+}
+function comboTargetDebugState(){
+    const firstRing=comboTargetMarkers[0]?.userData.ring,layerStyle=getComputedStyle(comboTargetLayer);
+    return{
+        mode:comboTargetModeKey,targets:comboTargetItems.filter(item=>item&&!item.coll).map(item=>item.type),distances:comboTargetDistances.map(distanceSq=>Math.round(Math.sqrt(distanceSq)*10)/10),
+        layer:{kind:'dom',connected:comboTargetLayer.isConnected,zIndex:layerStyle.zIndex,pointerEvents:layerStyle.pointerEvents},
+        ring:{renderOrder:firstRing?.renderOrder??null,groupRenderOrder:comboTargetMarkers[0]?.renderOrder??null,depthTest:firstRing?.material.depthTest??null,depthWrite:firstRing?.material.depthWrite??null,toneMapped:firstRing?.material.toneMapped??null,visible:comboTargetMarkers.filter(marker=>marker.visible).length},
+        cards:comboTargetCardStates.map((state,index)=>({...state,target:comboTargetItems[index]?.type||null}))
+    };
 }
 function addScore(n,type='score',showMultiplierToast=true){
     const blessingMult=Blessings.getScoreMult(n>0?type:null);
@@ -3147,6 +3186,7 @@ window.__debugFestival=key=>Blessings.applyDebugSelection(null,key);
 window.__dbgSpawn=(type,count)=>dbgSpawnItem(type,count);
 window.__debugEvent=key=>{if(activeEvent)endEvent();if(key)startEvent(key);return activeEvent};
 window.__setGameClock=value=>{const next=Number(value);if(Number.isFinite(next))gameClock=Math.max(0,next);return gameClock};
+window.__comboHintState=()=>comboTargetDebugState();
 // 调试：把相机对准世界坐标点（视觉自检截图用），暂停自动跟随
 window.__lookAt=(tx,ty,tz,dist=20,ang=.5)=>{
     cam.followPaused=true;
@@ -3184,7 +3224,7 @@ window.__gameState=()=>({
     itemResourceStats:{...itemResourceStats},
     opening:{progress:Math.round(openingGraceProgress()*1000)/1000,activeSeconds:Math.round(runActiveSeconds*1000)/1000,guaranteedMagnet:openingMagnetGuaranteed,refreshTimer:Math.round(spawnRefreshTimer*1000)/1000},
     streakProgress:[...streakItems],
-    comboHint:{mode:comboTargetModeKey,targets:comboTargetItems.filter(item=>item&&!item.coll).map(item=>item.type),visible:comboTargetMarkers.filter(marker=>marker.visible).length},
+    comboHint:comboTargetDebugState(),
     score:score,
     hearts:hearts,
     gameActive:gameActive,
@@ -3732,20 +3772,20 @@ const Blessings={
     // 按一年中时间顺序排列（元旦 → 小年），与 readme.md 节日表及调试面板顺序保持一致
     holidays:{
         '0101':{id:'festival_new_year',name:'元旦',greeting:'新年快乐，鸭鸭陪你开启全新一年！',desc:'雪花飘落 · 磁铁范围 ×2',icon:'fa-snowflake',target:'magnetRange',value:2,fx:'#9fd8ff'},
-        'new_years_eve':{id:'festival_eve',name:'除夕',greeting:'爆竹声中一岁除，春风送暖入屠苏。',desc:'烟花绽放 · 开局自带 1 层护盾',icon:'fa-champagne-glasses',target:'shield',value:1,fx:'#ffd166'},
+        'new_years_eve':{id:'festival_eve',name:'除夕',greeting:'爆竹声中一岁除，春风送暖入屠苏。',desc:'金色纸片 · 开局自带 1 层护盾',icon:'fa-champagne-glasses',target:'shield',value:1,fx:'#ffd166'},
         'spring':{id:'festival_spring',name:'春节',greeting:'新春大吉，鸭鸭给你拜年啦！',desc:'烟花绽放 · 初始 5 颗心',icon:'fa-burst',target:'startHearts',value:5,fx:'#ffd166'},
-        'lantern':{id:'festival_lantern',name:'元宵',greeting:'花好月圆人团圆，元宵快乐！',desc:'祈福灯笼漩涡 · 吸入只传送不扣分',icon:'fa-lightbulb',target:'lanternWhirl',value:1,fx:'#ffb3c6'},
-        'dragon_heads':{id:'festival_dragon_heads',name:'龙抬头',greeting:'二月二龙抬头，鸿运当头好兆头！',desc:'磁铁持续时间 +50%',icon:'fa-dragon',target:'magnet',mult:1.5,fx:'#a8e6cf'},
+        'lantern':{id:'festival_lantern',name:'元宵',greeting:'花好月圆人团圆，元宵快乐！',desc:'孔明灯升空 · 祈福灯笼漩涡吸入只传送不扣分',icon:'fa-lightbulb',target:'lanternWhirl',value:1,fx:'#ffb3c6'},
+        'dragon_heads':{id:'festival_dragon_heads',name:'龙抬头',greeting:'二月二龙抬头，鸿运当头好兆头！',desc:'青金粒子 · 磁铁持续时间 +50%',icon:'fa-dragon',target:'magnet',mult:1.5,fx:'#a8e6cf'},
         'qingming':{id:'festival_qingming',name:'清明',greeting:'清明时节雨纷纷，路上行人欲断魂。',desc:'青叶飘落 · 生命上限 +1',icon:'fa-cloud-rain',target:'maxHearts',value:1,fx:'#a8d8ea'},
-        '0501':{id:'festival_labor',name:'劳动节',greeting:'劳动最光荣，今天也要加油鸭！',desc:'移动速度 +30%',icon:'fa-sun',target:'speed',mult:1.3,fx:'#ffd166'},
+        '0501':{id:'festival_labor',name:'劳动节',greeting:'劳动最光荣，今天也要加油鸭！',desc:'金青粒子 · 移动速度 +30%',icon:'fa-sun',target:'speed',mult:1.3,fx:'#ffd166'},
         'dragon_boat':{id:'festival_dragon_boat',name:'端午',greeting:'粽叶飘香，端午安康！',desc:'水草变粽子 · 绿叶飘落 · 得分 ×3',icon:'fa-water',target:'grass',mult:3,fx:'#9fe6b8'},
         'qixi':{id:'festival_qixi',name:'七夕',greeting:'金风玉露一相逢，便胜却人间无数。',desc:'粉紫爱心 · 花朵得分 ×3',icon:'fa-heart',target:'flower',mult:3,fx:'#ffafcc'},
-        'zhongyuan':{id:'festival_zhongyuan',name:'中元节',greeting:'河灯盏盏，思念绵绵。',desc:'漩涡免伤',icon:'fa-fire',target:'whirl',value:1,fx:'#cdb4db'},
-        'mid_autumn':{id:'festival_mid_autumn',name:'中秋',greeting:'海上生明月，天涯共此时。',desc:'夜空明月 · 月亮血条 · 所有得分 ×1.5',icon:'fa-moon',target:'score',mult:1.5,fx:'#ffe3a3'},
+        'zhongyuan':{id:'festival_zhongyuan',name:'中元节',greeting:'河灯盏盏，思念绵绵。',desc:'鬼火浮现 · 漩涡免伤',icon:'fa-fire',target:'whirl',value:1,fx:'#cdb4db'},
+        'mid_autumn':{id:'festival_mid_autumn',name:'中秋',greeting:'海上生明月，天涯共此时。',desc:'白黄星光 · 夜空明月 · 月亮血条 · 所有得分 ×1.5',icon:'fa-moon',target:'score',mult:1.5,fx:'#ffe3a3'},
         'double_ninth':{id:'festival_double_ninth',name:'重阳节',greeting:'遥知兄弟登高处，遍插茱萸少一人。',desc:'金叶飘落 · 开局自带 1 层护盾',icon:'fa-mountain-sun',target:'shield',value:1,fx:'#ffc8a2'},
-        '1001':{id:'festival_national_day',name:'国庆',greeting:'山河锦绣，国泰民安，假期快乐！',desc:'红旗飘扬 · 撞碎蛋糕得分',icon:'fa-flag',target:'cakeRocks',value:1,fx:'#ff9d6b'},
-        'winter_solstice':{id:'festival_winter_solstice',name:'冬至',greeting:'冬至大如年，人间小团圆。',desc:'所有得分 ×1.5',icon:'fa-snowflake',target:'score',mult:1.5,fx:'#bde0fe'},
-        'laba':{id:'festival_laba',name:'腊八节',greeting:'过了腊八就是年，粥到福到！',desc:'水草得分 ×2',icon:'fa-bowl-food',target:'grass',mult:2,fx:'#e6c79c'},
+        '1001':{id:'festival_national_day',name:'国庆',greeting:'山河锦绣，国泰民安，假期快乐！',desc:'礼花星光 · 红旗飘扬 · 撞碎蛋糕得分',icon:'fa-flag',target:'cakeRocks',value:1,fx:'#ff9d6b'},
+        'winter_solstice':{id:'festival_winter_solstice',name:'冬至',greeting:'冬至大如年，人间小团圆。',desc:'四角冰花 · 所有得分 ×1.5',icon:'fa-snowflake',target:'score',mult:1.5,fx:'#bde0fe'},
+        'laba':{id:'festival_laba',name:'腊八节',greeting:'过了腊八就是年，粥到福到！',desc:'四角雾气 · 水草得分 ×2',icon:'fa-bowl-food',target:'grass',mult:2,fx:'#e6c79c'},
         'xiaonian':{id:'festival_xiaonian',name:'小年',greeting:'小年祭灶忙，欢喜迎新春！',desc:'金粒升起 · 所有得分 ×1.5',icon:'fa-broom',target:'score',mult:1.5,fx:'#ffd166'}
     },
     // 农历节日公历对照表（2024–2032，日期 → holidays 键），已逐一与 MoonCal/日历网核对。
@@ -3849,7 +3889,7 @@ const Blessings={
     }
 };
 
-// ===== 节日场景特效：除夕春节烟花 / 元旦雪花 / 国庆红旗 / 中秋月亮（灯笼漩涡/粽子/蛋糕在生成处特判） =====
+// ===== 节日场景特效：统一屏幕粒子 / 国庆红旗 / 中秋月亮（灯笼漩涡/粽子/蛋糕在生成处特判） =====
 // 节日判定（TDZ 安全）：模块级初始化早于 Blessings 声明，typeof 无法挡 TDZ，需 try/catch 兜底
 function isFestival(id){try{return typeof Blessings!=='undefined'&&Blessings.festival?.id===id}catch(e){return false}}
 // 元旦磁铁范围 ×2
@@ -3872,55 +3912,9 @@ function disposeFestivalObject(root){
 const _flagFrustum=new THREE.Frustum();
 const _flagViewProjection=new THREE.Matrix4();
 const _flagBounds=new THREE.Sphere(new THREE.Vector3(),1.65);
-const _festivalProjectPoint=new THREE.Vector3();
-const _festivalCameraPoint=new THREE.Vector3();
-const _festivalWorldScale=new THREE.Vector3();
-const FESTIVAL_SAFE_UI_SELECTORS=['#hud','#duo-hud','#fps-hud','#clock','#event-hud','#event-warn','#magnet-hud','#lb-btn-top','#fs-btn','#music-btn','#pause-btn','#ach-btn','#settings-btn','#help-btn','#dbg-btn'];
-function festivalElementRect(element,pad=16){
-    if(!element)return null;
-    const style=getComputedStyle(element);if(style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0)return null;
-    const rect=element.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return null;
-    return{left:rect.left-pad,top:rect.top-pad,width:rect.width+pad*2,height:rect.height+pad*2,kind:'ui',strength:.86,feather:14};
-}
-function festivalProjectObject(object,yOffset=0){
-    if(!object||object.visible===false)return null;
-    object.getWorldPosition(_festivalProjectPoint);_festivalProjectPoint.y+=yOffset;_festivalProjectPoint.project(camera);
-    if(_festivalProjectPoint.z<-1||_festivalProjectPoint.z>1)return null;
-    return{x:(_festivalProjectPoint.x*.5+.5)*innerWidth,y:(.5-_festivalProjectPoint.y*.5)*innerHeight};
-}
-function festivalPixelsPerWorld(object){
-    object.getWorldPosition(_festivalCameraPoint);_festivalCameraPoint.applyMatrix4(camera.matrixWorldInverse);
-    const depth=-_festivalCameraPoint.z;if(depth<=.01)return 0;
-    return innerHeight*.5*camera.projectionMatrix.elements[5]/depth;
-}
-function festivalProjectDuckRect(duck){
-    const point=festivalProjectObject(duck,.75);if(!point)return null;
-    duck.getWorldScale(_festivalWorldScale);const pixels=festivalPixelsPerWorld(duck);
-    const width=Math.min(innerWidth*.45,Math.max(116,pixels*Math.abs(_festivalWorldScale.x)*1.9+36));
-    const height=Math.min(innerHeight*.55,Math.max(108,pixels*Math.abs(_festivalWorldScale.y)*2.35+36));
-    return{left:point.x-width*.5,top:point.y-height*.5,width,height,kind:'duck',strength:.92,feather:20};
-}
-function festivalProjectLabelRect(label){
-    const point=festivalProjectObject(label);if(!point)return null;
-    label.getWorldScale(_festivalWorldScale);const pixels=festivalPixelsPerWorld(label);
-    const width=Math.min(innerWidth*.72,Math.max(128,pixels*Math.abs(_festivalWorldScale.x)+36));
-    const height=Math.min(innerHeight*.28,Math.max(60,pixels*Math.abs(_festivalWorldScale.y)+28));
-    return{left:point.x-width*.5,top:point.y-height*.5,width,height,kind:'label',strength:1,feather:18};
-}
-function getFestivalAvoidRects(){
-    const rects=[];
-    for(const selector of FESTIVAL_SAFE_UI_SELECTORS){const rect=festivalElementRect(document.querySelector(selector));if(rect)rects.push(rect)}
-    return rects;
-}
-function getFestivalDynamicAvoidRects(){
-    const rects=[];
-    for(const duck of[duckModel,duoRemoteDuck]){
-        const duckRect=festivalProjectDuckRect(duck);if(duckRect)rects.push(duckRect);
-        const label=duck===duckModel?duoLocalNameLabel:duck?.children?.find(node=>node.userData?.duoNameLabel);
-        const labelRect=festivalProjectLabelRect(label);if(labelRect)rects.push(labelRect);
-    }
-    return rects;
-}
+const _festivalMoonForward=new THREE.Vector3();
+const _festivalMoonRight=new THREE.Vector3();
+const _festivalMoonUp=new THREE.Vector3();
 function festivalFxDimmed(){
     return rotateHintActive||['#blessing-splash','#settings-modal','#pause-overlay','#tutorial','#ach-modal','#help','#gameover','#duo-respawn'].some(selector=>document.querySelector(selector)?.classList.contains('show'));
 }
@@ -3928,13 +3922,6 @@ const festivalScreenFx=createFestivalScreenFx({
     window,document,
     getQuality:()=>quality.effectiveTier||graphicsQuality,
     getReducedMotion:()=>reduceFestivalMotion,
-    getAvoidRects:getFestivalAvoidRects,
-    getDynamicAvoidRects:getFestivalDynamicAvoidRects,
-    getMoonScreenPoint:()=>{
-        const moon=FestivalFx.moonSprite,point=festivalProjectObject(moon);
-        return point?{...point,visible:moon.visible&&moon.material.opacity>.02}:{x:innerWidth*.8,y:innerHeight*.2,visible:false};
-    },
-    getWindX:()=>evWindDir.x,
     isPaused:()=>isPaused,
     isHidden:()=>document.hidden||!gameActive,
     isDimmed:festivalFxDimmed
@@ -3942,7 +3929,8 @@ const festivalScreenFx=createFestivalScreenFx({
 const FestivalFx={
     activeId:null,screen:festivalScreenFx,
     flagsGroup:null,
-    moonSprite:null, // 中秋：夜空中的一轮满月（夜晚时段常驻显示）
+    moonSprite:null, // 中秋：白天可见、夜间增亮的一轮满月
+    moonLayout:null,
     start(options={}){
         const id=Blessings.festival?.id;
         if(!id){this.stop();return false}
@@ -3955,7 +3943,7 @@ const FestivalFx={
     },
     clearWorld(){
         if(this.flagsGroup){disposeFestivalObject(this.flagsGroup);this.flagsGroup=null}
-        if(this.moonSprite){disposeFestivalObject(this.moonSprite);this.moonSprite=null}
+        if(this.moonSprite){disposeFestivalObject(this.moonSprite);this.moonSprite=null}this.moonLayout=null;
     },
     stop(){
         this.screen.stop();this.activeId=null;
@@ -3969,7 +3957,9 @@ const FestivalFx={
     updateScreen(dt){this.screen.update(dt)},
     update(dt){this.updateWorld(dt);this.updateScreen(dt)},
     resize(){this.screen.resize()},
-    info(){return{...this.screen.getDebugState(),flags:!!this.flagsGroup,moon:!!this.moonSprite,knownIds:FESTIVAL_SCREEN_FX_IDS.length}},
+    info(){return{...this.screen.getDebugState(),flags:!!this.flagsGroup,moon:!!this.moonSprite,
+        moonState:this.moonSprite?{visible:this.moonSprite.visible,opacity:+this.moonSprite.material.opacity.toFixed(3),scale:+this.moonSprite.scale.x.toFixed(2),layout:this.moonLayout}:null,
+        knownIds:FESTIVAL_SCREEN_FX_IDS.length}},
     // --- 国庆：全场景红旗飘扬 ---
     startFlags(){
         // 标准 3:2 比例与 30×20 国旗坐标；小星各有一个尖角准确朝向大星。
@@ -4100,7 +4090,7 @@ const FestivalFx={
             fg.rotation.y=fg.userData.windYaw+Math.sin(gameClock*.38+fg.userData.ph)*.035;
         }
     },
-    // --- 中秋：夜空中一轮满月（Sprite 圆盘 + 暖光辉光，仅夜晚时段可见） ---
+    // --- 中秋：恢复旧版大月盘；相机相对定位保证始终处于右上天空，不再落到默认视锥外。 ---
     startMoon(){
         const tex=mkTex(256,256,x=>{
             // 月盘：暖白色圆 + 轻微径向渐变
@@ -4122,29 +4112,37 @@ const FestivalFx={
             x.strokeStyle='rgba(255,249,222,.2)';x.lineWidth=2;
             x.beginPath();x.arc(151,77,12,0,6.283);x.stroke();
         });
-        const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0,fog:false,depthWrite:false});
+        // 月亮是天空层，不参与水面/鸭子深度测试；否则相机相对定位后仍可能被整片水面挡住。
+        const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0,fog:false,depthTest:false,depthWrite:false,toneMapped:false});
         const s=new THREE.Sprite(mat);
-        s.scale.set(8.5,8.5,1);
-        scene.add(s);this.moonSprite=s;
+        s.scale.set(46,46,1);s.renderOrder=48;s.frustumCulled=false;
+        scene.add(s);this.moonSprite=s;this.moonLayout=null;
     },
     updateMoon(){
         if(!this.moonSprite)return;
-        // 夜晚时段常显：19:00–次日5:00 全亮（内置天空 moonDisc 距离远且方向固定不可见，此月亮跟随鸭子）
+        // 夜晚最亮，白天仍保留清晰月盘；调试或白天开局不再看起来像“月亮被删了”。
         const h=((timeOfDay%24)+24)%24;
         const nightF=h>=19?Math.min(1,(h-19)/.8):h<5?1:0;
-        // 锚定鸭子前方高空：保证玩家视野里总能看到月亮
-        const base=duckModel?duckModel.position:{x:0,y:0,z:0};
-        this.moonSprite.position.set(base.x+18,26+Math.sin(gameClock*.2)*1.5,base.z-34);
-        this.moonSprite.material.opacity=nightF*.95;
-        this.moonSprite.visible=nightF>.02&&gameActive;
+        const layout=computeFestivalMoonLayout({aspect:camera.aspect,verticalFov:camera.fov,zoom:camera.zoom,scale:this.moonSprite.scale.x});
+        camera.getWorldDirection(_festivalMoonForward).normalize();
+        _festivalMoonRight.crossVectors(_festivalMoonForward,camera.up).normalize();
+        _festivalMoonUp.crossVectors(_festivalMoonRight,_festivalMoonForward).normalize();
+        const bob=Math.sin(gameClock*.2)*.7,bobNdc=bob/layout.halfHeight;
+        this.moonSprite.position.copy(camera.position)
+            .addScaledVector(_festivalMoonForward,layout.depth)
+            .addScaledVector(_festivalMoonRight,layout.offsetX)
+            .addScaledVector(_festivalMoonUp,layout.offsetY+bob);
+        this.moonLayout={...layout,centerY:layout.centerY+bobNdc,bounds:{...layout.bounds,bottom:layout.bounds.bottom+bobNdc,top:layout.bounds.top+bobNdc}};
+        this.moonSprite.material.opacity=.62+nightF*.33;
+        this.moonSprite.visible=gameActive;
     }
 };
 window.__festivalFxTest={
     info:()=>FestivalFx.info(),
-    themes:()=>FESTIVAL_SCREEN_FX_IDS.map(id=>({id,label:FESTIVAL_SCREEN_FX_THEMES[id].label,theme:FESTIVAL_SCREEN_FX_THEMES[id].theme,quality:{...FESTIVAL_SCREEN_FX_THEMES[id].quality}})),
+    themes:()=>FESTIVAL_SCREEN_FX_IDS.map(id=>({id,label:FESTIVAL_SCREEN_FX_THEMES[id].label,theme:FESTIVAL_SCREEN_FX_THEMES[id].theme,mode:FESTIVAL_SCREEN_FX_THEMES[id].mode,palette:[...FESTIVAL_SCREEN_FX_THEMES[id].palette],quality:{...FESTIVAL_SCREEN_FX_THEMES[id].quality}})),
+    particles:()=>FestivalFx.screen.getParticleSnapshot(),
     playIntro:()=>FestivalFx.playIntro(),
-    setReducedMotion:value=>{reduceFestivalMotion=!!value;FestivalFx.screen.setReducedMotion(reduceFestivalMotion);return FestivalFx.info()},
-    avoidRects:()=>{camera.updateMatrixWorld(true);return[...getFestivalAvoidRects(),...getFestivalDynamicAvoidRects()]}
+    setReducedMotion:value=>{reduceFestivalMotion=!!value;FestivalFx.screen.setReducedMotion(reduceFestivalMotion);return FestivalFx.info()}
 };
 window.__flagTest={
     info:()=>{
@@ -5105,6 +5103,7 @@ const framePerf={samples:0,over33:0,over50:0,maxMs:0,lastMs:0};
     // 暂停时不更新游戏逻辑
     if(isPaused){
         camera.updateMatrixWorld(true);
+        updateComboTargetCards();
         FestivalFx.updateScreen(0); // 冻结粒子，但立即把暂停/设置层下方的特效降到低透明度。
         renderer.render(scene,camera);
         return;
@@ -5172,7 +5171,8 @@ FestivalFx.updateWorld(dt);
 // 雷击/受伤只作为本帧最终渲染偏移；渲染完成立即撤销，不给两帧间的鼠标事件读到抖动坐标。
 applyCameraShake(dt);
 camera.updateMatrixWorld(true);
-// 屏幕特效最后投影鸭子和名牌安全区，和本帧最终相机位置一致，不会在抖动时错位遮挡。
+updateComboTargetCards();
+// 屏幕粒子覆盖完整画面，不再读取或擦除鸭子、名牌和 HUD 区域。
 FestivalFx.updateScreen(dt);
 // 吸入结束后滤镜继续旋转着褪去（sinkFx 衰减到 0）
 if(duckSink.state==='none'&&sinkFx>0)sinkFx=Math.max(0,sinkFx-dt*.9);
@@ -5185,5 +5185,5 @@ try{
 }finally{clearCameraShakeOffset()}
 })();
 addEventListener('resize',()=>resizeRuntime(innerWidth,innerHeight,swirlPostfx));
-// 统一画布自行处理内部清晰度、粒子重映射和 HUD 安全区。
+// 统一画布自行处理内部清晰度与分层网格粒子重排。
 addEventListener('resize',()=>FestivalFx.resize());

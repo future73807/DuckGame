@@ -12,7 +12,8 @@
     "check:duo": "node scripts/check-duo-delta.js",
     "check:water": "node scripts/check-water-scheduler.js",
     "check:feedback": "node scripts/check-run-feedback.js",
-    "check": "npm run check:client && npm run check:server && npm run check:duo && npm run check:water && npm run check:feedback",
+    "check:festival": "node scripts/check-festival-fx.js",
+    "check": "npm run check:client && npm run check:server && npm run check:duo && npm run check:water && npm run check:feedback && npm run check:festival",
     "test": "npm run check"
   },
   "keywords": [

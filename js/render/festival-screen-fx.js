@@ -1,5 +1,5 @@
-// 16 套节日屏幕氛围：单 Canvas、本地确定性粒子、分档预算与减动效。
-// 本模块不依赖 THREE，也不创建 RAF；生命周期和帧循环由游戏主循环统一驱动。
+// 16 套节日屏幕粒子：单 Canvas、对象池、确定性分层采样与分档刷新。
+// 粒子覆盖完整屏幕，不读取也不规避鸭子、名牌或 HUD；UI 仅按自身 z-index 自然叠放。
 
 const TAU=Math.PI*2;
 const QUALITY_PRESETS=Object.freeze({
@@ -7,6 +7,7 @@ const QUALITY_PRESETS=Object.freeze({
     mid:{hz:45,resolution:1},
     high:{hz:60,resolution:1}
 });
+const FLOW_MODES=new Set(['snow','eve','lantern','dragon','qingming','labor','dragonBoat','qixi','doubleNinth','xiaonian']);
 
 function theme(id,themeName,label,palette,quality,introDuration,mode){
     return Object.freeze({id,theme:themeName,label,palette:Object.freeze(palette),quality:Object.freeze(quality),introDuration,mode});
@@ -14,312 +15,396 @@ function theme(id,themeName,label,palette,quality,introDuration,mode){
 
 export const FESTIVAL_SCREEN_FX_THEMES=Object.freeze({
     festival_new_year:theme('festival_new_year','ice-crystal-dawn','元旦 · 冰晶晨光',['#f7fbff','#9fd8ff','#78bde8'],{low:24,mid:56,high:96},2.2,'snow'),
-    festival_eve:theme('festival_eve','new-years-eve-embers','除夕 · 守岁火光',['#ffcf70','#e94335','#8f241e'],{low:24,mid:48,high:72},4,'eve'),
-    festival_spring:theme('festival_spring','golden-spring-sky','春节 · 金红天幕',['#ffe29a','#e52b24','#ff8d3a'],{low:48,mid:84,high:132},8.5,'spring'),
-    festival_lantern:theme('festival_lantern','lantern-river','元宵 · 灯河祈福',['#ffe0a3','#ff8c52','#b92832'],{low:8,mid:16,high:28},2.8,'lantern'),
-    festival_dragon_heads:theme('festival_dragon_heads','jade-dragon-awakens','龙抬头 · 青龙醒水',['#d7f7df','#42c7b8','#d8b45c'],{low:8,mid:16,high:28},2.2,'dragon'),
-    festival_qingming:theme('festival_qingming','misty-willow-rain','清明 · 烟雨柳色',['#b8d2d9','#759e9c','#76a66b'],{low:18,mid:36,high:60},2.4,'qingming'),
-    festival_labor:theme('festival_labor','morning-worklight','劳动节 · 勤劳晨光',['#ffe5a1','#e0a83b','#8dc9cf'],{low:10,mid:20,high:34},2.6,'labor'),
-    festival_dragon_boat:theme('festival_dragon_boat','dragon-boat-current','端午 · 竞渡粽香',['#cde8bd','#4c9a61','#e4c85a','#d86b59'],{low:12,mid:24,high:40},2.5,'dragonBoat'),
-    festival_qixi:theme('festival_qixi','magpie-bridge-stars','七夕 · 鹊桥银河',['#ffd0e5','#c9b4ff','#8ed9ff'],{low:12,mid:26,high:44},3,'qixi'),
-    festival_zhongyuan:theme('festival_zhongyuan','lotus-lamp-river','中元 · 河灯寄思',['#ffd29b','#7a75ba','#263d78'],{low:8,mid:16,high:28},2.8,'zhongyuan'),
-    festival_mid_autumn:theme('festival_mid_autumn','moonlight-osmanthus','中秋 · 月华桂影',['#fff1c7','#e7b64b','#aab9da'],{low:10,mid:22,high:38},2.5,'midAutumn'),
-    festival_double_ninth:theme('festival_double_ninth','chrysanthemum-highlands','重阳 · 登高赏菊',['#ffd176','#a34b3e','#8b765f'],{low:10,mid:20,high:34},2.4,'doubleNinth'),
-    festival_national_day:theme('festival_national_day','mountains-ribbon-stars','国庆 · 山河红绸',['#ffdc72','#d92826','#fff1cf'],{low:20,mid:40,high:64},2.5,'national'),
-    festival_winter_solstice:theme('festival_winter_solstice','warm-steam-frost','冬至 · 寒水暖气',['#e9f7ff','#a9d8ee','#ffe7bd'],{low:6,mid:12,high:20},2.2,'winter'),
-    festival_laba:theme('festival_laba','eight-treasure-warmth','腊八 · 八宝暖粥',['#f2dec2','#a44f45','#d5aa70','#f0c985'],{low:8,mid:16,high:32},2.8,'laba'),
-    festival_xiaonian:theme('festival_xiaonian','hearth-sweeping-light','小年 · 扫尘送灶',['#ffd071','#e84b32','#ff934d'],{low:12,mid:24,high:40},2,'xiaonian')
+    festival_eve:theme('festival_eve','golden-vigil-confetti','除夕 · 金纸守岁',['#ffe29a','#ffd166','#e9a83f'],{low:18,mid:32,high:48},2.2,'eve'),
+    // 高档容纳旧版 42/56 粒爆发的重叠生命周期；中低档只缩并发预算，不改变火箭→爆发语义。
+    festival_spring:theme('festival_spring','classic-spring-fireworks','春节 · 金红烟花',['#ffd166','#ffb84d','#fff3d6','#ff9f43','#ff5a4e','#ff8b69','#ffffff'],{low:72,mid:144,high:288},9,'spring'),
+    festival_lantern:theme('festival_lantern','rising-lanterns','元宵 · 孔明灯升空',['#d94b31','#ef6a37','#ffd38a'],{low:12,mid:20,high:32},2.4,'lantern'),
+    festival_dragon_heads:theme('festival_dragon_heads','jade-gold-particles','龙抬头 · 青金粒子',['#55c98f','#8be0a8','#e4c65a'],{low:20,mid:36,high:56},2,'dragon'),
+    festival_qingming:theme('festival_qingming','even-willow-leaves','清明 · 青叶徐落',['#77a96b','#95bf79','#527f59'],{low:18,mid:32,high:48},2.2,'qingming'),
+    festival_labor:theme('festival_labor','worklight-particles','劳动节 · 晨光粒子',['#ffe09a','#e9b84e','#8fd0d4'],{low:20,mid:36,high:56},2,'labor'),
+    festival_dragon_boat:theme('festival_dragon_boat','green-gold-leaves','端午 · 绿金叶雨',['#4e9c62','#83bd69','#e1c653','#f1dc79'],{low:18,mid:32,high:48},2.2,'dragonBoat'),
+    festival_qixi:theme('festival_qixi','classic-qixi-hearts','七夕 · 粉紫心雨',['#ff9ec7','#ba8eff','#ffd0e5'],{low:16,mid:28,high:44},2.2,'qixi'),
+    festival_zhongyuan:theme('festival_zhongyuan','even-ghost-flames','中元 · 鬼火浮现',['#70d7d2','#8c9cff','#b8f3dc'],{low:12,mid:20,high:32},2.4,'zhongyuan'),
+    festival_mid_autumn:theme('festival_mid_autumn','moon-stars','中秋 · 月下星光',['#fff7dc','#ffd66b','#f7fbff'],{low:18,mid:36,high:56},2.2,'midAutumn'),
+    festival_double_ninth:theme('festival_double_ninth','golden-autumn-leaves','重阳 · 金叶徐落',['#e9b94f','#ffd46c','#c88b35'],{low:18,mid:32,high:48},2.2,'doubleNinth'),
+    festival_national_day:theme('festival_national_day','fireworks-and-stars','国庆 · 礼花星光',['#ffdc72','#fff1cf','#ff6b54','#d92826'],{low:24,mid:48,high:72},2.5,'national'),
+    festival_winter_solstice:theme('festival_winter_solstice','corner-window-frost','冬至 · 四角结冰',['#f3fbff','#bfe9ff','#d9f4ff'],{low:8,mid:12,high:16},2.2,'winter'),
+    festival_laba:theme('festival_laba','corner-breath-mist','腊八 · 四角雾气',['#f7f4ee','#dcecf1','#fff7e5'],{low:8,mid:12,high:20},2.2,'laba'),
+    festival_xiaonian:theme('festival_xiaonian','classic-golden-rise','小年 · 金粒升空',['#ffd166','#ffe29a','#ffb84d'],{low:16,mid:28,high:44},2,'xiaonian')
 });
 
 export const FESTIVAL_SCREEN_FX_IDS=Object.freeze(Object.keys(FESTIVAL_SCREEN_FX_THEMES));
 
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-function lerp(a,b,t){return a+(b-a)*t}
 function smoothstep(a,b,v){const t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t)}
 function normalizeQuality(value){return value==='high'?'high':value==='low'||value==='restricted'?'low':'mid'}
 function hashText(value){let h=2166136261;for(let i=0;i<value.length;i++){h^=value.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 function seeded(seed){let x=seed>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}
-function rectValue(rect,key,fallback){const value=Number(rect?.[key]);return Number.isFinite(value)?value:fallback}
+function wrapRange(value,min,max){const span=Math.max(1e-6,max-min);return((value-min)%span+span)%span+min}
+
+function gridShape(count,width,height){
+    const n=Math.max(1,Math.floor(count)||1),aspect=Math.max(.35,Number(width)||1)/Math.max(1,Number(height)||1);
+    const cols=Math.max(1,Math.ceil(Math.sqrt(n*aspect))),rows=Math.max(1,Math.ceil(n/cols));
+    return{cols,rows,cells:cols*rows};
+}
+
+// 每个粒子固定占用一个网格单元，只在单元内部抖动；横竖屏和重生后都不会聚成边带或挖出中央空洞。
+export function stratifiedPoint(index,count,width,height,jitterX=.5,jitterY=.5){
+    const W=Math.max(1,Number(width)||1),H=Math.max(1,Number(height)||1),n=Math.max(1,Math.floor(count)||1),shape=gridShape(n,W,H);
+    const logicalIndex=((Math.floor(index)||0)%n+n)%n;
+    // 网格单元数略大于粒子数时，先均匀抽取，再逐行错开列位；避免 12 粒/5×3 等组合把整条中央列挖空。
+    const sampledCell=Math.min(shape.cells-1,Math.floor((logicalIndex+.5)*shape.cells/n)),row=Math.floor(sampledCell/shape.cols);
+    const col=(sampledCell%shape.cols+row*2)%shape.cols,cell=row*shape.cols+col;
+    const inset=.14,jx=inset+clamp(Number(jitterX)||0,0,1)*(1-inset*2),jy=inset+clamp(Number(jitterY)||0,0,1)*(1-inset*2);
+    return{x:(col+jx)/shape.cols*W,y:(row+jy)/shape.rows*H,cell,col,row,...shape};
+}
+
+// 保留 46×46 世界尺度，通过相机深度适配窄屏；返回值直接对应透视相机的 NDC 边界，便于自动回归。
+export function computeFestivalMoonLayout(options={}){
+    const aspect=clamp(Number(options.aspect)||16/9,.1,10),verticalFov=clamp(Number(options.verticalFov)||55,1,179),zoom=Math.max(.01,Number(options.zoom)||1);
+    const scale=Math.max(0,Number(options.scale)||46),halfScale=scale*.5,tanHalfFov=Math.tan(verticalFov*Math.PI/360)/zoom;
+    const baseDepth=Math.max(.01,Number(options.baseDepth)||70),maxRadiusX=clamp(Number(options.maxRadiusX)||.45,.05,.49),maxRadiusY=clamp(Number(options.maxRadiusY)||.88,.1,.94),margin=clamp(Number(options.margin)||.06,0,.2);
+    const depth=Math.max(baseDepth,halfScale/(tanHalfFov*aspect*maxRadiusX),halfScale/(tanHalfFov*maxRadiusY)),halfHeight=depth*tanHalfFov;
+    const radiusY=halfScale/halfHeight,radiusX=radiusY/aspect,minX=-1+radiusX+margin,maxX=1-radiusX-margin,minY=-1+radiusY+margin,maxY=1-radiusY-margin;
+    const targetX=Number.isFinite(Number(options.targetX))?Number(options.targetX):.5,targetY=Number.isFinite(Number(options.targetY))?Number(options.targetY):.5;
+    const centerX=clamp(targetX,minX,maxX),centerY=clamp(targetY,minY,maxY),offsetX=centerX*halfHeight*aspect,offsetY=centerY*halfHeight;
+    return{aspect,verticalFov,zoom,scale,depth,halfHeight,radiusX,radiusY,centerX,centerY,offsetX,offsetY,
+        bounds:{left:centerX-radiusX,right:centerX+radiusX,bottom:centerY-radiusY,top:centerY+radiusY}};
+}
+
+function flowingPoint(index,count,width,height,jitterX=.5){
+    const n=Math.max(1,Math.floor(count)||1),W=Math.max(1,width||1),H=Math.max(1,height||1),bands=Math.min(n,n<=20?4:n<=40?5:n<=60?6:8);
+    const col=index,row=index%bands,cycle=Math.floor(index/bands),xInset=.35+clamp(Number(jitterX)||0,0,1)*.3;
+    // x 在全宽低差异铺开；y 以 4–8 个等距相位循环并按组轻微错开。统一纵速平移后既无竖条空洞，也不会因速度差聚团。
+    const stagger=((((cycle*.61803398875)%1)+1)%1-.5)*.08,phase=((row+.42+stagger)/bands+1)%1,span=H+48;
+    return{x:(col+xInset)/n*W,y:-24+phase*span,cols:n,rows:bands,col,row,cell:row*n+col};
+}
+
+function ghostPoint(index,count,width,height,jitterX=.5,jitterY=.5){
+    const point=flowingPoint(index,count,width,height,jitterX),H=Math.max(1,height||1),n=Math.max(1,Math.floor(count)||1);
+    const cycle=Math.floor(index/point.rows),visualPhase=((((point.row+cycle)&1)*.5+(clamp(Number(jitterY)||0,0,1)-.5)*.06)+1)%1;
+    return{...point,y:clamp((point.y+24)/(H+48),0,1)*H,phase:visualPhase*TAU,cell:point.row*n+point.col};
+}
 
 function roundedRect(ctx,x,y,w,h,r){
     const rr=Math.min(r,w*.5,h*.5);ctx.beginPath();ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();
 }
 function drawStar(ctx,r,inner=.44,points=5){
-    ctx.beginPath();for(let i=0;i<points*2;i++){const a=-Math.PI/2+i*Math.PI/points,rr=i%2?r:r*inner;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.closePath();
+    ctx.beginPath();for(let i=0;i<points*2;i++){const a=-Math.PI/2+i*Math.PI/points,rr=i%2?r:r*inner,x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.closePath();
 }
 function drawHeart(ctx,s){
-    ctx.beginPath();ctx.moveTo(0,s*.65);ctx.bezierCurveTo(-s*1.15,-s*.05,-s*.58,-s,0,-s*.34);ctx.bezierCurveTo(s*.58,-s,s*1.15,-s*.05,0,s*.65);ctx.closePath();
+    ctx.beginPath();ctx.moveTo(0,s*.55);ctx.bezierCurveTo(-s,-s*.08,-s*.52,-s*.9,0,-s*.27);ctx.bezierCurveTo(s*.52,-s*.9,s,-s*.08,0,s*.55);ctx.closePath();
 }
-function drawLeaf(ctx,s,round=.35){
-    ctx.beginPath();ctx.moveTo(-s,0);ctx.quadraticCurveTo(-s*.15,-s*(.35+round),s,0);ctx.quadraticCurveTo(-s*.15,s*(.35+round),-s,0);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(-s*.82,0);ctx.lineTo(s*.74,0);ctx.stroke();
+function drawLeaf(ctx,s){
+    ctx.beginPath();ctx.moveTo(-s,0);ctx.quadraticCurveTo(-s*.25,-s*.48,s*.95,-s*.08);ctx.quadraticCurveTo(s*1.08,0,s*.95,s*.12);ctx.quadraticCurveTo(-s*.22,s*.44,-s,0);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(-s*.9,0);ctx.lineTo(s*.86,.01);ctx.stroke();
 }
 function drawSnowflake(ctx,r){
     ctx.beginPath();for(let i=0;i<3;i++){const a=i*Math.PI/3,dx=Math.cos(a)*r,dy=Math.sin(a)*r;ctx.moveTo(-dx,-dy);ctx.lineTo(dx,dy)}ctx.stroke();
 }
-function drawGear(ctx,r,teeth=10){
-    ctx.beginPath();for(let i=0;i<teeth*2;i++){const a=i*Math.PI/teeth,rr=i%2?r:r*.78;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.closePath();ctx.stroke();ctx.beginPath();ctx.arc(0,0,r*.33,0,TAU);ctx.stroke();
+function drawLantern(ctx,s,quality){
+    ctx.shadowColor='#ffad55';ctx.shadowBlur=quality==='low'?0:7;
+    ctx.fillStyle='#d94b31';ctx.strokeStyle='#ffd38a';ctx.lineWidth=1;
+    roundedRect(ctx,-s*.62,-s*.72,s*1.24,s*1.44,s*.3);ctx.fill();ctx.stroke();
+    ctx.shadowBlur=0;ctx.fillStyle='rgba(255,225,150,.28)';roundedRect(ctx,-s*.34,-s*.55,s*.68,s*1.1,s*.2);ctx.fill();
+    ctx.fillStyle='#e9b75b';ctx.fillRect(-s*.48,-s*.84,s*.96,s*.13);ctx.fillRect(-s*.48,s*.71,s*.96,s*.13);
+    ctx.strokeStyle='rgba(255,224,157,.6)';ctx.beginPath();ctx.moveTo(-s*.22,-s*.65);ctx.lineTo(-s*.22,s*.64);ctx.moveTo(s*.22,-s*.65);ctx.lineTo(s*.22,s*.64);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,s*.84);ctx.lineTo(0,s*1.16);ctx.moveTo(-s*.14,s*1.16);ctx.lineTo(s*.14,s*1.16);ctx.stroke();
 }
-function drawLantern(ctx,s){
-    ctx.beginPath();ctx.moveTo(-s*.55,-s*.62);ctx.quadraticCurveTo(-s*.9,0,-s*.55,s*.62);ctx.lineTo(s*.55,s*.62);ctx.quadraticCurveTo(s*.9,0,s*.55,-s*.62);ctx.closePath();ctx.fill();ctx.strokeRect(-s*.45,-s*.78,s*.9,s*.15);ctx.beginPath();ctx.moveTo(0,s*.62);ctx.lineTo(0,s);ctx.stroke();
-}
-function drawLotus(ctx,s){
-    ctx.beginPath();ctx.moveTo(-s,0);ctx.quadraticCurveTo(-s*.55,-s*.55,0,0);ctx.quadraticCurveTo(-s*.25,-s*.9,0,-s*.24);ctx.quadraticCurveTo(s*.25,-s*.9,0,0);ctx.quadraticCurveTo(s*.55,-s*.55,s,0);ctx.quadraticCurveTo(0,s*.45,-s,0);ctx.closePath();ctx.fill();
-}
-function drawDuckOutline(ctx,x,y,s,alpha){
-    ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.globalAlpha*=alpha;ctx.strokeStyle='#ffe59a';ctx.lineWidth=2.2/s;ctx.beginPath();ctx.ellipse(0,0,1.2,.78,0,0,TAU);ctx.moveTo(.42,-.6);ctx.arc(.43,-.72,.48,.2,TAU-.28);ctx.moveTo(.82,-.78);ctx.quadraticCurveTo(1.34,-.7,1.5,-.48);ctx.quadraticCurveTo(1.17,-.34,.8,-.42);ctx.moveTo(-1.06,.12);ctx.quadraticCurveTo(-1.48,-.05,-1.38,-.38);ctx.stroke();ctx.restore();
+function drawGhostFlame(ctx,s,quality){
+    ctx.globalCompositeOperation='lighter';ctx.shadowColor='#72d9dc';ctx.shadowBlur=quality==='low'?0:9;
+    ctx.beginPath();ctx.moveTo(0,-s);ctx.bezierCurveTo(s*.8,-s*.2,s*.62,s*.72,0,s);ctx.bezierCurveTo(-s*.7,s*.65,-s*.74,-s*.12,0,-s);ctx.fill();
+    ctx.shadowBlur=0;ctx.globalAlpha*=.55;ctx.fillStyle='#d7fff2';ctx.beginPath();ctx.ellipse(0,s*.25,s*.23,s*.4,0,0,TAU);ctx.fill();
 }
 
 class FestivalScreenFx{
     constructor(options={}){
-        this.options=options;
-        this.document=options.document||globalThis.document||null;
-        this.window=options.window||globalThis.window||globalThis;
-        this.canvas=null;this.ctx=null;this.activeId=null;this.theme=null;
-        this.width=0;this.height=0;this.dpr=1;this.resolution=1;
+        this.options=options;this.document=options.document||globalThis.document||null;this.window=options.window||globalThis.window||globalThis;
+        this.canvas=null;this.ctx=null;this.activeId=null;this.theme=null;this.width=0;this.height=0;this.dpr=1;this.resolution=1;
         this.quality=normalizeQuality(typeof options.quality==='function'?options.quality():options.quality);
         this.reducedMotion=!!(typeof options.reducedMotion==='function'?options.reducedMotion():options.reducedMotion);
-        this.motionScale=this.reducedMotion?.2:1;this.flashEnabled=!this.reducedMotion;
-        this.pool=[];this.activeCount=0;this.age=0;this.introAge=-1;this.introPending=false;
-        this.accumulator=0;this.drawCount=0;this.startCount=0;this.stopCount=0;this.resizeCount=0;
-        this.seed=1;this.staticAvoidRects=[];this.avoidRects=[];this.avoidRefresh=0;this.lastAvoidCount=0;this.paint={};
-        this._lastQuality=this.quality;this._lastReduced=this.reducedMotion;
+        this.motionScale=this.reducedMotion?0:1;this.flashEnabled=!this.reducedMotion;this.pool=[];this.activeCount=0;
+        this.age=0;this.introAge=-1;this.introPending=false;this.accumulator=0;this.drawCount=0;this.startCount=0;this.stopCount=0;this.resizeCount=0;this.seed=1;
+        this.springNextLaunch=0;this.springSequence=0;this.springPoolCursor=0;this.springLaunchTimes=[];this.springBurstSizes=[];
+        this.springBursts=0;this.springGoldenBursts=0;this.springDroppedSparks=0;this.springDroppedRockets=0;this.springMaxVisible=0;
+        this._lastQuality=this.quality;this._lastReduced=this.reducedMotion;this.paint={};
     }
     start(id,options={}){
-        const next=FESTIVAL_SCREEN_FX_THEMES[id];
-        if(!next){this.stop();return false}
-        const deferIntro=!!options.deferIntro;
-        if(this.activeId===id&&this.canvas){
-            if(!deferIntro)this.playIntro();
-            return true;
-        }
-        // 调试切换主题复用同一张 Canvas；真正 stop 时才移除，避免反复分配整屏 surface。
-        const reuseSurface=!!this.canvas&&!!this.ctx;
-        this.activeId=id;this.theme=next;this.seed=hashText(id);this.age=0;this.accumulator=0;
+        const next=FESTIVAL_SCREEN_FX_THEMES[id];if(!next){this.stop();return false}
+        const deferIntro=!!options.deferIntro;if(this.activeId===id&&this.canvas){if(!deferIntro)this.playIntro();return true}
+        const reuseSurface=!!this.canvas&&!!this.ctx;this.activeId=id;this.theme=next;this.seed=hashText(id);this.age=0;this.accumulator=0;
         this.introPending=deferIntro;this.introAge=deferIntro?-1:0;this.drawCount=0;
-        if(!reuseSurface)this._createCanvas();
-        if(!this.canvas||!this.ctx){this.activeId=null;this.theme=null;return false}
+        this._resetThemeRuntime();
+        if(!reuseSurface)this._createCanvas();if(!this.canvas||!this.ctx){this.activeId=null;this.theme=null;return false}
         if(this.canvas.dataset)this.canvas.dataset.festival=id;
-        this.startCount++;this._syncPreferences(true);this.resize();this._resetAll(true);this._draw();return true;
+        // 新主题必须彻底初始化对象池；只有同一主题运行中的真实 resize/画质切换才允许迁移在途春节烟花。
+        this.startCount++;this._syncPreferences(true);this.resize(undefined,undefined,undefined,false);this._draw();return true;
     }
-    playIntro(){
-        if(!this.activeId||this.reducedMotion)return false;
-        this.introPending=false;this.introAge=0;this._resetAll(true);return true;
-    }
+    playIntro(){if(!this.activeId||this.reducedMotion)return false;this.introPending=false;this.introAge=0;this.age=0;this._resetThemeRuntime();this._resetAll(true);return true}
     stop(){
-        const wasRunning=!!this.canvas;
-        if(this.canvas?.remove)this.canvas.remove();
-        else if(this.canvas?.parentNode?.removeChild)this.canvas.parentNode.removeChild(this.canvas);
-        this.canvas=null;this.ctx=null;this.activeId=null;this.theme=null;this.activeCount=0;this.age=0;this.introAge=-1;this.introPending=false;this.accumulator=0;this.staticAvoidRects=[];this.avoidRects=[];
-        if(wasRunning)this.stopCount++;
+        const wasRunning=!!this.canvas;if(this.canvas?.remove)this.canvas.remove();else if(this.canvas?.parentNode?.removeChild)this.canvas.parentNode.removeChild(this.canvas);
+        this.canvas=null;this.ctx=null;this.activeId=null;this.theme=null;this.activeCount=0;this.age=0;this.introAge=-1;this.introPending=false;this.accumulator=0;if(wasRunning)this.stopCount++;
     }
-    setQuality(level){
-        const next=normalizeQuality(level);if(next===this.quality)return;
-        this.quality=next;this._lastQuality=next;if(this.canvas){this.resize();this._setBudget();this._advance(0);this._draw()}
-    }
-    setReducedMotion(value){
-        const next=!!value;if(next===this.reducedMotion)return;
-        this.reducedMotion=next;this._lastReduced=next;this.motionScale=next?.2:1;this.flashEnabled=!next;
-        if(next){this.introPending=false;this.introAge=-1}
-        if(this.canvas){this._setBudget();this._resetAll(true);this._draw()}
-    }
-    resize(width,height,dpr){
-        if(!this.canvas||!this.ctx)return false;
-        const win=this.window||{};
-        const nextW=Math.max(1,Math.round(Number(width)||Number(win.innerWidth)||1));
-        const nextH=Math.max(1,Math.round(Number(height)||Number(win.innerHeight)||1));
-        this.dpr=Math.max(1,Number(dpr)||Number(win.devicePixelRatio)||1);
-        this.resolution=QUALITY_PRESETS[this.quality].resolution;
+    setQuality(level){const next=normalizeQuality(level);if(next===this.quality)return;this.quality=next;this._lastQuality=next;this.accumulator=0;if(this.canvas){this.resize();this._draw()}}
+    setReducedMotion(value){const next=!!value;if(next===this.reducedMotion)return;this._applyReducedMotion(next,true)}
+    resize(width,height,dpr,preserveSpring=true){
+        if(!this.canvas||!this.ctx)return false;const win=this.window||{},nextW=Math.max(1,Math.round(Number(width)||Number(win.innerWidth)||1)),nextH=Math.max(1,Math.round(Number(height)||Number(win.innerHeight)||1));
         const oldW=this.width||nextW,oldH=this.height||nextH;
-        this.width=nextW;this.height=nextH;
-        this.canvas.width=Math.max(1,Math.round(nextW*this.resolution));
-        this.canvas.height=Math.max(1,Math.round(nextH*this.resolution));
-        if(this.canvas.style){this.canvas.style.width=nextW+'px';this.canvas.style.height=nextH+'px'}
-        this.ctx.setTransform(this.resolution,0,0,this.resolution,0,0);
-        this.resizeCount++;this._buildPaints();
-        if(this.activeCount){const sx=nextW/oldW,sy=nextH/oldH;for(let i=0;i<this.activeCount;i++){this.pool[i].x*=sx;this.pool[i].y*=sy}}
-        this._refreshAvoidRects(true);return true;
+        this.dpr=Math.max(1,Number(dpr)||Number(win.devicePixelRatio)||1);this.resolution=QUALITY_PRESETS[this.quality].resolution;this.width=nextW;this.height=nextH;
+        this.canvas.width=Math.max(1,Math.round(nextW*this.resolution));this.canvas.height=Math.max(1,Math.round(nextH*this.resolution));
+        if(this.canvas.style){this.canvas.style.width=nextW+'px';this.canvas.style.height=nextH+'px'}this.ctx.setTransform(this.resolution,0,0,this.resolution,0,0);this.resizeCount++;this._buildPaints();
+        if(this.activeCount){
+            if(preserveSpring&&this.theme?.mode==='spring'&&!this.reducedMotion&&this._springActiveCount()>0)this._resizeSpringParticles(oldW,oldH,nextW,nextH);
+            else this._resetAll(true);
+        }
+        return true;
     }
     update(dt){
-        if(!this.canvas||!this.ctx||!this.theme)return;
-        this._syncPreferences(false);
-        const frameDt=clamp(Number(dt)||0,0,.1);
-        const dimmed=this._safeCall('isDimmed',false),paused=this._safeCall('isPaused',false)||this._safeCall('isHidden',false);
-        if(this.canvas.style)this.canvas.style.opacity=dimmed?'0.18':'1';
-        this._refreshAvoidRects(false,frameDt);
-        if(paused)return;
-        const updateHz=this.reducedMotion?5:QUALITY_PRESETS[this.quality].hz,step=1/updateHz;
-        this.accumulator+=frameDt;const steps=Math.floor((this.accumulator+1e-9)/step);if(steps<1)return;
-        this.accumulator-=steps*step;const elapsed=Math.min(.1,steps*step);this.age+=elapsed;
-        if(this.introAge>=0)this.introAge+=elapsed;
-        if(!this.reducedMotion)this._advance(elapsed*this.motionScale);
+        if(!this.canvas||!this.ctx||!this.theme)return;this._syncPreferences(false);const frameDt=clamp(Number(dt)||0,0,.1);
+        const dimmed=this._safeCall('isDimmed',false),paused=this._safeCall('isPaused',false)||this._safeCall('isHidden',false);if(this.canvas.style)this.canvas.style.opacity=dimmed?'0.18':'1';if(paused)return;
+        const updateHz=this.reducedMotion?5:QUALITY_PRESETS[this.quality].hz,step=1/updateHz;this.accumulator+=frameDt;const steps=Math.floor((this.accumulator+1e-9)/step);if(steps<1)return;
+        this.accumulator-=steps*step;const elapsed=Math.min(.1,steps*step);
+        // 减动效不仅冻结粒子坐标，也冻结所有直接读取 age 的背景/闪烁（冬至冰花、小年金粒等）。
+        if(!this.reducedMotion){this.age+=elapsed;if(this.introAge>=0)this.introAge+=elapsed;this._advance(elapsed)}
         this._draw();
     }
     getDebugState(){
-        return{
-            running:!!this.canvas,activeId:this.activeId,theme:this.theme?.theme||null,themeId:this.theme?.theme||null,label:this.theme?.label||null,
-            width:this.width,height:this.height,dpr:this.dpr,resolution:this.resolution,quality:this.quality,reducedMotion:this.reducedMotion,
-            motionScale:this.motionScale,flashEnabled:this.flashEnabled,particleCount:this.activeCount,poolSize:this.pool.length,
-            particleBudget:this.theme?this.theme.quality[this.quality]:0,surfaceCount:this.canvas?1:0,updateHz:this.reducedMotion?5:QUALITY_PRESETS[this.quality].hz,
-            introPending:this.introPending,introActive:this.introAge>=0&&this.introAge<(this.theme?.introDuration||0),introAge:this.introAge,
-            avoidRectCount:this.lastAvoidCount,drawCount:this.drawCount,startCount:this.startCount,stopCount:this.stopCount,resizeCount:this.resizeCount
-        };
+        const spring=this.theme?.mode==='spring'?{launches:this.springLaunchTimes.length,bursts:this.springBursts,goldenBursts:this.springGoldenBursts,
+            launchTimes:[...this.springLaunchTimes],burstSizes:[...this.springBurstSizes],droppedSparks:this.springDroppedSparks,droppedRockets:this.springDroppedRockets,
+            visible:this._springVisibleCount(),maxVisible:this.springMaxVisible}:null;
+        return{running:!!this.canvas,activeId:this.activeId,theme:this.theme?.theme||null,themeId:this.theme?.theme||null,label:this.theme?.label||null,mode:this.theme?.mode||null,
+            width:this.width,height:this.height,dpr:this.dpr,resolution:this.resolution,quality:this.quality,reducedMotion:this.reducedMotion,motionScale:this.motionScale,flashEnabled:this.flashEnabled,
+            particleCount:this.activeCount,poolSize:this.pool.length,particleBudget:this.theme?this.theme.quality[this.quality]:0,surfaceCount:this.canvas?1:0,updateHz:this.reducedMotion?5:QUALITY_PRESETS[this.quality].hz,
+            introPending:this.introPending,introActive:this.introAge>=0&&this.introAge<(this.theme?.introDuration||0),introAge:this.introAge,avoidRectCount:0,coverage:this._coverageStats(),
+            spring,drawCount:this.drawCount,startCount:this.startCount,stopCount:this.stopCount,resizeCount:this.resizeCount};
+    }
+    getParticleSnapshot(){return this.pool.slice(0,this.activeCount).map(p=>({index:p.index,mode:this.theme?.mode,kind:p.kind||null,x:p.x,y:p.y,homeX:p.homeX,homeY:p.homeY,size:p.size,alpha:p.alpha,drawAlpha:p.drawAlpha,rot:p.rot,vr:p.vr,vx:p.vx,vy:p.vy,life:p.life,t:p.t,angle:p.angle,speed:p.speed,variant:p.variant,golden:!!p.golden,cell:p.cell,col:p.col,row:p.row,color:p.color}))}
+    _coverageStats(){
+        if(!this.activeCount)return{cols:0,rows:0,occupied:0,min:0,max:0};const cols=Math.max(1,this.pool[0]?.gridCols||1),rows=Math.max(1,this.pool[0]?.gridRows||1),counts=new Array(cols*rows).fill(0);
+        for(let i=0;i<this.activeCount;i++){const cell=Number(this.pool[i].cell);if(Number.isInteger(cell)&&cell>=0&&cell<counts.length)counts[cell]++}
+        const used=counts.filter(n=>n>0);return{cols,rows,occupied:used.length,min:used.length?Math.min(...used):0,max:used.length?Math.max(...used):0};
     }
     _createCanvas(){
-        if(!this.document?.createElement)return;
-        const canvas=this.document.createElement('canvas');canvas.className='festival-fx-cv';
-        if(canvas.dataset)canvas.dataset.festival=this.activeId;
-        const ctx=canvas.getContext?.('2d',{alpha:true});if(!ctx)return;
-        this.canvas=canvas;this.ctx=ctx;this.document.body?.appendChild?.(canvas);
+        if(!this.document?.createElement)return;const canvas=this.document.createElement('canvas');canvas.className='festival-fx-cv';if(canvas.dataset)canvas.dataset.festival=this.activeId;
+        const ctx=canvas.getContext?.('2d',{alpha:true});if(!ctx)return;this.canvas=canvas;this.ctx=ctx;this.document.body?.appendChild?.(canvas);
     }
     _safeCall(name,fallback){try{const fn=this.options[name];return typeof fn==='function'?fn():fallback}catch(e){return fallback}}
+    _applyReducedMotion(next,redraw){
+        this.reducedMotion=!!next;this._lastReduced=this.reducedMotion;this.motionScale=this.reducedMotion?0:1;this.flashEnabled=!this.reducedMotion;this.accumulator=0;
+        if(this.reducedMotion){
+            this.introPending=false;this.introAge=-1;
+            // 中途打开减动效表示主动取消本轮春节烟花；清空对象的同时也清空事件统计，避免留下 launches > bursts 的伪运行态。
+            if(this.theme?.mode==='spring')this._resetThemeRuntime();
+        }
+        if(redraw&&this.canvas){this._resetAll(true);this._draw()}
+    }
     _syncPreferences(force){
         const qualitySource=typeof this.options.getQuality==='function'?this.options.getQuality():typeof this.options.quality==='function'?this.options.quality():this.quality;
         const reducedSource=typeof this.options.getReducedMotion==='function'?this.options.getReducedMotion():typeof this.options.reducedMotion==='function'?this.options.reducedMotion():this.reducedMotion;
-        const nextQuality=normalizeQuality(qualitySource),nextReduced=!!reducedSource;
-        if(force||nextQuality!==this._lastQuality){this.quality=nextQuality;this._lastQuality=nextQuality;if(!force&&this.canvas)this.resize()}
-        if(force||nextReduced!==this._lastReduced){this.reducedMotion=nextReduced;this._lastReduced=nextReduced;this.motionScale=nextReduced?.2:1;this.flashEnabled=!nextReduced;if(nextReduced){this.introPending=false;this.introAge=-1}}
+        const nextQuality=normalizeQuality(qualitySource),nextReduced=!!reducedSource,qualityChanged=nextQuality!==this._lastQuality,reducedChanged=nextReduced!==this._lastReduced;
+        if(force||qualityChanged){this.quality=nextQuality;this._lastQuality=nextQuality;if(!force&&qualityChanged&&this.canvas){this.accumulator=0;this.resize()}}
+        if(force||reducedChanged)this._applyReducedMotion(nextReduced,!force&&reducedChanged);
         if(this.theme)this._setBudget();
     }
     _setBudget(){
-        if(!this.theme)return;
-        const full=this.theme.quality[this.quality],next=this.reducedMotion?Math.max(2,Math.floor(full*.3)):full;
-        while(this.pool.length<next)this.pool.push({cycle:0});
-        const old=this.activeCount;this.activeCount=next;
-        for(let i=old;i<next;i++)this._resetParticle(this.pool[i],i,true);
+        if(!this.theme)return;const full=this.theme.quality[this.quality],target=this.reducedMotion?Math.max(2,Math.floor(full*.3)):full;
+        // 春节降档时先保留装着在途火箭/火花的旧池；全部回收后，下一帧自然收缩到目标预算。
+        const keepSpringPool=!this.reducedMotion&&this.theme.mode==='spring'&&this._springActiveCount()>0;
+        const next=keepSpringPool?Math.max(target,this.activeCount):target;
+        while(this.pool.length<next)this.pool.push({cycle:0});this.activeCount=next;
     }
-    _resetAll(initial){this._setBudget();for(let i=0;i<this.activeCount;i++){this.pool[i].cycle=0;this._resetParticle(this.pool[i],i,initial)}this._advance(0)}
-    _rand(index,salt,cycle=0){
-        const base=(this.seed+Math.imul(index+1,0x9e3779b1)+Math.imul(salt+1,0x85ebca6b)+Math.imul(cycle+1,0xc2b2ae35))>>>0;
-        const injected=this.options.random;if(typeof injected==='function'){const value=Number(injected(base,index,salt,cycle));if(Number.isFinite(value))return value-Math.floor(value)}
-        return seeded(base);
+    _resetThemeRuntime(){
+        this.springNextLaunch=0;this.springSequence=0;this.springPoolCursor=0;this.springLaunchTimes=[];this.springBurstSizes=[];
+        this.springBursts=0;this.springGoldenBursts=0;this.springDroppedSparks=0;this.springDroppedRockets=0;this.springMaxVisible=0;
     }
-    _resetParticle(p,index,initial=false){
-        const W=this.width||1,H=this.height||1,r=(salt)=>this._rand(index,salt,p.cycle||0),mode=this.theme?.mode;
-        p.index=index;p.variant=0;p.alpha=.55+r(1)*.4;p.size=2+r(2)*5;p.phase=r(3)*TAU;p.rot=r(4)*TAU;p.vr=(r(5)-.5)*1.8;p.life=4+r(6)*7;p.t=initial?r(7)*p.life:0;p.side=r(8)<.5?-1:1;p.color=index%this.theme.palette.length;
-        switch(mode){
-            case 'snow':p.variant=index%5===0?1:0;p.x=r(9)*W;p.y=initial?r(10)*H:-20;p.vx=(r(11)-.5)*14;p.vy=18+r(12)*36;p.size=p.variant?4+r(13)*4:1.2+r(13)*2.6;break;
-            case 'eve':p.variant=index%3===0?1:0;p.x=r(9)*W;p.y=p.variant?(initial?r(10)*H:H+15):(initial?r(10)*H:H*.15+r(10)*H*.65);p.vx=(r(11)-.5)*(p.variant?18:35);p.vy=p.variant?-(24+r(12)*55):22+r(12)*42;p.size=p.variant?1.4+r(13)*2.5:3+r(13)*5;break;
-            case 'spring':{p.variant=index%5===0?1:0;const burst=index%3,ox=W*(.2+burst*.3),oy=H*(.18+(burst%2)*.11),a=r(9)*TAU,sp=35+r(10)*145;p.x=ox;p.y=oy;p.vx=Math.cos(a)*sp;p.vy=Math.sin(a)*sp;p.life=1.8+r(11)*2.4;p.t=initial?r(12)*p.life:0;p.size=p.variant?3+r(13)*5:1.4+r(13)*2.5;break}
-            case 'lantern':p.x=p.side<0?W*(.05+r(9)*.25):W*(.7+r(9)*.25);p.y=initial?H*(.36+r(10)*.55):H+25;p.vx=(r(11)-.5)*8;p.vy=-(12+r(12)*12);p.size=6+r(13)*7;break;
-            case 'dragon':p.u=initial?r(9):0;p.x=0;p.y=0;p.vy=.1+r(10)*.08;p.size=3+r(11)*4;p.variant=index%5===0?1:0;break;
-            case 'qingming':p.variant=index%4===0?1:0;p.x=r(9)*W;p.y=initial?r(10)*H:-20;p.vx=p.variant?-(5+r(11)*14):-(12+r(11)*24);p.vy=p.variant?18+r(12)*22:85+r(12)*65;p.size=p.variant?6+r(13)*6:1;break;
-            case 'labor':p.variant=index%9===0?1:0;p.x=p.variant?(p.side<0?W*.08:W*.92):r(9)*W;p.y=p.variant?H*(.25+r(10)*.45):H*(.3+r(10)*.65);p.vx=(r(11)-.5)*5;p.vy=p.variant?0:-(5+r(12)*12);p.size=p.variant?15+r(13)*9:1.5+r(13)*2.5;break;
-            case 'dragonBoat':p.variant=index%3;p.x=p.side<0?(initial?r(9)*W:W+25):(initial?r(9)*W:-25);p.y=H*(.55+r(10)*.38);p.vx=p.side*(26+r(11)*42);p.vy=(r(12)-.5)*6;p.size=4+r(13)*8;break;
-            case 'qixi':p.variant=index%7===0?2:index%4===0?1:0;p.u=initial?r(9):0;p.side=index%2?-1:1;p.x=0;p.y=0;p.vy=.055+r(10)*.045;p.size=2+r(11)*5;break;
-            case 'zhongyuan':p.variant=index%4===0?1:0;p.x=initial?r(9)*W:(p.side<0?W+25:-25);p.y=H*(.68+r(10)*.2);p.vx=p.side*(8+r(11)*14);p.vy=(r(12)-.5)*2;p.size=5+r(13)*7;break;
-            case 'midAutumn':p.variant=index%6===0?1:0;p.x=r(9)*W;p.y=initial?r(10)*H:-15;p.vx=-(5+r(11)*15);p.vy=p.variant?3+r(12)*7:10+r(12)*15;p.size=p.variant?16+r(13)*14:3+r(13)*5;break;
-            case 'doubleNinth':p.variant=index%5===0?1:0;p.x=p.side<0?W*(.04+r(9)*.25):W*(.71+r(9)*.25);p.y=initial?H*(.45+r(10)*.55):H+18;p.vx=p.side*(2+r(11)*8);p.vy=-(10+r(12)*18);p.size=p.variant?3+r(13)*4:4+r(13)*6;break;
-            case 'national':p.variant=index%5===0?1:0;p.x=p.side<0?W*(.02+r(9)*.28):W*(.7+r(9)*.28);p.y=initial?r(10)*H:(p.variant?H+12:-12);p.vx=(r(11)-.5)*16;p.vy=p.variant?-(8+r(12)*18):18+r(12)*32;p.size=p.variant?3+r(13)*5:2+r(13)*4;break;
-            case 'winter':p.variant=index%5===0?1:0;p.x=p.side<0?W*(.04+r(9)*.18):W*(.78+r(9)*.18);p.y=initial?H*(.65+r(10)*.35):H+18;p.vx=(r(11)-.5)*5;p.vy=-(8+r(12)*12);p.size=p.variant?4+r(13)*5:10+r(13)*15;break;
-            case 'laba':p.group=Math.floor(index/8);p.variant=index%8;p.phase=index/8*TAU+r(9)*.18;p.x=0;p.y=0;p.size=3+r(10)*4;break;
-            case 'xiaonian':p.variant=index%4===0?1:index%5===0?2:0;p.x=p.side<0?W*(.02+r(9)*.28):W*(.7+r(9)*.28);p.y=initial?H*(.55+r(10)*.5):H+15;p.vx=(r(11)-.5)*18;p.vy=-(20+r(12)*34);p.size=p.variant?3+r(13)*5:1.3+r(13)*2.5;break;
+    _springVisibleCount(){
+        let count=0;for(let i=0;i<this.activeCount;i++)if(this.pool[i].kind!=='inactive'&&(this.pool[i].drawAlpha||0)>.015)count++;return count;
+    }
+    _springActiveCount(){
+        let count=0;for(let i=0;i<this.activeCount;i++){const kind=this.pool[i]?.kind;if(kind==='rocket'||kind==='spark')count++}return count;
+    }
+    _resizeSpringParticles(oldW,oldH,nextW,nextH){
+        const oldCount=this.activeCount,sx=nextW/Math.max(1,oldW),sy=nextH/Math.max(1,oldH),active=new Set();
+        for(let i=0;i<oldCount;i++){
+            const p=this.pool[i];if(p?.kind!=='rocket'&&p?.kind!=='spark')continue;active.add(i);
+            p.x*=sx;p.y*=sy;p.homeX*=sx;p.homeY*=sy;p.vx*=sx;p.vy*=sy;
         }
-        p.homeX=p.x;p.homeY=p.y;
-    }
-    _advance(dt){
-        const W=this.width,H=this.height,mode=this.theme.mode;
+        this._setBudget();
         for(let i=0;i<this.activeCount;i++){
-            const p=this.pool[i];p.t+=dt;p.rot+=p.vr*dt;
-            switch(mode){
-                case 'snow':p.x+=p.vx*dt+Math.sin(this.age*.7+p.phase)*6*dt;p.y+=p.vy*dt;if(p.y>H+18){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'eve':p.x+=p.vx*dt+Math.sin(this.age+p.phase)*4*dt;p.y+=p.vy*dt;if(p.variant)p.vy-=2*dt;if(p.y>H+20||p.y<-25){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'spring':p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=42*dt;p.vx*=Math.max(0,1-dt*.35);if(p.t>p.life){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'lantern':p.x+=p.vx*dt+Math.sin(this.age*.8+p.phase)*5*dt;p.y+=p.vy*dt;if(p.y<-30){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'dragon':p.u+=p.vy*dt;if(p.u>1){p.cycle++;this._resetParticle(p,i,false)}p.x=W*(p.side<0?.18:.82)+p.side*Math.sin(p.u*Math.PI*2.2+p.phase*.18)*W*.1;p.y=H*(.82-p.u*.7);break;
-                case 'qingming':p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y>H+25){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'labor':if(!p.variant){p.x+=p.vx*dt+Math.sin(this.age+p.phase)*2*dt;p.y+=p.vy*dt;if(p.y<H*.2){p.cycle++;this._resetParticle(p,i,false)}}break;
-                case 'dragonBoat':p.x+=p.vx*dt;p.y+=p.vy*dt+Math.sin(this.age*2+p.phase)*3*dt;if(p.x<-35||p.x>W+35){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'qixi':p.u+=p.vy*dt;if(p.u>1){p.cycle++;this._resetParticle(p,i,false)}{const u=p.u,fromX=p.side<0?W*.08:W*.92,toX=W*.5;p.x=lerp(fromX,toX,Math.min(1,u*1.45))+Math.sin(p.phase+u*8)*9;p.y=H*(.2+.13*Math.sin(u*Math.PI))+Math.sin(p.phase+u*5)*12;if(u>.7){p.y+=((u-.7)/.3)*H*.55;p.x+=p.side*((u-.7)/.3)*W*.2}}break;
-                case 'zhongyuan':p.x+=p.vx*dt;p.y+=Math.sin(this.age*.8+p.phase)*1.2*dt;if(p.x<-35||p.x>W+35){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'midAutumn':p.x+=p.vx*dt;p.y+=p.vy*dt+Math.sin(this.age+p.phase)*3*dt;if(p.y>H+25||p.x<-30){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'doubleNinth':p.x+=p.vx*dt+Math.sin(this.age+p.phase)*4*dt;p.y+=p.vy*dt;if(p.y<-22){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'national':p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y>H+20||p.y<-20){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'winter':p.x+=p.vx*dt+Math.sin(this.age*.55+p.phase)*5*dt;p.y+=p.vy*dt;if(p.y<H*.28){p.cycle++;this._resetParticle(p,i,false)}break;
-                case 'laba':{const side=p.group%2?-1:1,cx=side<0?W*.13:W*.87,cy=H*.84,radX=28+p.group*5,radY=10+p.group*2,a=p.phase+this.age*(.08+p.group*.012);p.x=cx+Math.cos(a)*radX;p.y=cy+Math.sin(a)*radY}break;
-                case 'xiaonian':p.x+=p.vx*dt+Math.sin(this.age+p.phase)*3*dt;p.y+=p.vy*dt;if(p.y<-22){p.cycle++;this._resetParticle(p,i,false)}break;
+            const p=this.pool[i];
+            if(active.has(i)){
+                const r=salt=>this._rand(i,salt,p.cycle||0),point=stratifiedPoint(i,this.activeCount,nextW,nextH,r(9),r(10));
+                p.cell=point.cell;p.col=point.col;p.row=point.row;p.gridCols=point.cols;p.gridRows=point.rows;
+            }else{
+                p.cycle=0;this._resetParticle(p,i,true);
             }
         }
     }
-    _normalizeAvoidRects(source){
-        const result=[];for(const rect of source||[]){const left=rectValue(rect,'left',rectValue(rect,'x',0)),top=rectValue(rect,'top',rectValue(rect,'y',0));const width=rectValue(rect,'width',Math.max(0,rectValue(rect,'right',left)-left)),height=rectValue(rect,'height',Math.max(0,rectValue(rect,'bottom',top)-top));if(width<=0||height<=0)continue;const kind=typeof rect?.kind==='string'?rect.kind:'ui',strength=clamp(rectValue(rect,'strength',kind==='label'?1:.86),0,1),feather=clamp(rectValue(rect,'feather',kind==='label'?18:14),0,40);result.push({left,top,right:left+width,bottom:top+height,kind,strength,feather})}return result;
+    _takeSpringParticle(){
+        for(let offset=0;offset<this.activeCount;offset++){
+            const index=(this.springPoolCursor+offset)%this.activeCount,p=this.pool[index];
+            if(p.kind!=='inactive')continue;this.springPoolCursor=(index+1)%this.activeCount;return p;
+        }
+        return null;
     }
-    _refreshAvoidRects(force,elapsed=0){
-        this.avoidRefresh-=Math.max(0,elapsed);
-        if(force||this.avoidRefresh<=0){this.avoidRefresh=.2;let source=[];try{source=this.options.getAvoidRects?.()||[]}catch(e){source=[]}this.staticAvoidRects=this._normalizeAvoidRects(source)}
-        let dynamic=[];try{dynamic=this.options.getDynamicAvoidRects?.()||[]}catch(e){dynamic=[]}
-        this.avoidRects=this.staticAvoidRects.concat(this._normalizeAvoidRects(dynamic));this.lastAvoidCount=this.avoidRects.length;
+    _spawnSpringRocket(launchTime){
+        const sequence=this.springSequence++,p=this._takeSpringParticle();
+        if(!p){this.springDroppedRockets++;return}
+        const r=salt=>this._rand(sequence,80+salt,0),W=this.width,H=this.height;
+        p.kind='rocket';p.variant=1;p.golden=sequence%2===0;p.eventIndex=sequence;p.t=0;p.alpha=1;p.drawAlpha=1;p.rot=0;p.vr=0;p.size=2;
+        p.x=W*(.12+r(1)*.76);p.y=H+8;p.vx=(r(2)-.5)*36;p.vy=-(H*.62+r(3)*H*.2);p.springColor='rgba(255,220,140,.9)';
+        this.springLaunchTimes.push(+launchTime.toFixed(4));
     }
-    _softAlpha(x,y,r=0){
-        let a=1;const W=this.width,H=this.height;
-        if(x>W*.33&&x<W*.67&&y>H*.3&&y<H*.62)a*=.28;
-        for(const box of this.avoidRects){const pad=12+r;if(x>=box.left-pad&&x<=box.right+pad&&y>=box.top-pad&&y<=box.bottom+pad){a*=.12;break}}
-        return a;
+    _burstSpring(rocket){
+        const golden=!!rocket.golden,eventIndex=rocket.eventIndex||0,fullCount=golden?56:42;
+        // 中低档按对象池可承受的重叠峰值缩放单次爆发，保证每枚火箭都完整爆开，绝不静默截断尾部火花。
+        const scale=this.quality==='high'?1:this.quality==='mid'?.62:.3,count=Math.max(12,Math.round(fullCount*scale));
+        const originX=rocket.x,originY=rocket.y;
+        rocket.kind='inactive';rocket.drawAlpha=0;
+        this.springBursts++;if(golden)this.springGoldenBursts++;this.springBurstSizes.push(count);
+        const colors=golden?['#ffd166','#ffb84d','#fff3d6','#ff9f43']:['#ff5a4e','#ffd166','#ff8b69','#ffffff'];
+        for(let i=0;i<count;i++){
+            const p=this._takeSpringParticle();if(!p){this.springDroppedSparks++;continue}
+            const key=(eventIndex+1)*313+i,r=salt=>this._rand(key,100+salt,eventIndex),a=r(1)*TAU,sp=60+r(2)*(golden?230:190);
+            p.kind='spark';p.variant=0;p.golden=golden;p.t=0;p.alpha=1;p.drawAlpha=1;p.rot=0;p.vr=0;p.x=originX;p.y=originY;
+            p.vx=Math.cos(a)*sp;p.vy=Math.sin(a)*sp;p.life=1.1+r(3)*.8;p.size=golden?2.4:2;p.springColor=colors[i%colors.length];
+        }
+    }
+    _advanceSpring(dt){
+        const effectTime=this.introAge;if(effectTime<0||this.reducedMotion)return;
+        let guard=0;
+        while(this.springNextLaunch<=9&&effectTime+1e-8>=this.springNextLaunch&&guard++<32){
+            const launchTime=this.springNextLaunch,sequence=this.springSequence;
+            this._spawnSpringRocket(launchTime);
+            this.springNextLaunch=launchTime+.42+this._rand(sequence,89,0)*.4;
+        }
+        const bursting=[];
+        for(let i=0;i<this.activeCount;i++){
+            const p=this.pool[i];
+            if(p.kind==='rocket'){
+                p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=260*dt;p.drawAlpha=1;
+                if(p.vy>-40)bursting.push(p);
+            }else if(p.kind==='spark'){
+                p.t+=dt;
+                if(p.t>=p.life){p.kind='inactive';p.drawAlpha=0;continue}
+                p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;p.vx*=Math.max(0,1-dt*.6);p.drawAlpha=Math.max(0,1-p.t/p.life);
+            }else p.drawAlpha=0;
+        }
+        for(const rocket of bursting)this._burstSpring(rocket);
+        this.springMaxVisible=Math.max(this.springMaxVisible,this._springVisibleCount());
+    }
+    _resetAll(initial){
+        this._setBudget();for(let i=0;i<this.activeCount;i++){this.pool[i].cycle=0;this._resetParticle(this.pool[i],i,initial)}
+        if(this.theme?.mode==='zhongyuan')this._balanceGhostPhases();
+        this._advance(0);
+    }
+    _balanceGhostPhases(){
+        const groups=[[],[],[],[]];
+        for(let i=0;i<this.activeCount;i++){
+            const p=this.pool[i],quadrant=(p.homeY>=this.height*.5?2:0)+(p.homeX>=this.width*.5?1:0);groups[quadrant].push(p);
+        }
+        // 每个象限内部等距错峰：每盏仍会完整出现/消失，低档也不会整块熄灭或全屏同时全亮。
+        for(let quadrant=0;quadrant<groups.length;quadrant++){
+            const group=groups[quadrant];
+            for(let rank=0;rank<group.length;rank++)group[rank].phase=((rank/group.length+quadrant*.173)%1)*TAU;
+        }
+    }
+    _rand(index,salt,cycle=0){
+        const base=(this.seed+Math.imul(index+1,0x9e3779b1)+Math.imul(salt+1,0x85ebca6b)+Math.imul(cycle+1,0xc2b2ae35))>>>0;
+        const injected=this.options.random;if(typeof injected==='function'){const value=Number(injected(base,index,salt,cycle));if(Number.isFinite(value))return value-Math.floor(value)}return seeded(base);
+    }
+    _resetParticle(p,index,initial=false){
+        const W=this.width||1,H=this.height||1,r=salt=>this._rand(index,salt,p.cycle||0),point=stratifiedPoint(index,this.activeCount,W,H,r(9),r(10)),mode=this.theme?.mode;
+        p.index=index;p.cell=point.cell;p.col=point.col;p.row=point.row;p.gridCols=point.cols;p.gridRows=point.rows;p.x=point.x;p.y=point.y;p.homeX=p.x;p.homeY=p.y;p.variant=0;p.color=index%this.theme.palette.length;
+        if(FLOW_MODES.has(mode)){const flow=flowingPoint(index,this.activeCount,W,H,r(9));p.cell=flow.cell;p.col=flow.col;p.row=flow.row;p.gridCols=flow.cols;p.gridRows=flow.rows;p.x=flow.x;p.y=flow.y;p.homeX=p.x;p.homeY=p.y}
+        p.kind=null;p.golden=false;p.springColor=null;p.t=0;
+        p.alpha=.48+r(1)*.34;p.drawAlpha=1;p.size=2+r(2)*4;p.phase=r(3)*TAU;p.rot=(r(4)-.5)*.22;p.vr=(r(5)-.5)*1.5;p.vx=(r(6)-.5)*12;p.vy=18+r(7)*28;p.life=1.1+r(8)*.8;
+        if(mode==='zhongyuan'){const ghost=ghostPoint(index,this.activeCount,W,H,r(9),r(10));p.cell=ghost.cell;p.col=ghost.col;p.row=ghost.row;p.gridCols=ghost.cols;p.gridRows=ghost.rows;p.x=ghost.x;p.y=ghost.y;p.homeX=p.x;p.homeY=p.y;p.phase=ghost.phase}
+        switch(mode){
+            case'snow':p.variant=index%5===0?1:0;p.size=p.variant?3.5+r(11)*4:1+r(11)*2.4;p.vy=36;p.vx=(r(13)-.5)*12;break;
+            case'eve':p.size=2.8+r(11)*3.8;p.vy=30;p.vx=(r(13)-.5)*10;p.rot=(r(14)-.5)*.7;p.vr=(r(15)-.5)*1.2;break;
+            case'spring':p.kind='inactive';p.variant=0;p.golden=false;p.drawAlpha=0;p.alpha=1;p.rot=0;p.vr=0;p.t=0;p.springColor=null;break;
+            case'lantern':p.size=6+r(11)*5;p.vy=-20;p.vx=(r(13)-.5)*4;p.tilt=(r(14)-.5)*.14;p.rot=p.tilt;break;
+            case'dragon':p.variant=index%2;p.size=1.6+r(11)*3;p.vy=-18;p.vx=(r(13)-.5)*8;break;
+            case'qingming':p.size=6+r(11)*6;p.vy=32;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
+            case'labor':p.variant=index%4===0?1:0;p.size=1.5+r(11)*3.2;p.vy=-10;p.vx=(r(13)-.5)*5;break;
+            case'dragonBoat':p.variant=index%2;p.size=6+r(11)*6;p.vy=36;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
+            case'qixi':p.variant=r(11)<.45?1:0;p.size=5+r(12)*6;p.vy=30;p.vx=(r(14)-.5)*18;p.rot=(r(15)-.5)*.16;p.vr=0;break;
+            case'zhongyuan':p.size=5+r(11)*6;p.alpha=.4+r(13)*.35;p.vx=(r(14)-.5)*3;p.rot=(r(15)-.5)*.08;p.vr=0;break;
+            case'midAutumn':p.variant=index%3===0?1:0;p.size=2.2+r(11)*4.2;p.phase=r(12)*TAU;p.alpha=.3+r(13)*.36;break;
+            case'doubleNinth':p.size=6+r(11)*6;p.vy=32;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
+            case'national':{const starCount=Math.floor(this.activeCount*.5);p.variant=index<starCount?0:1;
+                if(p.variant===0){const starPoint=stratifiedPoint(index,starCount,W,H,r(11),r(12));p.homeX=starPoint.x;p.homeY=starPoint.y;p.x=p.homeX;p.y=p.homeY;p.phase=r(13)*TAU;p.size=2+r(14)*3.4}
+                else{const sparkIndex=index-starCount,sparkCount=this.activeCount-starCount;p.sparkIndex=sparkIndex;p.angle=sparkIndex/Math.max(1,sparkCount)*TAU+(r(11)-.5)*.12;p.speed=65+r(12)*145;p.life=1.15+r(13)*.7;p.size=1.6+r(14)*2.2;p.rot=0;p.vr=0}break}
+            case'winter':{const corner=index%4,rank=Math.floor(index/4)+1,span=.11+rank/(Math.ceil(this.activeCount/4)+1)*.18;p.corner=corner;p.size=3+r(11)*4;p.phase=(corner*.7+r(12)*.3);p.homeX=(corner%2?1-span:span)*W;p.homeY=(corner>1?1-span:span)*H;p.x=p.homeX;p.y=p.homeY;break}
+            case'laba':{const corner=index%4,rank=Math.floor(index/4);p.corner=corner;p.size=30+r(11)*26;p.phase=r(12)*TAU+corner*.8;p.homeX=(corner%2?W-(18+rank*14):18+rank*14);p.homeY=(corner>1?H-(18+rank*13):18+rank*13);p.x=p.homeX;p.y=p.homeY;p.alpha=.24+r(13)*.22;break}
+            case'xiaonian':p.size=1.6+r(11)*2.6;p.vy=-58;p.vx=(r(13)-.5)*12;p.phase=r(14)*TAU;break;
+        }
+    }
+    _moveFullHeight(p,dy){p.y=wrapRange(p.y+dy,-24,this.height+24)}
+    _swayInsideColumn(p,amount,rate){
+        const cols=Math.max(1,p.gridCols||1),cellW=this.width/cols,maxSway=Math.min(Math.max(0,amount),cellW*.11);
+        p.x=p.homeX+Math.sin(this.age*rate+p.phase)*maxSway;
+    }
+    _advance(dt){
+        const W=this.width,H=this.height,mode=this.theme.mode;
+        if(mode==='spring'){this._advanceSpring(dt);return}
+        for(let i=0;i<this.activeCount;i++){
+            const p=this.pool[i];p.rot+=p.vr*dt;p.drawAlpha=1;
+            switch(mode){
+                case'snow':this._swayInsideColumn(p,7,.7);this._moveFullHeight(p,p.vy*dt);break;
+                case'eve':this._swayInsideColumn(p,6,1);this._moveFullHeight(p,p.vy*dt);break;
+                case'lantern':this._swayInsideColumn(p,5,.7);this._moveFullHeight(p,p.vy*dt);p.rot=p.tilt+Math.sin(this.age*.55+p.phase)*.045;break;
+                case'dragon':this._swayInsideColumn(p,6,1);this._moveFullHeight(p,p.vy*dt);break;
+                case'qingming':case'dragonBoat':case'qixi':case'doubleNinth':this._swayInsideColumn(p,10,.75);this._moveFullHeight(p,p.vy*dt);break;
+                case'labor':this._swayInsideColumn(p,8,.6);this._moveFullHeight(p,p.vy*dt);break;
+                case'zhongyuan':{p.x=p.homeX+Math.sin(this.age*.55+p.phase)*7;p.y=p.homeY+Math.cos(this.age*.7+p.phase)*8;
+                    const u=((this.age/6+p.phase/TAU)%1+1)%1;
+                    p.drawAlpha=u<.16?smoothstep(0,.16,u):u<.48?1:u<.66?1-smoothstep(.48,.66,u):0;break}
+                case'midAutumn':p.x=p.homeX+Math.sin(this.age*.22+p.phase)*3;p.y=p.homeY+Math.cos(this.age*.18+p.phase)*2;p.drawAlpha=.35+.65*(.5+.5*Math.sin(this.age*1.15+p.phase));break;
+                case'national':if(p.variant===0){p.x=p.homeX+Math.sin(this.age*.3+p.phase)*3;p.y=p.homeY+Math.cos(this.age*.25+p.phase)*2;p.drawAlpha=.5+.5*(.5+.5*Math.sin(this.age*1.2+p.phase))}else{
+                    const cycleLength=3.4,cycle=Math.floor(this.age/cycleLength),t=this.age-cycle*cycleLength,group=(cycle*5)%6;
+                    const originX=((group%3)+.5)/3*W+(this._rand(cycle,201,0)-.5)*W*.035,originY=(Math.floor(group/3)*.38+.2)*H+(this._rand(cycle,202,0)-.5)*H*.035;
+                    p.drawAlpha=t<=p.life?1-t/p.life:0;p.x=originX+Math.cos(p.angle)*p.speed*t;p.y=originY+Math.sin(p.angle)*p.speed*t+65*t*t}break;
+                case'winter':p.drawAlpha=Math.pow(.5+.5*Math.sin(this.age*.48+p.phase),1.3);break;
+                case'laba':p.x=p.homeX+Math.sin(this.age*.28+p.phase)*12;p.y=p.homeY+Math.cos(this.age*.22+p.phase)*9;p.drawAlpha=Math.pow(.5+.5*Math.sin(this.age*.42+p.phase),1.35);break;
+                case'xiaonian':this._swayInsideColumn(p,7,1);this._moveFullHeight(p,p.vy*dt);break;
+            }
+        }
     }
     _buildPaints(){
-        const c=this.ctx,W=this.width,H=this.height;if(!c?.createRadialGradient)return;
-        const corner=c.createRadialGradient(0,0,0,0,0,Math.max(W,H)*.55);corner.addColorStop(0,'rgba(210,242,255,.18)');corner.addColorStop(1,'rgba(210,242,255,0)');
-        const warm=c.createRadialGradient(W*.5,H,0,W*.5,H,Math.max(W,H)*.62);warm.addColorStop(0,'rgba(255,190,92,.13)');warm.addColorStop(1,'rgba(255,190,92,0)');
-        const mist=c.createLinearGradient(0,H,0,H*.48);mist.addColorStop(0,'rgba(95,124,150,.13)');mist.addColorStop(1,'rgba(95,124,150,0)');
-        this.paint={corner,warm,mist};
+        const c=this.ctx,W=this.width,H=this.height;if(!c?.createRadialGradient)return;const ice=c.createRadialGradient(0,0,0,0,0,Math.max(W,H)*.42);ice.addColorStop(0,'rgba(210,242,255,.16)');ice.addColorStop(1,'rgba(210,242,255,0)');this.paint={ice};
     }
     _draw(){
-        const c=this.ctx,W=this.width,H=this.height;if(!c)return;
-        c.setTransform(this.resolution,0,0,this.resolution,0,0);c.clearRect(0,0,W,H);c.save();
-        const staticTime=this.reducedMotion?0:this.age,intro=this.introAge>=0?this.introAge:-1;
-        this._drawBackdrop(c,W,H,staticTime,intro);
-        for(let i=0;i<this.activeCount;i++)this._drawParticle(c,this.pool[i]);
-        this._applyAvoidMask(c);
-        c.restore();c.globalAlpha=1;c.globalCompositeOperation='source-over';this.drawCount++;
+        const c=this.ctx,W=this.width,H=this.height;if(!c)return;c.setTransform(this.resolution,0,0,this.resolution,0,0);c.clearRect(0,0,W,H);c.save();this._drawBackdrop(c,W,H);
+        for(let i=0;i<this.activeCount;i++)this._drawParticle(c,this.pool[i]);c.restore();c.globalAlpha=1;c.globalCompositeOperation='source-over';this.drawCount++;
     }
-    _applyAvoidMask(c){
-        if(!this.avoidRects.length)return;
-        c.save();c.globalCompositeOperation='destination-out';c.fillStyle='#000';
-        for(const box of this.avoidRects){const width=box.right-box.left,height=box.bottom-box.top,feather=box.feather||0,layers=feather>0?[[feather,box.strength*.18],[feather*.5,box.strength*.35],[0,box.strength]]:[[0,box.strength]];for(const [pad,alpha] of layers){c.globalAlpha=clamp(alpha,0,1);roundedRect(c,box.left-pad,box.top-pad,width+pad*2,height+pad*2,Math.min(20+pad,width*.25,height*.25));c.fill()}}
-        c.restore();
-    }
-    _drawBackdrop(c,W,H,t,intro){
-        const mode=this.theme.mode,introP=intro<0?0:1-smoothstep(0,this.theme.introDuration,intro);
-        c.save();c.globalCompositeOperation='source-over';
-        switch(mode){
-            case 'snow':
-            case 'winter':c.fillStyle=this.paint.corner||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.save();c.translate(W,H);c.scale(-1,-1);c.fillStyle=this.paint.corner||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.restore();c.strokeStyle='rgba(225,248,255,.16)';c.lineWidth=1;for(const ox of[18,W-18])for(let i=0;i<4;i++){c.beginPath();c.moveTo(ox,H*.08+i*28);c.lineTo(ox+(ox<W/2?1:-1)*(28+i*5),H*.03+i*20);c.stroke()}break;
-            case 'eve':c.strokeStyle=`rgba(244,66,48,${.07+introP*.16})`;c.lineWidth=2;for(const x of[18,W-18]){c.beginPath();c.moveTo(x,H*.18);c.lineTo(x,H*.82);c.stroke();if(introP){c.fillStyle='rgba(255,193,82,.65)';for(let i=0;i<7;i++){const y=H*(.2+i*.09),pulse=Math.max(0,1-Math.abs(intro-i*.22)*2.2);c.globalAlpha=pulse*introP;c.beginPath();c.arc(x,y,2+pulse*3,0,TAU);c.fill()}c.globalAlpha=1}}break;
-            case 'spring':c.strokeStyle=`rgba(224,52,43,${.08+introP*.1})`;c.lineWidth=2;c.strokeRect(12,12,W-24,H-24);if(intro>=0&&intro<this.theme.introDuration){c.globalCompositeOperation='lighter';for(let j=0;j<3;j++){const cycle=(intro-j*1.3)%4;if(cycle<0)continue;const fade=1-smoothstep(.2,2.2,cycle),x=W*(.2+j*.3),y=H*(.18+(j%2)*.11),rad=20+cycle*42;c.strokeStyle=`rgba(255,208,102,${fade*.45})`;c.lineWidth=1.4;for(let k=0;k<18;k++){const a=k/18*TAU;c.beginPath();c.moveTo(x+Math.cos(a)*rad*.55,y+Math.sin(a)*rad*.55);c.lineTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad);c.stroke()}}const duckFade=Math.max(0,1-Math.abs(intro-3.6)/1.4);drawDuckOutline(c,W*.5,H*.28,18,duckFade*.75)}break;
-            case 'lantern':c.fillStyle=this.paint.warm||'rgba(255,190,92,.08)';c.fillRect(0,H*.47,W,H*.53);c.strokeStyle='rgba(255,181,90,.12)';for(let i=0;i<5;i++){const y=H*(.72+i*.035);c.beginPath();c.moveTo(W*.06,y);c.quadraticCurveTo(W*.26,y+Math.sin(t+i)*4,W*.42,y);c.moveTo(W*.58,y);c.quadraticCurveTo(W*.76,y-Math.sin(t+i)*4,W*.94,y);c.stroke()}break;
-            case 'dragon':c.globalCompositeOperation='lighter';c.strokeStyle=`rgba(80,213,192,${.08+introP*.28})`;c.lineWidth=2.2;for(const side of[-1,1]){c.beginPath();for(let i=0;i<=28;i++){const u=i/28,edgeX=W*(side<0?.18:.82),x=edgeX+side*Math.sin(u*Math.PI*2.2+t*.18)*W*.1,y=H*(.82-u*.7);if(i===0)c.moveTo(x,y);else c.lineTo(x,y)}c.stroke()}break;
-            case 'qingming':c.fillStyle=this.paint.mist||'rgba(95,124,150,.08)';c.fillRect(0,H*.45,W,H*.55);c.strokeStyle='rgba(92,132,119,.1)';c.lineWidth=2;for(const side of[-1,1]){const x=side<0?0:W;c.beginPath();c.moveTo(x,H*.16);c.bezierCurveTo(x-side*50,H*.32,x-side*18,H*.55,x-side*85,H*.74);c.stroke()}break;
-            case 'labor':c.fillStyle=this.paint.warm||'rgba(255,190,92,.08)';c.fillRect(0,0,W,H);c.fillStyle=`rgba(255,222,140,${.025+introP*.045})`;for(let i=0;i<5;i++){c.beginPath();c.moveTo(W*.5,H*.08);c.lineTo(W*(.1+i*.2),H);c.lineTo(W*(.22+i*.16),H);c.closePath();c.fill()}break;
-            case 'dragonBoat':c.strokeStyle=`rgba(150,230,213,${.08+introP*.17})`;c.lineWidth=2.5;for(let j=0;j<3;j++){c.beginPath();for(let i=0;i<=20;i++){const x=i/20*W,y=H*(.79+j*.035)+Math.sin(i*.9-t*2+j)*4;if(i===0)c.moveTo(x,y);else c.lineTo(x,y)}c.stroke()}break;
-            case 'qixi':c.strokeStyle=`rgba(185,179,255,${.08+introP*.2})`;c.lineWidth=2;c.beginPath();c.moveTo(W*.08,H*.22);c.quadraticCurveTo(W*.5,H*.09,W*.92,H*.22);c.stroke();for(let i=0;i<18;i++){const x=W*(.12+i*.045),y=H*(.215-.12*Math.sin(i/17*Math.PI));c.fillStyle=`rgba(220,230,255,${.1+.12*Math.sin(t+i)})`;c.fillRect(x,y,1.2,1.2)}break;
-            case 'zhongyuan':c.fillStyle=this.paint.mist||'rgba(38,61,120,.09)';c.fillRect(0,H*.48,W,H*.52);c.strokeStyle='rgba(255,196,110,.09)';for(let i=0;i<3;i++){const x=W*(.2+i*.3),y=H*.8;c.beginPath();c.ellipse(x,y,34,7,0,0,TAU);c.stroke()}break;
-            case 'midAutumn':{let moon=null;try{moon=this.options.getMoonScreenPoint?.()}catch(e){}const x=Number.isFinite(moon?.x)?moon.x:W*.8,y=Number.isFinite(moon?.y)?moon.y:H*.2,visible=moon?.visible!==false;c.globalCompositeOperation='lighter';if(visible){c.strokeStyle=`rgba(255,237,185,${.1+.04*Math.sin(t*.65)})`;for(let i=1;i<=3;i++){c.lineWidth=4-i;c.beginPath();c.arc(x,y,28+i*14,0,TAU);c.stroke()}}c.globalCompositeOperation='source-over';c.strokeStyle='rgba(218,226,245,.08)';c.lineWidth=7;for(const side of[-1,1]){c.beginPath();c.moveTo(side<0?0:W,H*.28);c.bezierCurveTo(W*(side<0?.12:.88),H*.23,W*(side<0?.22:.78),H*.35,W*(side<0?.34:.66),H*.3);c.stroke()}break}
-            case 'doubleNinth':c.strokeStyle='rgba(86,79,75,.11)';c.lineWidth=2;for(const side of[-1,1]){c.beginPath();c.moveTo(side<0?0:W,H*.82);for(let i=0;i<5;i++){const x=side<0?i*W*.08:W-i*W*.08,y=H*(.76-(i%2)*.08);c.lineTo(x,y)}c.stroke()}break;
-            case 'national':{const wind=clamp(Number(this._safeCall('getWindX',0)),-1,1),sway=Math.sin(t*.65)*12+wind*18;c.lineCap='round';for(const side of[-1,1]){for(const stroke of[{width:25,color:`rgba(255,126,70,${.17+introP*.08})`},{width:14,color:`rgba(222,41,16,${.76+introP*.16})`},{width:2.4,color:`rgba(255,196,138,${.34+introP*.16})`}]){c.strokeStyle=stroke.color;c.lineWidth=stroke.width;c.beginPath();c.moveTo(side<0?-10:W+10,H*.78);c.bezierCurveTo(W*(side<0?.12:.88),H*.64,W*(side<0?.19:.81)+sway,H*.93,W*(side<0?.36:.64),H*.82);c.stroke()}}c.fillStyle=`rgba(255,215,90,${.2+introP*.36})`;for(let i=0;i<5;i++){c.save();c.translate(34+i*22,32+(i%2)*12);drawStar(c,4+i*.3);c.fill();c.restore()}break}
-            case 'laba':c.strokeStyle='rgba(231,202,161,.13)';c.lineWidth=4;for(const x of[W*.13,W*.87]){c.beginPath();c.arc(x,H*.83,50,0,Math.PI);c.stroke();for(let i=0;i<2;i++){c.beginPath();c.moveTo(x-16+i*22,H*.74);c.bezierCurveTo(x-28+i*22,H*.67,x+5+i*22,H*.61,x-4+i*22,H*.54);c.stroke()}}break;
-            case 'xiaonian':c.strokeStyle=`rgba(255,196,76,${.08+introP*.28})`;c.lineWidth=4;if(intro>=0&&intro<2){const p=smoothstep(0,1.5,intro),x=lerp(W*.5,W*.08,p);c.beginPath();c.moveTo(W*.5,H*.8);c.quadraticCurveTo(x,H*.62,W*.04,H*.72);c.stroke();c.beginPath();c.moveTo(W*.5,H*.8);c.quadraticCurveTo(W-x,H*.62,W*.96,H*.72);c.stroke()}break;
+    _drawBackdrop(c,W,H){
+        const mode=this.theme.mode;if(mode==='snow'){
+            c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.save();c.translate(W,H);c.scale(-1,-1);c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.restore();
+        }else if(mode==='winter'){
+            const pulse=Math.pow(.5+.5*Math.sin(this.age*.48),1.35);c.save();c.globalAlpha=pulse*.5;c.strokeStyle='#dff6ff';c.lineCap='round';
+            for(const corner of[0,1,2,3]){const sx=corner%2?-1:1,sy=corner>1?-1:1;c.save();c.translate(corner%2?W:0,corner>1?H:0);c.scale(sx,sy);for(let branch=0;branch<5;branch++){const y=10+branch*13,len=48+branch*12;c.lineWidth=1.2+branch*.18;c.beginPath();c.moveTo(0,y);c.lineTo(len,y+branch*4);c.moveTo(len*.38,y+branch*1.5);c.lineTo(len*.23,y+17+branch*2);c.moveTo(len*.67,y+branch*2.8);c.lineTo(len*.53,y+20+branch*2);c.stroke()}c.restore()}c.restore();
         }
-        c.restore();
     }
     _drawParticle(c,p){
-        const mode=this.theme.mode,avoid=this._softAlpha(p.x,p.y,p.size),base=p.alpha*avoid*(this.reducedMotion?.55:1);if(base<.02)return;
-        c.save();c.translate(p.x,p.y);c.rotate(p.rot);c.globalAlpha=base;c.lineWidth=1;const palette=this.theme.palette,color=palette[p.color%palette.length];
+        const mode=this.theme.mode,base=p.alpha*(p.drawAlpha??1)*(this.reducedMotion?.62:1);if(base<.015)return;c.save();c.translate(p.x,p.y);c.rotate(p.rot||0);c.globalAlpha=base;c.lineWidth=1;
+        const palette=this.theme.palette,color=palette[p.color%palette.length];
         switch(mode){
-            case 'snow':c.strokeStyle=color;c.fillStyle=color;if(p.variant)drawSnowflake(c,p.size);else{c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill()}break;
-            case 'eve':if(p.variant){c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size*2.1,0,TAU);c.fill();c.globalAlpha*=1.6;c.beginPath();c.arc(0,0,p.size*.7,0,TAU);c.fill()}else{c.fillStyle=color;c.fillRect(-p.size*.7,-p.size,p.size*1.4,p.size*2)}break;
-            case 'spring':{const life=Math.max(0,1-p.t/p.life);c.globalAlpha*=life;if(p.variant){c.fillStyle='#d92927';c.fillRect(-p.size*.5,-p.size,p.size,p.size*2)}else{c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size*(.5+life),0,TAU);c.fill()}break}
-            case 'lantern':c.shadowColor='#ffb75e';c.shadowBlur=this.quality==='low'?0:9;c.fillStyle='rgba(210,54,45,.6)';c.strokeStyle='#ffd899';drawLantern(c,p.size);c.shadowBlur=0;c.globalAlpha*=.26;c.scale(1,-.28);c.translate(0,-p.size*7);drawLantern(c,p.size*.75);break;
-            case 'dragon':if(p.variant){c.strokeStyle='#d8b45c';c.beginPath();c.moveTo(-p.size*2,0);c.quadraticCurveTo(0,-p.size,p.size*2,0);c.stroke()}else{c.fillStyle=color;c.beginPath();c.arc(0,0,p.size,Math.PI*.15,Math.PI*1.85);c.lineTo(0,0);c.fill()}break;
-            case 'qingming':if(p.variant){c.fillStyle=color;c.strokeStyle='rgba(40,85,72,.5)';drawLeaf(c,p.size,.55)}else{c.strokeStyle='rgba(190,218,226,.65)';c.beginPath();c.moveTo(0,-p.size*5);c.lineTo(-p.size*2,p.size*6);c.stroke()}break;
-            case 'labor':if(p.variant){c.strokeStyle='rgba(230,178,62,.55)';c.lineWidth=1.5;drawGear(c,p.size,10)}else{c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill()}break;
-            case 'dragonBoat':if(p.variant===0){c.fillStyle='#4c9a61';c.strokeStyle='#d6efca';drawLeaf(c,p.size,.12)}else if(p.variant===1){c.strokeStyle=palette[p.color];c.lineWidth=1.5;c.beginPath();c.moveTo(-p.size*1.4,-p.size*.3);c.quadraticCurveTo(0,p.size,p.size*1.4,-p.size*.3);c.stroke()}else{c.fillStyle='rgba(199,241,248,.7)';c.beginPath();c.arc(0,0,p.size*.55,0,TAU);c.fill()}break;
-            case 'qixi':if(p.variant===2){c.fillStyle='#ffb8da';drawHeart(c,p.size*.75);c.fill()}else if(p.variant===1){c.strokeStyle='#dce9ff';c.beginPath();c.moveTo(-p.size,0);c.quadraticCurveTo(0,-p.size*.6,p.size,0);c.quadraticCurveTo(0,p.size*.18,-p.size,0);c.stroke()}else{c.globalCompositeOperation='lighter';c.fillStyle=color;drawStar(c,p.size*.75,.35,4);c.fill()}break;
-            case 'zhongyuan':if(p.variant){c.fillStyle='rgba(118,143,232,.55)';c.beginPath();c.arc(0,0,p.size*.6,0,TAU);c.fill()}else{c.shadowColor='#ffbd72';c.shadowBlur=this.quality==='low'?0:8;c.fillStyle='#ffb56d';drawLotus(c,p.size);c.fill();c.shadowBlur=0}break;
-            case 'midAutumn':if(p.variant){c.strokeStyle='rgba(220,228,245,.18)';c.lineWidth=5;c.beginPath();c.moveTo(-p.size,0);c.bezierCurveTo(-p.size*.2,-p.size*.4,p.size*.2,p.size*.4,p.size,0);c.stroke()}else{c.fillStyle=color;c.beginPath();for(let i=0;i<4;i++){c.ellipse(Math.cos(i*Math.PI/2)*p.size*.45,Math.sin(i*Math.PI/2)*p.size*.45,p.size*.5,p.size*.22,i*Math.PI/2,0,TAU)}c.fill()}break;
-            case 'doubleNinth':if(p.variant){c.fillStyle='#a34b3e';c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill();c.beginPath();c.arc(p.size*.8,p.size*.2,p.size*.65,0,TAU);c.fill()}else{c.fillStyle=color;c.beginPath();c.ellipse(0,0,p.size,p.size*.38,0,0,TAU);c.fill()}break;
-            case 'national':if(p.variant){c.globalCompositeOperation='lighter';c.fillStyle='#ffdc72';drawStar(c,p.size);c.fill()}else{c.fillStyle=color;c.fillRect(-p.size*.55,-p.size,p.size*1.1,p.size*2)}break;
-            case 'winter':if(p.variant){c.strokeStyle='#e9f7ff';drawSnowflake(c,p.size)}else{c.strokeStyle='rgba(255,235,203,.32)';c.lineWidth=Math.max(2,p.size*.16);c.beginPath();c.moveTo(0,p.size);c.bezierCurveTo(-p.size*.5,p.size*.3,p.size*.5,-p.size*.25,0,-p.size);c.stroke()}break;
-            case 'laba':{const colors=['#f4e4ca','#a44f45','#d5aa70','#f0c985','#8c5d4b','#ead8b3','#c16c52','#e9c995'];c.fillStyle=colors[p.variant];if(p.variant%3===0){c.beginPath();c.ellipse(0,0,p.size*1.3,p.size*.62,0,0,TAU);c.fill()}else{c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill()}break}
-            case 'xiaonian':if(p.variant===1){c.fillStyle='#e84b32';c.fillRect(-p.size*.6,-p.size,p.size*1.2,p.size*2)}else if(p.variant===2){c.strokeStyle='rgba(255,214,126,.45)';c.beginPath();c.moveTo(-p.size*2,0);c.lineTo(p.size*2,0);c.stroke()}else{c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill()}break;
+            case'snow':c.strokeStyle=color;c.fillStyle=color;if(p.variant)drawSnowflake(c,p.size);else{c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill()}break;
+            case'eve':c.fillStyle=color;c.fillRect(-p.size*.72,-p.size,p.size*1.44,p.size*2);break;
+            case'spring':if(p.kind==='rocket'){c.strokeStyle='rgba(255,220,140,.9)';c.lineWidth=2;c.beginPath();c.moveTo(-p.vx*.03,-p.vy*.03);c.lineTo(0,0);c.stroke()}else if(p.kind==='spark'){c.globalCompositeOperation='lighter';c.fillStyle=p.springColor||color;c.beginPath();c.arc(0,0,p.size*(p.drawAlpha||0)+.6,0,TAU);c.fill()}break;
+            case'lantern':drawLantern(c,p.size,this.quality);break;
+            case'dragon':c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();if(p.variant)drawStar(c,p.size,.42,4);else c.arc(0,0,p.size,0,TAU);c.fill();break;
+            case'qingming':case'dragonBoat':case'doubleNinth':c.fillStyle=color;c.strokeStyle=mode==='doubleNinth'?'rgba(115,70,25,.52)':'rgba(35,82,49,.5)';drawLeaf(c,p.size);break;
+            case'labor':c.globalCompositeOperation='lighter';c.fillStyle=color;if(p.variant){drawStar(c,p.size,.45,4);c.fill()}else{c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill()}break;
+            case'qixi':c.fillStyle=p.variant?'#ba8eff':'#ff9ec7';c.shadowColor=c.fillStyle;c.shadowBlur=this.quality==='low'?0:4;drawHeart(c,p.size);c.fill();c.shadowBlur=0;c.globalAlpha*=.38;c.fillStyle='#fff';c.beginPath();c.ellipse(-p.size*.2,-p.size*.25,p.size*.12,p.size*.2,-.45,0,TAU);c.fill();break;
+            case'zhongyuan':c.fillStyle=color;drawGhostFlame(c,p.size,this.quality);break;
+            case'midAutumn':c.fillStyle=color;drawStar(c,p.size,p.variant?.4:.5,p.variant?4:5);c.fill();break;
+            case'national':if(p.variant===0){c.fillStyle=color;drawStar(c,p.size,.44,5);c.fill()}else{c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size*(.65+(p.drawAlpha||0)),0,TAU);c.fill()}break;
+            case'winter':c.strokeStyle=color;c.lineWidth=1.2;drawSnowflake(c,p.size);break;
+            case'laba':{c.fillStyle=color;c.shadowColor=color;c.shadowBlur=this.quality==='low'?0:10;c.globalAlpha=base*.24;c.beginPath();c.ellipse(0,0,p.size*1.5,p.size*.72,p.phase,0,TAU);c.fill();c.globalAlpha=base*.52;c.beginPath();c.ellipse(p.size*.18,-p.size*.08,p.size*.9,p.size*.44,p.phase*.6,0,TAU);c.fill();c.shadowBlur=0;break}
+            case'xiaonian':{const tw=.55+Math.abs(Math.sin(this.age*3.2+p.phase))*.45;c.globalCompositeOperation='lighter';c.fillStyle=color;c.globalAlpha*=tw*.28;c.beginPath();c.arc(0,0,p.size*2.4,0,TAU);c.fill();c.globalAlpha=base*tw;c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill();break}
         }
         c.restore();
     }
