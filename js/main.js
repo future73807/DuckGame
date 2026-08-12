@@ -13,7 +13,7 @@ import {createSwirlPostfx} from './render/postfx.js';
 import {createRuntime} from './render/runtime.js';
 import {createWater} from './render/water.js';
 import {createEnvironment} from './render/environment.js';
-import {createFestivalScreenFx,FESTIVAL_SCREEN_FX_IDS,FESTIVAL_SCREEN_FX_THEMES,computeFestivalMoonLayout} from './render/festival-screen-fx.js';
+import {createFestivalScreenFx,FESTIVAL_SCREEN_FX_IDS,FESTIVAL_SCREEN_FX_THEMES} from './render/festival-screen-fx.js';
 import {createRunStats,recordCollection,resetCollectionChain,recordComboMultiplier,beginLowHealth,finishLowHealth,selectRunHighlight,createNearMissState,updateNearMissState,criticalHeartPolicy,shouldSpawnHeart,isDownHostSceneCaretaker,circleClearance,selectSafeHeartCandidate,isOutsideAllPlayerRanges} from './core/run-feedback.js';
 
 // ===== 检测 =====
@@ -3912,9 +3912,7 @@ function disposeFestivalObject(root){
 const _flagFrustum=new THREE.Frustum();
 const _flagViewProjection=new THREE.Matrix4();
 const _flagBounds=new THREE.Sphere(new THREE.Vector3(),1.65);
-const _festivalMoonForward=new THREE.Vector3();
-const _festivalMoonRight=new THREE.Vector3();
-const _festivalMoonUp=new THREE.Vector3();
+const _moonBase=new THREE.Vector3(); // 中秋月亮世界空间定位回退原点（duckModel 未就绪时）
 function festivalFxDimmed(){
     return rotateHintActive||['#blessing-splash','#settings-modal','#pause-overlay','#tutorial','#ach-modal','#help','#gameover','#duo-respawn'].some(selector=>document.querySelector(selector)?.classList.contains('show'));
 }
@@ -3929,8 +3927,7 @@ const festivalScreenFx=createFestivalScreenFx({
 const FestivalFx={
     activeId:null,screen:festivalScreenFx,
     flagsGroup:null,
-    moonSprite:null, // 中秋：白天可见、夜间增亮的一轮满月
-    moonLayout:null,
+    moonSprite:null, // 中秋：挂在天空层的一轮满月（世界空间，随鸭子移动保持在视野内）
     start(options={}){
         const id=Blessings.festival?.id;
         if(!id){this.stop();return false}
@@ -3943,7 +3940,7 @@ const FestivalFx={
     },
     clearWorld(){
         if(this.flagsGroup){disposeFestivalObject(this.flagsGroup);this.flagsGroup=null}
-        if(this.moonSprite){disposeFestivalObject(this.moonSprite);this.moonSprite=null}this.moonLayout=null;
+        if(this.moonSprite){disposeFestivalObject(this.moonSprite);this.moonSprite=null}
     },
     stop(){
         this.screen.stop();this.activeId=null;
@@ -3958,7 +3955,7 @@ const FestivalFx={
     update(dt){this.updateWorld(dt);this.updateScreen(dt)},
     resize(){this.screen.resize()},
     info(){return{...this.screen.getDebugState(),flags:!!this.flagsGroup,moon:!!this.moonSprite,
-        moonState:this.moonSprite?{visible:this.moonSprite.visible,opacity:+this.moonSprite.material.opacity.toFixed(3),scale:+this.moonSprite.scale.x.toFixed(2),layout:this.moonLayout}:null,
+        moonState:this.moonSprite?{visible:this.moonSprite.visible,opacity:+this.moonSprite.material.opacity.toFixed(3),scale:+this.moonSprite.scale.x.toFixed(2),pos:[+this.moonSprite.position.x.toFixed(1),+this.moonSprite.position.y.toFixed(1),+this.moonSprite.position.z.toFixed(1)]}:null,
         knownIds:FESTIVAL_SCREEN_FX_IDS.length}},
     // --- 国庆：全场景红旗飘扬 ---
     startFlags(){
@@ -4090,7 +4087,8 @@ const FestivalFx={
             fg.rotation.y=fg.userData.windYaw+Math.sin(gameClock*.38+fg.userData.ph)*.035;
         }
     },
-    // --- 中秋：恢复旧版大月盘；相机相对定位保证始终处于右上天空，不再落到默认视锥外。 ---
+    // --- 中秋：月亮挂在天空层（世界空间，锚定鸭子前方高空）。参与场景深度测试，
+    //     会被近处物体自然遮挡，看起来是“后面天空盒上的天体”，而不是贴在屏幕上的覆盖层。 ---
     startMoon(){
         const tex=mkTex(256,256,x=>{
             // 月盘：暖白色圆 + 轻微径向渐变
@@ -4112,28 +4110,21 @@ const FestivalFx={
             x.strokeStyle='rgba(255,249,222,.2)';x.lineWidth=2;
             x.beginPath();x.arc(151,77,12,0,6.283);x.stroke();
         });
-        // 月亮是天空层，不参与水面/鸭子深度测试；否则相机相对定位后仍可能被整片水面挡住。
-        const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0,fog:false,depthTest:false,depthWrite:false,toneMapped:false});
+        // 天空层：保留默认 depthTest(true)，让月盘与天空盒一起被近景遮挡；仅关 depthWrite，避免透明月盘挡住后续半透明物。
+        const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0,fog:false,depthWrite:false});
         const s=new THREE.Sprite(mat);
-        s.scale.set(46,46,1);s.renderOrder=48;s.frustumCulled=false;
-        scene.add(s);this.moonSprite=s;this.moonLayout=null;
+        s.scale.set(46,46,1);
+        scene.add(s);this.moonSprite=s;
     },
     updateMoon(){
         if(!this.moonSprite)return;
-        // 夜晚最亮，白天仍保留清晰月盘；调试或白天开局不再看起来像“月亮被删了”。
+        // 夜晚最亮，白天仍保留淡淡月盘（中秋月白天也可见，但更柔）。
         const h=((timeOfDay%24)+24)%24;
         const nightF=h>=19?Math.min(1,(h-19)/.8):h<5?1:0;
-        const layout=computeFestivalMoonLayout({aspect:camera.aspect,verticalFov:camera.fov,zoom:camera.zoom,scale:this.moonSprite.scale.x});
-        camera.getWorldDirection(_festivalMoonForward).normalize();
-        _festivalMoonRight.crossVectors(_festivalMoonForward,camera.up).normalize();
-        _festivalMoonUp.crossVectors(_festivalMoonRight,_festivalMoonForward).normalize();
-        const bob=Math.sin(gameClock*.2)*.7,bobNdc=bob/layout.halfHeight;
-        this.moonSprite.position.copy(camera.position)
-            .addScaledVector(_festivalMoonForward,layout.depth)
-            .addScaledVector(_festivalMoonRight,layout.offsetX)
-            .addScaledVector(_festivalMoonUp,layout.offsetY+bob);
-        this.moonLayout={...layout,centerY:layout.centerY+bobNdc,bounds:{...layout.bounds,bottom:layout.bounds.bottom+bobNdc,top:layout.bounds.top+bobNdc}};
-        this.moonSprite.material.opacity=.62+nightF*.33;
+        // 锚定鸭子前方高空：世界空间定位，月亮像真实天体一样落在天空盒上，随鸭子平移保持在视野中并随浪面轻微起伏。
+        const base=duckModel?duckModel.position:_moonBase;
+        this.moonSprite.position.set(base.x+20,30+Math.sin(gameClock*.2)*1.6,base.z-38);
+        this.moonSprite.material.opacity=.5+nightF*.42;
         this.moonSprite.visible=gameActive;
     }
 };
