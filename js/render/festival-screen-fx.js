@@ -55,11 +55,12 @@ export function stratifiedPoint(index,count,width,height,jitterX=.5,jitterY=.5){
     // 网格单元数略大于粒子数时，先均匀抽取，再逐行错开列位；避免 12 粒/5×3 等组合把整条中央列挖空。
     const sampledCell=Math.min(shape.cells-1,Math.floor((logicalIndex+.5)*shape.cells/n)),row=Math.floor(sampledCell/shape.cols);
     const col=(sampledCell%shape.cols+row*2)%shape.cols,cell=row*shape.cols+col;
-    // 分布凌乱感：X 轴放宽到接近满格并叠加按 cell 哈希的有机偏移，打散竖向列对齐；
-    // Y 轴保留原分层范围（inset .14）——覆盖率回归与中央边界(0.62H)和此 inset 精确耦合，纵向不能放宽。
+    // 分布凌乱感：X/Y 两轴都在网格单元内叠加按 cell 哈希的有机偏移，打散整齐的行列对齐；
+    // 基础 inset 仍保留 .14/.05，仅靠哈希抖动把粒子从规则栅格中“搅乱”，不改变每格的唯一归属。
     const insetY=.14,insetX=.05,bx=clamp(Number(jitterX)||0,0,1),by=clamp(Number(jitterY)||0,0,1);
-    const ox=(hashText('fx'+cell)/4294967296-.5)*.26;
-    const jx=clamp(insetX+bx*(1-insetX*2)+ox,0,1),jy=insetY+by*(1-insetY*2);
+    const ox=(hashText('fx'+cell)/4294967296-.5)*.3;
+    const oy=(hashText('fy'+cell)/4294967296-.5)*.26;
+    const jx=clamp(insetX+bx*(1-insetX*2)+ox,0,1),jy=clamp(insetY+by*(1-insetY*2)+oy,0,1);
     return{x:(col+jx)/shape.cols*W,y:(row+jy)/shape.rows*H,cell,col,row,...shape};
 }
 
@@ -124,27 +125,30 @@ function drawGhostFlame(ctx,s,quality){
 // 局部确定性 PRNG：种子固定则序列固定，用于一次性预生成分形/水珠结构（仅在 resize 时重建）。
 function makeRng(seed){let x=(seed>>>0)||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}}
 
-// 从角落(0,0)朝屏幕中心(+x,+y)生长的羽状/蕨状冰窗花：主干带轻微摇摆 + 两侧羽枝，尖端羽化变淡。
-// detail≤1（低档）减少主干数与羽枝密度以控制绘制开销；返回线段集合 {x1,y1,x2,y2,w,tip}。
+// 从角落(0,0)朝屏幕中心(+x,+y)生长的羽状/蕨状冰窗花：主干带轻微摇摆 + 两侧羽枝 + 二级细枝，
+// 尖端收细羽化，模拟窗玻璃上凝结的冰晶蕨。detail≤1（低档）减少主干与羽枝密度以控制开销。
 function buildCornerFrost(rng,reach,detail){
-    const segs=[],fronds=detail<=1?3:4+Math.floor(rng()*2),steps=detail<=1?7:9;
+    const segs=[],fronds=detail<=1?3:5+Math.floor(rng()*3),steps=detail<=1?10:15;
     for(let f=0;f<fronds;f++){
-        const angle=.18+(fronds>1?f/(fronds-1):.5)*1.05+(rng()-.5)*.14,len=reach*(.62+rng()*.46),spine=[];
+        const angle=.16+(fronds>1?f/(fronds-1):.5)*1.1+(rng()-.5)*.08,len=reach*(.4+rng()*.42),spine=[];
         let x=0,y=0,a=angle;
-        for(let s=0;s<steps;s++){const sl=len/steps;a+=(rng()-.5)*.13;const nx=x+Math.cos(a)*sl,ny=y+Math.sin(a)*sl;spine.push([x,y,nx,ny]);x=nx;y=ny}
-        spine.forEach(([px,py,nx,ny],i)=>{const t=i/spine.length;segs.push({x1:px,y1:py,x2:nx,y2:ny,w:2.8*(1-t*.85)+.4,tip:t})});
+        for(let s=0;s<steps;s++){const sl=len/steps;a+=(rng()-.5)*.06;const nx=x+Math.cos(a)*sl,ny=y+Math.sin(a)*sl;spine.push([x,y,nx,ny]);x=nx;y=ny}
+        spine.forEach(([px,py,nx,ny],i)=>{const t=i/spine.length;segs.push({x1:px,y1:py,x2:nx,y2:ny,w:1.7*(1-t*.82)+.2,tip:t})});
         spine.forEach(([px,py,nx,ny],i)=>{
-            const t=i/spine.length;if(t<.14)return;if(detail<=1&&i%2)return;const spike=(1-t)*reach*.24,sw=1.5*(1-t)+.3,ba=Math.atan2(ny-py,nx-px);
-            for(const dir of[1,-1]){const sa=ba+dir*(Math.PI*.42+(rng()-.5)*.12);segs.push({x1:nx,y1:ny,x2:nx+Math.cos(sa)*spike,y2:ny+Math.sin(sa)*spike,w:sw,tip:t})}
+            const t=i/spine.length;if(t<.08)return;if(detail<=1&&i%2)return;const spike=(1-t)*reach*.24,sw=1.0*(1-t)+.16,ba=Math.atan2(ny-py,nx-px);
+            for(const dir of[1,-1]){const sa=ba+dir*(Math.PI*.42+(rng()-.5)*.08);const sx=nx+Math.cos(sa)*spike,sy=ny+Math.sin(sa)*spike;segs.push({x1:nx,y1:ny,x2:sx,y2:sy,w:sw,tip:t});
+                if(t<.72&&detail>1&&rng()<.55){const sa2=sa+dir*(rng()-.5)*.4;const sub=(1-t)*spike*.5;segs.push({x1:sx,y1:sy,x2:sx+Math.cos(sa2)*sub,y2:sy+Math.sin(sa2)*sub,w:.4*(1-t)+.08,tip:t+.06})}
+            }
         });
     }
     return segs;
 }
 
-// 角落凝结的水珠位置（相对角落，朝中心方向散布）：用 r*r 偏置让水珠更密集地贴近角落。
+// 角落凝结的水珠位置（相对角落，朝中心方向散布）：用 r*r 偏置让水珠更密集地贴近角落，
+// 每颗水珠带竖向拉长比例与大小分级，模拟窗面结露后往下垂的水珠。
 function buildCornerDrops(rng,reach,count){
     const drops=[];
-    for(let i=0;i<count;i++){const rr=rng()*rng(),dist=Math.sqrt(rr)*reach,ang=rng()*Math.PI*.5;drops.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:.8+rng()*2.2})}
+    for(let i=0;i<count;i++){const rr=rng()*rng(),dist=Math.sqrt(rr)*reach,ang=rng()*Math.PI*.5;const big=rng()<.18;drops.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:(big?2.2:1)+rng()*2.6,el:(big?1.15:1)+rng()*.45})}
     return drops;
 }
 
@@ -368,7 +372,7 @@ class FestivalScreenFx{
             case'midAutumn':p.variant=index%3===0?1:0;p.size=1.8+r(11)*5.4;p.phase=r(12)*TAU;p.alpha=.3+r(13)*.36;break;
             case'doubleNinth':p.size=5+r(11)*8;p.vy=22+r(12)*22;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
             case'national':{const starCount=Math.floor(this.activeCount*.5);p.variant=index<starCount?0:1;
-                if(p.variant===0){const starPoint=stratifiedPoint(index,starCount,W,H,r(11),r(12));p.homeX=starPoint.x;p.homeY=starPoint.y;p.x=p.homeX;p.y=p.homeY;p.phase=r(13)*TAU;p.size=2+r(14)*3.4}
+                if(p.variant===0){const starPoint=stratifiedPoint(index,starCount,W,H,r(11),r(12));p.homeX=starPoint.x;p.homeY=starPoint.y;p.x=p.homeX;p.y=p.homeY;p.phase=r(13)*TAU;p.size=2+r(14)*3.4;p.rot=r(15)*TAU;p.vr=(r(16)-.5)*1.6;p.spin=r(17)*TAU}
                 else{const sparkIndex=index-starCount,sparkCount=this.activeCount-starCount;p.sparkIndex=sparkIndex;p.angle=sparkIndex/Math.max(1,sparkCount)*TAU+(r(11)-.5)*.12;p.speed=65+r(12)*145;p.life=1.15+r(13)*.7;p.size=1.6+r(14)*2.2;p.rot=0;p.vr=0}break}
             case'winter':{const corner=index%4,rank=Math.floor(index/4)+1,span=.11+rank/(Math.ceil(this.activeCount/4)+1)*.18;p.corner=corner;p.size=1.4+r(11)*2.8;p.phase=corner*.7+r(12)*TAU;p.homeX=(corner%2?1-span:span)*W;p.homeY=(corner>1?1-span:span)*H;p.x=p.homeX;p.y=p.homeY;p.alpha=.5+r(13)*.34;break}
             case'laba':{const corner=index%4,rank=Math.floor(index/4);p.corner=corner;p.size=2.4+r(11)*3.4;p.phase=r(12)*TAU+corner*.8;p.homeX=(corner%2?W-(22+rank*16):22+rank*16);p.homeY=(corner>1?H-(22+rank*14):22+rank*14);p.x=p.homeX;p.y=p.homeY;p.alpha=.5+r(13)*.3;break}
@@ -410,9 +414,17 @@ class FestivalScreenFx{
         const c=this.ctx,W=this.width,H=this.height;if(!c?.createRadialGradient){return}
         const ice=c.createRadialGradient(0,0,0,0,0,Math.max(W,H)*.42);ice.addColorStop(0,'rgba(210,242,255,.16)');ice.addColorStop(1,'rgba(210,242,255,0)');this.paint={ice};
         const mode=this.theme?.mode,reach=Math.max(40,Math.min(W,H)*.46),detail=this.quality==='low'?1:2;
-        // 冬至/腊八的四角特效结构在 resize 时一次性预生成；每角独立种子，形态各异但都从角向中心生长。
-        if(mode==='winter')this.paint.frost=[0,1,2,3].map(corner=>buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),reach,detail));
-        else if(mode==='laba')this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,Math.max(8,Math.ceil(Math.max(W,H)/(detail<=1?130:80)))));
+        // 冬至/腊八的四角特效结构与四角雾气渐变都在 resize 时一次性预生成；
+        // 渐变缓存避免每帧重复 createRadialGradient/addColorStop 造成 GC 卡顿（掉帧根因之一）。
+        if(mode==='winter'){
+            // 冬至冰花范围更收敛：只从角落向内蔓延短边约 30%，不再铺满整块屏角。
+            const wreach=Math.max(28,Math.min(W,H)*.3);
+            this.paint.frost=[0,1,2,3].map(corner=>buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),wreach,detail));
+            this.paint.wash=[0,1,2,3].map(corner=>{const cx=corner%2?W:0,cy=corner>1?H:0;const g=c.createRadialGradient(cx,cy,0,cx,cy,wreach);g.addColorStop(0,'rgba(224,246,255,.34)');g.addColorStop(.55,'rgba(208,238,255,.14)');g.addColorStop(1,'rgba(208,238,255,0)');return g});
+        }else if(mode==='laba'){
+            this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,Math.max(8,Math.ceil(Math.max(W,H)/(detail<=1?130:80)))));
+            this.paint.wash=[0,1,2,3].map(corner=>{const cx=corner%2?W:0,cy=corner>1?H:0;const g=c.createRadialGradient(cx,cy,0,cx,cy,reach);g.addColorStop(0,'rgba(226,234,242,.5)');g.addColorStop(.5,'rgba(222,232,242,.26)');g.addColorStop(1,'rgba(226,236,246,0)');return g});
+        }
     }
     _draw(){
         const c=this.ctx,W=this.width,H=this.height;if(!c)return;c.setTransform(this.resolution,0,0,this.resolution,0,0);c.clearRect(0,0,W,H);c.save();this._drawBackdrop(c,W,H);
@@ -423,32 +435,33 @@ class FestivalScreenFx{
         if(mode==='snow'){
             c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.save();c.translate(W,H);c.scale(-1,-1);c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.restore();
         }else if(mode==='winter'){
-            // 角落羽状冰窗花：径向霜雾打底 + 缓慢呼吸的分形枝条，常驻可见（不随粒子闪烁全灭）。
-            const breath=.62+.26*Math.sin(this.age*.42),reach=Math.max(40,Math.min(W,H)*.46);
-            c.lineCap='round';c.strokeStyle='#eaf7ff';
+            // 角落羽状冰窗花：静态霜雾打底 + 纤细结晶蕨枝（按宽度分桶一次 stroke，降低 draw call），
+            // 范围收敛到屏角、整体仅极缓慢地明暗微动；星光闪烁交给角落粒子完成。
+            const breath=.6+.06*Math.sin(this.age*.28),reach=Math.max(28,Math.min(W,H)*.3);
+            c.lineCap='round';c.strokeStyle='#eef9ff';
             for(let corner=0;corner<4;corner++){
-                const cx=corner%2?W:0,cy=corner>1?H:0,rx=corner%2?W-reach:0,ry=corner>1?H-reach:0;
-                const wash=c.createRadialGradient(cx,cy,0,cx,cy,reach);
-                wash.addColorStop(0,`rgba(220,244,255,${.22*breath})`);wash.addColorStop(.55,`rgba(206,236,255,${.1*breath})`);wash.addColorStop(1,'rgba(206,236,255,0)');
-                c.fillStyle=wash;c.fillRect(rx,ry,reach,reach);
+                const rx=corner%2?W-reach:0,ry=corner>1?H-reach:0;
+                c.globalAlpha=breath;c.fillStyle=this.paint.wash?.[corner]||'rgba(224,246,255,.3)';c.fillRect(rx,ry,reach,reach);
                 c.save();cornerTransform(c,corner,W,H);
                 const segs=this.paint.frost?.[corner]||[];
-                for(const s of segs){c.globalAlpha=breath*(1-s.tip*.45);c.lineWidth=s.w;c.beginPath();c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2);c.stroke()}
+                const buckets=[[],[],[],[]];
+                for(const s of segs){const b=s.w<.55?0:s.w<1.0?1:s.w<1.5?2:3;buckets[b].push(s)}
+                for(let b=0;b<4;b++){const list=buckets[b];if(!list.length)continue;c.globalAlpha=breath*[.22,.36,.5,.68][b];c.lineWidth=[.4,.7,1.05,1.5][b];c.beginPath();for(const s of list){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}c.stroke()}
                 c.globalAlpha=1;c.restore();
             }
         }else if(mode==='laba'){
-            // 角落磨砂水雾：径向冷灰蓝雾气 + 凝结水珠，随呼吸明灭，模拟窗面结露。
-            const breath=.6+.28*Math.sin(this.age*.4),reach=Math.max(40,Math.min(W,H)*.46);
+            // 角落磨砂水雾：静态雾化渐变 + 竖向拉长的凝结水珠（含高光），随呼吸极缓明灭，模拟窗面结露。
+            const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46);
             for(let corner=0;corner<4;corner++){
-                const cx=corner%2?W:0,cy=corner>1?H:0,rx=corner%2?W-reach:0,ry=corner>1?H-reach:0;
-                const mist=c.createRadialGradient(cx,cy,0,cx,cy,reach);
-                mist.addColorStop(0,`rgba(196,210,226,${.34*breath})`);mist.addColorStop(.5,`rgba(206,220,234,${.18*breath})`);mist.addColorStop(1,'rgba(214,228,240,0)');
-                c.fillStyle=mist;c.fillRect(rx,ry,reach,reach);
+                const rx=corner%2?W-reach:0,ry=corner>1?H-reach:0;
+                c.globalAlpha=breath;c.fillStyle=this.paint.wash?.[corner]||'rgba(226,234,242,.42)';c.fillRect(rx,ry,reach,reach);
                 c.save();cornerTransform(c,corner,W,H);
                 const drops=this.paint.drops?.[corner]||[];
                 for(const d of drops){
-                    c.globalAlpha=breath*.5;c.fillStyle='rgba(236,244,252,.9)';c.beginPath();c.arc(d.x,d.y,d.r,0,TAU);c.fill();
-                    c.globalAlpha=breath*.3;c.fillStyle='#fff';c.beginPath();c.arc(d.x-d.r*.3,d.y-d.r*.3,d.r*.4,0,TAU);c.fill();
+                    c.globalAlpha=breath*.55;c.fillStyle='rgba(240,246,252,.95)';
+                    c.beginPath();c.ellipse(d.x,d.y,d.r,d.r*d.el,0,0,TAU);c.fill();
+                    c.globalAlpha=breath*.3;c.fillStyle='#fff';
+                    c.beginPath();c.ellipse(d.x-d.r*.3,d.y-d.r*.3*d.el,d.r*.4,d.r*.4*d.el,0,0,TAU);c.fill();
                 }
                 c.globalAlpha=1;c.restore();
             }
@@ -469,15 +482,19 @@ class FestivalScreenFx{
             case'zhongyuan':c.fillStyle=color;drawGhostFlame(c,p.size,this.quality);break;
             case'midAutumn':c.fillStyle=color;drawStar(c,p.size,p.variant?.4:.5,p.variant?4:5);c.fill();break;
             case'national':if(p.variant===0){
-                // 常驻星星：缓慢自转（_advance 已累计 p.rot）+ 脉冲辉光 + 轻微缩放，呈现呼吸闪烁而非静态亮点。
+                // 常驻星星：缓慢自转 + 脉冲辉光 + 随相位亮起的十字星芒，呈现真实星光闪烁的动效。
                 const pulse=.5+.5*Math.sin(this.age*1.6+p.phase);
+                const glint=Math.max(0,Math.sin(this.age*2.2+p.spin));
                 c.globalCompositeOperation='lighter';c.fillStyle=color;c.globalAlpha=base*.4*pulse;
                 c.beginPath();c.arc(0,0,p.size*1.9,0,TAU);c.fill();
+                if(glint>.25){c.globalAlpha=base*.75*glint;c.fillStyle='#fff';
+                    c.beginPath();c.moveTo(0,-p.size*2.7);c.lineTo(p.size*.32,0);c.lineTo(0,p.size*2.7);c.lineTo(-p.size*.32,0);c.closePath();c.fill();
+                    c.beginPath();c.moveTo(-p.size*2.7,0);c.lineTo(0,p.size*.32);c.lineTo(p.size*2.7,0);c.lineTo(0,-p.size*.32);c.closePath();c.fill()}
                 c.globalCompositeOperation='source-over';c.globalAlpha=base;c.fillStyle=color;
                 drawStar(c,p.size*(1+pulse*.22),.44,5);c.fill()
             }else{c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size*(.65+(p.drawAlpha||0)),0,TAU);c.fill()}break;
-            case'winter':{c.globalCompositeOperation='lighter';c.fillStyle=color;c.beginPath();c.arc(0,0,p.size*.6,0,TAU);c.fill();c.globalAlpha=base*.6;c.fillStyle='#fff';c.beginPath();c.arc(0,0,p.size*.28,0,TAU);c.fill();break}
-            case'laba':{c.fillStyle='rgba(232,242,250,.92)';c.beginPath();c.arc(0,0,p.size*.34,0,TAU);c.fill();c.globalAlpha=base*.55;c.fillStyle='#fff';c.beginPath();c.arc(-p.size*.1,-p.size*.1,p.size*.14,0,TAU);c.fill();break}
+            case'winter':{const glint=.5+.5*Math.sin(this.age*1.7+p.phase);c.globalCompositeOperation='lighter';c.fillStyle='#fff';c.globalAlpha=base*(.3+.7*glint);c.save();c.rotate(p.phase);c.beginPath();c.moveTo(0,-p.size);c.lineTo(p.size*.18,0);c.lineTo(0,p.size);c.lineTo(-p.size*.18,0);c.closePath();c.fill();c.beginPath();c.moveTo(-p.size,0);c.lineTo(0,p.size*.18);c.lineTo(p.size,0);c.lineTo(0,-p.size*.18);c.closePath();c.fill();c.restore();break}
+            case'laba':{c.fillStyle='rgba(242,247,252,.95)';c.beginPath();c.ellipse(0,0,p.size*.42,p.size*.5,0,0,TAU);c.fill();c.globalAlpha=base*.6;c.fillStyle='#fff';c.beginPath();c.ellipse(-p.size*.12,-p.size*.14,p.size*.16,p.size*.2,0,0,TAU);c.fill();break}
             case'xiaonian':{const tw=.55+Math.abs(Math.sin(this.age*3.2+p.phase))*.45;c.globalCompositeOperation='lighter';c.fillStyle=color;c.globalAlpha*=tw*.28;c.beginPath();c.arc(0,0,p.size*2.4,0,TAU);c.fill();c.globalAlpha=base*tw;c.beginPath();c.arc(0,0,p.size,0,TAU);c.fill();break}
         }
         c.restore();

@@ -505,7 +505,7 @@ export function createEnvironment(ctx){
         // 雾色与地平线颜色一致，远处水面自然融入天空
         scene.fog.color.copy(skyMat.uniforms.horizonColor.value);
         // 极光以彩虹级亮度照亮夜空与水面，而不是只在远处隐约可见。
-        const auroraGlow=timeFx.aurora*1.1;
+        const auroraGlow=timeFx.aurora*.55; // 极光峰值亮度减半（凌晨不再过曝）
         renderer.toneMappingExposure=.68+dayF*.36+sunsetF*.15+auroraGlow*.62;
         if(auroraGlow>0){ambLight.intensity+=auroraGlow*.55;hemiLight.intensity+=auroraGlow*.3}
         // 暴风雨：天空压暗、雾气拉近、水面变灰、能见度降低

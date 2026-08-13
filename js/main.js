@@ -3927,7 +3927,7 @@ const festivalScreenFx=createFestivalScreenFx({
 const FestivalFx={
     activeId:null,screen:festivalScreenFx,
     flagsGroup:null,
-    moonSprite:null, // 中秋：挂在天空层的一轮满月（世界空间，随鸭子移动保持在视野内）
+    moonSprite:null, // 中秋：挂在天空盒上的大满月（世界空间远处，参与深度测试）
     start(options={}){
         const id=Blessings.festival?.id;
         if(!id){this.stop();return false}
@@ -4087,8 +4087,7 @@ const FestivalFx={
             fg.rotation.y=fg.userData.windYaw+Math.sin(gameClock*.38+fg.userData.ph)*.035;
         }
     },
-    // --- 中秋：月亮挂在天空层（世界空间，锚定鸭子前方高空）。参与场景深度测试，
-    //     会被近处物体自然遮挡，看起来是“后面天空盒上的天体”，而不是贴在屏幕上的覆盖层。 ---
+    // --- 中秋：大满月挂在天空盒上（世界空间远处，参与深度测试，被近景自然遮挡）。 ---
     startMoon(){
         const tex=mkTex(256,256,x=>{
             // 月盘：暖白色圆 + 轻微径向渐变
@@ -4110,7 +4109,8 @@ const FestivalFx={
             x.strokeStyle='rgba(255,249,222,.2)';x.lineWidth=2;
             x.beginPath();x.arc(151,77,12,0,6.283);x.stroke();
         });
-        // 天空层：保留默认 depthTest(true)，让月盘与天空盒一起被近景遮挡；仅关 depthWrite，避免透明月盘挡住后续半透明物。
+        // 挂在天空盒上：保留默认 depthTest(true)，让月盘与天空盒一起被近处云朵/鸭子自然遮挡；
+        // 仅关 depthWrite，避免透明月盘挡住后续半透明物。不设 renderOrder、不关深度、不跟随相机。
         const mat=new THREE.SpriteMaterial({map:tex,transparent:true,opacity:0,fog:false,depthWrite:false});
         const s=new THREE.Sprite(mat);
         s.scale.set(46,46,1);
@@ -4121,10 +4121,11 @@ const FestivalFx={
         // 夜晚最亮，白天仍保留淡淡月盘（中秋月白天也可见，但更柔）。
         const h=((timeOfDay%24)+24)%24;
         const nightF=h>=19?Math.min(1,(h-19)/.8):h<5?1:0;
-        // 锚定鸭子前方高空：世界空间定位，月亮像真实天体一样落在天空盒上，随鸭子平移保持在视野中并随浪面轻微起伏。
+        // 天空盒式定位：世界空间远处高空，随鸭子平移保持可见、随相机转动有正确视差，
+        // 整体比旧版（前方约 34、高约 26）更远、更靠下，让满月真正落在“后面天空盒”上。
         const base=duckModel?duckModel.position:_moonBase;
-        this.moonSprite.position.set(base.x+20,30+Math.sin(gameClock*.2)*1.6,base.z-38);
-        this.moonSprite.material.opacity=.5+nightF*.42;
+        this.moonSprite.position.set(base.x+18,17+Math.sin(gameClock*.2)*1.2,base.z-100);
+        this.moonSprite.material.opacity=.45+nightF*.5;
         this.moonSprite.visible=gameActive;
     }
 };
