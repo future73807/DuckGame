@@ -1281,18 +1281,20 @@ let magnetTrailCursor=0,magnetVisualAccumulator=0;
 const COMBO_TARGET_MARKER_COUNT=4,COMBO_TARGET_RANGE=30,COMBO_TARGET_RING_RENDER_ORDER=2100,COMBO_TARGET_CARD_MARGIN=8,COMBO_TARGET_CARD_GAP=13,COMBO_TARGET_CARD_FLIP_HYSTERESIS=8;
 const comboTargetRingGeo=new THREE.TorusGeometry(.4,.033,7,36);
 const comboTargetRingMats={
-    same:new THREE.MeshBasicMaterial({color:0xffcf55,transparent:true,opacity:.88,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,toneMapped:false,fog:false}),
-    diff:new THREE.MeshBasicMaterial({color:0x73ddff,transparent:true,opacity:.84,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,toneMapped:false,fog:false})
+    // 恢复深度测试：鸭子游到目标前方时圆环被鸭子正常遮挡，提示不再盖在小鸭子上面。
+    same:new THREE.MeshBasicMaterial({color:0xffcf55,transparent:true,opacity:.88,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,toneMapped:false,fog:false}),
+    diff:new THREE.MeshBasicMaterial({color:0x73ddff,transparent:true,opacity:.84,blending:THREE.AdditiveBlending,depthTest:true,depthWrite:false,toneMapped:false,fog:false})
 };
 const comboTargetLayer=document.createElement('div');comboTargetLayer.id='combo-target-layer';comboTargetLayer.setAttribute('aria-hidden','true');document.getElementById('ui').appendChild(comboTargetLayer);
 const comboTargetMarkers=[],comboTargetCards=[],comboTargetCardStates=[],comboTargetItems=[],comboTargetDistances=[];
 for(let i=0;i<COMBO_TARGET_MARKER_COUNT;i++){
     const group=new THREE.Group(),ring=new THREE.Mesh(comboTargetRingGeo,comboTargetRingMats.same);
     group.renderOrder=COMBO_TARGET_RING_RENDER_ORDER;ring.renderOrder=COMBO_TARGET_RING_RENDER_ORDER;group.add(ring);group.visible=false;group.userData={ring};scene.add(group);comboTargetMarkers.push(group);
-    const card=document.createElement('div');card.className='combo-target-card';card.dataset.kind='same';card.innerHTML='<span class="combo-target-card-value">×10</span>';comboTargetLayer.appendChild(card);comboTargetCards.push(card);
+    const card=document.createElement('div');card.className='combo-target-card';card.dataset.kind='same';card.innerHTML='<i class="fa-solid fa-star cc-ico"></i><span class="combo-target-card-value">×10</span>';comboTargetLayer.appendChild(card);comboTargetCards.push(card);
     comboTargetCardStates.push({visible:false,reason:'no-target',kind:'same',x:null,y:null,anchorX:null,anchorY:null,ndcZ:null,placement:null,clamped:false,width:Math.max(48,card.offsetWidth),height:Math.max(26,card.offsetHeight)});
 }
 const comboTargetProjectPos=new THREE.Vector3(),comboTargetViewPos=new THREE.Vector3();
+const comboTargetDuckCenter=new THREE.Vector3(),comboTargetDuckNDC=new THREE.Vector3();
 let comboTargetScanTimer=0,comboTargetModeKey='';
 // 磁铁 HUD（激活时显示倒计时）
 const magnetHud=document.createElement('div');magnetHud.id='magnet-hud';
@@ -1320,11 +1322,9 @@ function isComboTargetItem(item,mode){
     return mode.kind==='same'?type===mode.type:type!==mode.first&&type!==mode.second;
 }
 function setComboGoalHud(mode){
-    const hint=document.getElementById('combo-goal-hint');if(!hint)return;
-    if(!mode){hint.className='';hint.innerHTML='';return}
-    if(mode.kind==='same')hint.innerHTML=`<i class="fa-solid fa-arrow-right"></i><i class="fa-solid ${STREAK_ICONS[mode.type]||'fa-circle'}"></i> ×10`;
-    else hint.innerHTML='<i class="fa-solid fa-arrow-right"></i> 新种类 ×5';
-    hint.className='show '+mode.kind;
+    // 顶部 HUD 不再显示「××× ×5 / ×10」目标文字：移动端顶部挤不下，目标提示只保留场景内的标记圈与悬浮卡片。
+    const hint=document.getElementById('combo-goal-hint');
+    if(hint&&(hint.className||hint.innerHTML)){hint.className='';hint.innerHTML=''}
 }
 function hideComboTargetCard(index,reason){
     const card=comboTargetCards[index],state=comboTargetCardStates[index];if(!card||!state)return;
@@ -1334,6 +1334,7 @@ function hideComboTargetCard(index,reason){
 function setComboTargetCardKind(index,kind){
     const card=comboTargetCards[index],state=comboTargetCardStates[index];if(!card||!state||state.kind===kind)return;
     state.kind=kind;card.dataset.kind=kind;card.querySelector('.combo-target-card-value').textContent=kind==='same'?'×10':'×5';
+    const ico=card.querySelector('.cc-ico');if(ico)ico.className=kind==='same'?'fa-solid fa-star cc-ico':'fa-solid fa-bolt cc-ico';
 }
 function hideComboTargetMarkers(reason='no-target'){
     for(let i=0;i<comboTargetMarkers.length;i++){comboTargetMarkers[i].visible=false;hideComboTargetCard(i,reason)}
@@ -1368,6 +1369,20 @@ function updateComboTargetHints(dt){
 // 必须在最终相机矩阵（包含本帧震屏偏移）更新后投影，否则 DOM 卡片会和 3D 圆环错开。
 function updateComboTargetCards(){
     const width=innerWidth,height=innerHeight;
+    // 鸭子屏幕投影与遮挡邻域：鸭子身体轮廓 r，以及更大的遮挡邻域 neighborR。
+    // 目标锚点或卡片矩形一旦落入邻域，卡片立即隐藏——弹窗不会盖在小鸭子身上。
+    let duckOcclude=null;
+    if(duckModel&&comboTargetMarkers.some(marker=>marker.visible)){
+        comboTargetDuckCenter.copy(duckModel.position);comboTargetDuckCenter.y+=.55*duckModel.scale.x/.72;
+        comboTargetDuckNDC.copy(comboTargetDuckCenter).project(camera);
+        const dndcZ=comboTargetDuckNDC.z;
+        if(Number.isFinite(dndcZ)&&dndcZ>-1&&dndcZ<1){
+            const dScreenX=(comboTargetDuckNDC.x*.5+.5)*width,dScreenY=(-comboTargetDuckNDC.y*.5+.5)*height;
+            const camDist=camera.position.distanceTo(duckModel.position);
+            const pxPerUnit=(height*.5)/Math.max(.1,camDist*Math.tan(camera.fov*Math.PI/360));
+            duckOcclude={x:dScreenX,y:dScreenY,r:Math.max(16,.68*pxPerUnit),neighborR:Math.max(48,1.9*pxPerUnit)};
+        }
+    }
     for(let i=0;i<comboTargetCards.length;i++){
         const marker=comboTargetMarkers[i],item=comboTargetItems[i],card=comboTargetCards[i],state=comboTargetCardStates[i];
         if(!marker?.visible||!item||item.coll||item.duoHidden){hideComboTargetCard(i,'no-target');continue}
@@ -1384,8 +1399,21 @@ function updateComboTargetCards(){
         const placement=state.placement==='below'
             ?(aboveTop>=COMBO_TARGET_CARD_MARGIN+COMBO_TARGET_CARD_FLIP_HYSTERESIS?'above':'below')
             :(aboveTop<COMBO_TARGET_CARD_MARGIN?'below':'above');
+        // 鸭子遮挡：物品锚点落入鸭子遮挡邻域，或卡片矩形与邻域相交时隐藏弹窗——
+        // 邻域约为鸭子身体高度的 3 倍，鸭子挡在目标前面时提示即刻消失。
+        if(duckOcclude){
+            const nR=duckOcclude.neighborR;
+            const dxA=screenX-duckOcclude.x,dyA=screenY-duckOcclude.y;
+            if(dxA*dxA+dyA*dyA<=nR*nR){hideComboTargetCard(i,'duck-occluded');continue}
+            const cardLeft=cardX-state.width*.5,cardRight=cardX+state.width*.5;
+            const cardTop=placement==='below'?screenY+COMBO_TARGET_CARD_GAP:screenY-COMBO_TARGET_CARD_GAP-state.height;
+            const cardBottom=cardTop+state.height;
+            const cx=Math.max(cardLeft,Math.min(duckOcclude.x,cardRight)),cy=Math.max(cardTop,Math.min(duckOcclude.y,cardBottom));
+            const dx=duckOcclude.x-cx,dy=duckOcclude.y-cy;
+            if(dx*dx+dy*dy<=nR*nR){hideComboTargetCard(i,'duck-occluded');continue}
+        }
         const offsetY=placement==='below'?`${COMBO_TARGET_CARD_GAP}px`:`calc(-100% - ${COMBO_TARGET_CARD_GAP}px)`;
-        card.style.transform=`translate3d(${cardX.toFixed(1)}px,${screenY.toFixed(1)}px,0) translate(-50%,${offsetY})`;
+        card.style.transform=`translate3d(${cardX.toFixed(1)}px,${screenY.toFixed(1)}px,0) translate(-50%,${offsetY}) rotate(${i%2?-3:3}deg)`;
         if(state.placement!==placement){card.dataset.placement=placement;state.placement=placement}
         if(!state.visible){card.classList.add('show');state.visible=true}
         state.reason='visible';state.anchorX=Math.round(screenX*10)/10;state.anchorY=Math.round(screenY*10)/10;state.x=Math.round(cardX*10)/10;state.y=state.anchorY;state.clamped=Math.abs(cardX-screenX)>.05;state.ndcZ=Math.round(z*1000)/1000;

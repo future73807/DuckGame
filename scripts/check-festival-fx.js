@@ -476,7 +476,7 @@ async function main(){
     }
 
     // 冬至冰花与腊八雾气各自稳定分配到四个角，并真正经历消失→重新出现的完整周期；
-    // 腊八整团水雾另按约 6 秒的包络「出现→消失→再出现」，四角相位错开。
+    // 整簇冰花另按约 9 秒包络「生长出现→绽放→消散→消失」，腊八水雾按约 6 秒包络循环，四角相位均错开。
     {
         const{fx}=makeHarness(mod);
         for(const id of['festival_winter_solstice','festival_laba']){
@@ -487,6 +487,18 @@ async function main(){
             });
             assert.ok(minAlpha.every(alpha=>alpha<.02),`${id}: 每个角落粒子都必须慢慢消失`);
             assert.ok(maxAlpha.every(alpha=>alpha>.98),`${id}: 每个角落粒子都必须重新完整出现`);
+        }
+        // 冬至冰花整簇：每个角在 45 秒内（约 3 个 14s 周期）都必须完整隐没、完整绽放，并保留真实隐藏停顿。
+        for(const cornerPhase of[0,.27,.53,.8]){
+            let min=1,max=0,hidden=0;
+            for(let t=0;t<=45;t+=1/60){
+                const env=mod.frostBloomEnvelope(t,cornerPhase);
+                min=Math.min(min,env);max=Math.max(max,env);
+                if(env<=.0001)hidden++;
+            }
+            assert.ok(min<=.0001,`冬至冰花(相位${cornerPhase})从未完全消失: ${min}`);
+            assert.ok(max>=.999,`冬至冰花(相位${cornerPhase})从未完整出现: ${max}`);
+            assert.ok(hidden>=90,`冬至冰花(相位${cornerPhase})隐藏停顿过短: ${hidden}帧`);
         }
         // 腊八水雾：每个角在 30 秒内（约 5 个 6s 周期）都必须完整隐没、完整出现，并保留隐藏停顿。
         for(const cornerPhase of[0,.17,.34,.51]){

@@ -1,4 +1,4 @@
-// 16 套节日屏幕粒子：单 Canvas、对象池、确定性分层采样与分档刷新；冬至沿用四角羽状冰晶，腊八为四角水雾循环显隐。
+// 16 套节日屏幕粒子：单 Canvas、对象池、确定性分层采样与分档刷新；冬至为四角冰晶蕨循环绽放，腊八为四角水雾循环显隐。
 // 粒子覆盖完整屏幕，不读取也不规避鸭子、名牌或 HUD；UI 仅按自身 z-index 自然叠放。
 
 const TAU=Math.PI*2;
@@ -128,23 +128,55 @@ function drawGhostFlame(ctx,s,quality){
 // 局部确定性 PRNG：种子固定则序列固定，用于一次性预生成分形/水珠结构（仅在 resize 时重建）。
 function makeRng(seed){let x=(seed>>>0)||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}}
 
-// 从角落(0,0)朝屏幕中心(+x,+y)生长的羽状/蕨状冰窗花：主干带轻微摇摆 + 两侧羽枝 + 二级细枝，
-// 尖端收细羽化，模拟窗玻璃上凝结的冰晶蕨。detail≤1（低档）减少主干与羽枝密度以控制开销。
+// 四角冰窗花：从角落(0,0)向屏内扇形展开的冰晶蕨丛 + 细碎冰粒。
+// 每根蕨带自然曲率（向尖端渐直），两侧羽枝长短交错、末梢再分细杈，主干粗细向尖端收敛；
+// 冰粒沿主干与角落周边撒开，形成霜花颗粒质感。detail≤1（低档）减少蕨数与羽枝密度。
 function buildCornerFrost(rng,reach,detail){
-    const segs=[],fronds=detail<=1?3:5+Math.floor(rng()*3),steps=detail<=1?10:15;
+    // 每段都带 grow（0=紧贴角落，1=最远端），生长动画按它逐段点亮：主干先长、羽枝随后、细杈最后。
+    const segs=[],dots=[],fronds=detail<=1?4:6+Math.floor(rng()*2),steps=detail<=1?10:14,spread=1.12;
     for(let f=0;f<fronds;f++){
-        const angle=.16+(fronds>1?f/(fronds-1):.5)*1.1+(rng()-.5)*.08,len=reach*(.4+rng()*.42),spine=[];
+        const angle=.1+spread*(fronds>1?f/(fronds-1):.5)+(rng()-.5)*.12,len=reach*(.5+rng()*.42);
+        const curve=(rng()-.5)*.3,spine=[];
         let x=0,y=0,a=angle;
-        for(let s=0;s<steps;s++){const sl=len/steps;a+=(rng()-.5)*.06;const nx=x+Math.cos(a)*sl,ny=y+Math.sin(a)*sl;spine.push([x,y,nx,ny]);x=nx;y=ny}
-        spine.forEach(([px,py,nx,ny],i)=>{const t=i/spine.length;segs.push({x1:px,y1:py,x2:nx,y2:ny,w:1.7*(1-t*.82)+.2,tip:t})});
+        for(let s=0;s<steps;s++){
+            const sl=len/steps;a+=curve*(1-s/steps)*.5;
+            const nx=x+Math.cos(a)*sl,ny=y+Math.sin(a)*sl;spine.push([x,y,nx,ny,a]);x=nx;y=ny;
+        }
         spine.forEach(([px,py,nx,ny],i)=>{
-            const t=i/spine.length;if(t<.08)return;if(detail<=1&&i%2)return;const spike=(1-t)*reach*.24,sw=1.0*(1-t)+.16,ba=Math.atan2(ny-py,nx-px);
-            for(const dir of[1,-1]){const sa=ba+dir*(Math.PI*.42+(rng()-.5)*.08);const sx=nx+Math.cos(sa)*spike,sy=ny+Math.sin(sa)*spike;segs.push({x1:nx,y1:ny,x2:sx,y2:sy,w:sw,tip:t});
-                if(t<.72&&detail>1&&rng()<.55){const sa2=sa+dir*(rng()-.5)*.4;const sub=(1-t)*spike*.5;segs.push({x1:sx,y1:sy,x2:sx+Math.cos(sa2)*sub,y2:sy+Math.sin(sa2)*sub,w:.4*(1-t)+.08,tip:t+.06})}
+            const t=i/spine.length;segs.push({x1:px,y1:py,x2:nx,y2:ny,w:1.5*(1-t*.86)+.24,tip:t,grow:t});
+            if(t<.05)return;if(detail<=1&&i%2)return;
+            const ba=Math.atan2(ny-py,nx-px),br=(1-t)*reach*.3*(.5+rng()*.55),bw=.95*(1-t)+.12;
+            for(const dir of[1,-1]){
+                const sa=ba+dir*(Math.PI*.4+(rng()-.5)*.22);
+                const ex=nx+Math.cos(sa)*br,ey=ny+Math.sin(sa)*br;
+                segs.push({x1:nx,y1:ny,x2:ex,y2:ey,w:bw,tip:t+.04,grow:t+.05});
+                if(t<.68&&detail>1&&rng()<.55){
+                    const ba2=sa+dir*(rng()-.5)*.9,bl2=br*(.45+rng()*.35);
+                    segs.push({x1:ex,y1:ey,x2:ex+Math.cos(ba2)*bl2,y2:ey+Math.sin(ba2)*bl2,w:bw*.5,tip:t+.1,grow:t+.12});
+                }
             }
         });
+        // 主干上的冰粒（随主干生长点亮）
+        spine.forEach(([px,py],i)=>{if(i%2||rng()>.55)return;dots.push({x:px+(rng()-.5)*3.2,y:py+(rng()-.5)*3.2,r:.45+rng()*.9,phase:rng()*TAU,grow:i/spine.length})});
     }
-    return segs;
+    // 游离冰粒：贴近角落向屏内撒开，按离角距离顺序生长
+    for(let i=0;i<(detail<=1?16:30);i++){
+        const ang=rng()*Math.PI*.5,dist=Math.pow(rng(),1.3)*reach*.95;
+        dots.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:.4+rng()*1.1,phase:rng()*TAU,grow:dist/reach});
+    }
+    return{segs,dots};
+}
+
+// 冰窗花绽放周期：整簇一轮约 14 秒，出现与消失各约 3.1 秒，节奏更舒缓。
+const FROST_BLOOM_PERIOD=14;
+// 冰窗花绽放包络（约 14 秒一轮）：0→.22 从角落向外生长出现、.22→.5 完整绽放、.5→.72 逐渐消散、
+// .72→1 完全消失 —— 每簇冰花都清晰经历「出现→消失→再出现→再消失」的完整循环。
+export function frostBloomEnvelope(age,phase,period){
+    const t=((age/Math.max(1e-6,Number(period)||FROST_BLOOM_PERIOD)+(Number(phase)||0))%1+1)%1;
+    if(t<.22)return smoothstep(0,.22,t);
+    if(t<.5)return 1;
+    if(t<.72)return 1-smoothstep(.5,.72,t);
+    return 0;
 }
 
 // 腊八水雾包络：整团雾气约 6 秒一个「出现→消失→再出现」循环（出现 .96s、停留 2.4s、消散 1.08s、隐藏 1.56s）。
@@ -442,7 +474,8 @@ class FestivalScreenFx{
             // 冬至冰花范围更收敛：只从角落向内蔓延短边约 30%，不再铺满整块屏角。
             const wreach=Math.max(28,Math.min(W,H)*.3);
             this.paint.frost=[0,1,2,3].map(corner=>buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),wreach,detail));
-            this.paint.wash=[0,1,2,3].map(corner=>{const cx=corner%2?W:0,cy=corner>1?H:0;const g=c.createRadialGradient(cx,cy,0,cx,cy,wreach);g.addColorStop(0,'rgba(224,246,255,.34)');g.addColorStop(.55,'rgba(208,238,255,.14)');g.addColorStop(1,'rgba(208,238,255,0)');return g});
+            // 霜雾渐变改为角落局部坐标，绘制时套用 cornerTransform 与生长缩放，随整簇冰花一起明灭。
+            this.paint.wash=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach);g.addColorStop(0,'rgba(226,247,255,.38)');g.addColorStop(.55,'rgba(208,238,255,.15)');g.addColorStop(1,'rgba(208,238,255,0)');return g});
         }else if(mode==='laba'){
             this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,Math.max(10,Math.ceil(Math.max(W,H)/(detail<=1?110:70))),corner>1?-1:1));
             this.paint.mist=[0,1,2,3].map(corner=>{
@@ -466,20 +499,51 @@ class FestivalScreenFx{
         if(mode==='snow'){
             c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.save();c.translate(W,H);c.scale(-1,-1);c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.restore();
         }else if(mode==='winter'){
-            // 角落羽状冰窗花：静态霜雾打底 + 纤细结晶蕨枝（按宽度分桶一次 stroke，降低 draw call），
-            // 范围收敛到屏角、整体仅极缓慢地明暗微动；星光闪烁交给角落粒子完成。
-            const breath=.6+.06*Math.sin(this.age*.28),reach=Math.max(28,Math.min(W,H)*.3);
-            c.lineCap='round';c.strokeStyle='#eef9ff';
+            // 四角冰窗花：整簇冰晶随 frostBloomEnvelope 完整「生长出现→绽放→消散→消失」，四角相位错开；
+            // 出现与消失都按每段的 grow 顺序逐段推进——出现时从角落沿蕨枝一点一点长出来，
+            // 消失时从枝梢向角落一点一点退去；柔光/冰晶/高亮三层描边 + 冰粒闪烁 + 霜雾打底。
+            const reach=Math.max(28,Math.min(W,H)*.3),edge=.07;
+            c.lineCap='round';
+            // 逐段生长/消融描边：已长成的段落合并一次 stroke，前沿的一段段单独渐显（生长）或渐隐（消融），
+            // 枝头随 reveal 缓缓蔓延/退却，而不是整簇缩放或整体明暗变化。
+            const strokeGrown=(buckets,reveal,strokeStyle,alphaByBucket,widthByBucket)=>{
+                c.strokeStyle=strokeStyle;
+                for(let b=0;b<4;b++){
+                    const list=buckets[b];if(!list.length)continue;
+                    const full=[],front=[];
+                    for(const sg of list){if(sg.grow<=reveal-edge)full.push(sg);else if(sg.grow<reveal)front.push(sg)}
+                    if(full.length){c.globalAlpha=alphaByBucket[b];c.lineWidth=widthByBucket[b];c.beginPath();for(const sg of full){c.moveTo(sg.x1,sg.y1);c.lineTo(sg.x2,sg.y2)}c.stroke()}
+                    for(const sg of front){const k=clamp((reveal-sg.grow)/edge,0,1);if(k<=0)continue;c.globalAlpha=alphaByBucket[b]*k;c.lineWidth=widthByBucket[b];c.beginPath();c.moveTo(sg.x1,sg.y1);c.lineTo(sg.x2,sg.y2);c.stroke()}
+                }
+            };
             for(let corner=0;corner<4;corner++){
-                const rx=corner%2?W-reach:0,ry=corner>1?H-reach:0;
-                c.globalAlpha=breath;c.fillStyle=this.paint.wash?.[corner]||'rgba(224,246,255,.3)';c.fillRect(rx,ry,reach,reach);
+                const phase=corner*.27,env=frostBloomEnvelope(this.age,phase,FROST_BLOOM_PERIOD);
+                if(env<=.004)continue;
+                const t=((this.age/FROST_BLOOM_PERIOD+phase)%1+1)%1;
+                const reveal=t<.22?smoothstep(0,.22,t):(t<.5?1:(t<.72?1-smoothstep(.5,.72,t):0));
                 c.save();cornerTransform(c,corner,W,H);
-                const segs=this.paint.frost?.[corner]||[];
-                const buckets=[[],[],[],[]];
-                for(const s of segs){const b=s.w<.55?0:s.w<1.0?1:s.w<1.5?2:3;buckets[b].push(s)}
-                for(let b=0;b<4;b++){const list=buckets[b];if(!list.length)continue;c.globalAlpha=breath*[.22,.36,.5,.68][b];c.lineWidth=[.4,.7,1.05,1.5][b];c.beginPath();for(const s of list){c.moveTo(s.x1,s.y1);c.lineTo(s.x2,s.y2)}c.stroke()}
-                c.globalAlpha=1;c.restore();
+                c.globalAlpha=env*.55;c.fillStyle=this.paint.wash?.[corner]||'rgba(226,247,255,.34)';c.fillRect(0,0,reach,reach);
+                const frost=this.paint.frost?.[corner];
+                if(frost){
+                    const buckets=[[],[],[],[]];
+                    for(const sg of frost.segs){const b=sg.w<.4?0:sg.w<.75?1:sg.w<1.15?2:3;buckets[b].push(sg)}
+                    // 柔光层：宽幅淡青，托出冰晶的发光轮廓
+                    strokeGrown(buckets,reveal,'#b8e0fc',[.1,.15,.2,.26],[2.8,3.6,4.6,5.8]);
+                    // 冰晶层：中宽冰蓝主体
+                    strokeGrown(buckets,reveal,'#d8f1ff',[.3,.44,.58,.72],[.55,.85,1.2,1.6]);
+                    // 高亮层：纤细亮白结晶线
+                    strokeGrown(buckets,reveal,'#ffffff',[.55,.68,.8,.9],[.26,.4,.55,.72]);
+                    // 冰粒：细碎霜花点，独立相位微闪，随生长前沿逐粒点亮、随消融前沿逐粒隐去
+                    c.fillStyle='#ffffff';
+                    for(const d of frost.dots){
+                        const k=clamp((reveal-d.grow)/edge,0,1);if(k<=0)continue;
+                        c.globalAlpha=(.3+.4*(.5+.5*Math.sin(this.age*1.3+d.phase)))*k;
+                        c.beginPath();c.arc(d.x,d.y,d.r,0,TAU);c.fill();
+                    }
+                }
+                c.restore();
             }
+            c.globalAlpha=1;
         }else if(mode==='laba'){
             // 角落磨砂水雾：2–3 团不规则雾气 + 竖向拉长的凝结水珠（含高光与下淌尾痕），
             // 每个角按 labaMistEnvelope 缓慢「出现→消失→再出现」，四角相位错开，呼吸微动叠加其上。
