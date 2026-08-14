@@ -49,6 +49,15 @@ async function main(){
     const storm=stableTrace(createRafTimeGate,60,40);
     assert.equal(storm.updates.length,storm.attempts.length,'60 FPS 风暴未逐 rAF 更新');
 
+    // 水面默认 60 Hz：60 FPS 显示逐帧重建浪面（消除鸭子相对浪面的阶梯抖动），
+    // 120 FPS 显示稳定每 2 帧更新（配合逐帧推进的 renderedWaveClock，鸭子仍然平滑）。
+    const hz60=stableTrace(createRafTimeGate,60,60);
+    assert.equal(hz60.updates.length,hz60.attempts.length,'60 FPS / 60 Hz 未逐 rAF 更新');
+    for(const gap of hz60.gaps)near(gap,hz60.step);
+    const hz60fast=stableTrace(createRafTimeGate,120,60);
+    for(const gap of hz60fast.gaps)near(gap,hz60fast.step*2);
+    assert.ok(Math.abs(hz60fast.updates.length-121)<=1,`120 FPS / 60 Hz 的 2 秒更新数异常: ${hz60fast.updates.length}`);
+
     // EMA + 滞回：单个稍慢帧不能让稳定 60 FPS 误入全速；从 57 切到 60 也不能一帧内反复跳变。
     const boundary=createRafTimeGate({defaultHz:30});
     let now=0;boundary.shouldUpdate(now,30);

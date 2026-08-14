@@ -1926,6 +1926,9 @@ function startGameSession(){
     // 大厅不再提前构建约 2000 个子 Mesh。单人/房主开局时只构建一次；客机等待房主首个权威场景包。
     // 必须放在 Blessings.apply 之后，确保首局端午粽子/国庆蛋糕等节日替换正确生效。
     if(items.length===0&&(!Duo.active||Duo.role==='host')){spawnAround(duckModel?.position.x||0,duckModel?.position.z||0);spawnRefreshTimer=.2}
+    // 首次开局后一次性预编译场景与全部物品着色器：石头(flatShading)、水草/荷叶/花朵(vertexColors)、
+    // 磁铁等新材质首次渲染时的 GLSL 同步编译会阻塞主线程、把帧率拖到个位数，这里提前预热消除卡顿。
+    if(!sceneShadersCompiled){try{scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);renderer.compile(scene,camera)}catch(err){console.warn('着色器预编译失败',err)}sceneShadersCompiled=true}
     autoStartMusic();
     if(Duo.active)Duo.beginGame();
     setTimeout(()=>showBlessingSplash(),350);
@@ -4625,9 +4628,9 @@ function applyDuoBlessing(blessing){
 let graphicsQuality=['low','mid','high'].includes(localStorage.getItem('duck_quality'))?localStorage.getItem('duck_quality'):(isMobile?'low':'mid');
 function getGraphicsPreset(level){
     const presets={
-        low:{ratio:Math.min(devicePixelRatio,.85),wave:5,normals:24,waveHz:30,normalHz:4,environment:4,segments:36,shadows:false,shadowEvery:0,shadowHz:0},
-        mid:{ratio:Math.min(devicePixelRatio,1),wave:4,normals:18,waveHz:30,normalHz:6,environment:3,segments:48,shadows:true,shadowEvery:4,shadowHz:15},
-        high:{ratio:Math.min(devicePixelRatio*1.15,1.5),wave:3,normals:12,waveHz:30,normalHz:8,environment:2,segments:56,shadows:true,shadowEvery:3,shadowHz:20}
+        low:{ratio:Math.min(devicePixelRatio,.85),wave:5,normals:24,waveHz:60,normalHz:4,environment:4,segments:36,shadows:false,shadowEvery:0,shadowHz:0},
+        mid:{ratio:Math.min(devicePixelRatio,1),wave:4,normals:18,waveHz:60,normalHz:6,environment:3,segments:48,shadows:true,shadowEvery:4,shadowHz:15},
+        high:{ratio:Math.min(devicePixelRatio*1.15,1.5),wave:3,normals:12,waveHz:60,normalHz:8,environment:2,segments:56,shadows:true,shadowEvery:3,shadowHz:20}
     };
     return presets[level]||presets.high;
 }
@@ -4639,7 +4642,7 @@ function applyGraphicsQuality(level){
     quality.waveUpdateInterval=preset.wave;
     quality.waveNormalInterval=preset.normals;
     quality.waveUpdateHz=preset.waveHz;
-    quality.stormWaveUpdateHz=40;
+    quality.stormWaveUpdateHz=60;
     quality.waveNormalHz=preset.normalHz;
     quality.environmentUpdateInterval=preset.environment;
     quality.shadowUpdateInterval=preset.shadowEvery;
@@ -5062,6 +5065,7 @@ setAchievementsCtx({
 });
 
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
+let sceneShadersCompiled=false; // 首局开局后一次性预编译全部着色器，避免新材质首次渲染时同步编译造成卡顿
 let fpsAccum=0,fpsFrames=0,fpsValue=60;
 let lastShadowUpdateMs=0;
 const framePerf={samples:0,over33:0,over50:0,maxMs:0,lastMs:0};

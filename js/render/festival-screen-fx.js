@@ -1,4 +1,4 @@
-// 16 套节日屏幕粒子：单 Canvas、对象池、确定性分层采样与分档刷新。
+// 16 套节日屏幕粒子：单 Canvas、对象池、确定性分层采样与分档刷新；冬至沿用四角羽状冰晶，腊八为四角水雾循环显隐。
 // 粒子覆盖完整屏幕，不读取也不规避鸭子、名牌或 HUD；UI 仅按自身 z-index 自然叠放。
 
 const TAU=Math.PI*2;
@@ -56,10 +56,10 @@ export function stratifiedPoint(index,count,width,height,jitterX=.5,jitterY=.5){
     const sampledCell=Math.min(shape.cells-1,Math.floor((logicalIndex+.5)*shape.cells/n)),row=Math.floor(sampledCell/shape.cols);
     const col=(sampledCell%shape.cols+row*2)%shape.cols,cell=row*shape.cols+col;
     // 分布凌乱感：X/Y 两轴都在网格单元内叠加按 cell 哈希的有机偏移，打散整齐的行列对齐；
-    // 基础 inset 仍保留 .14/.05，仅靠哈希抖动把粒子从规则栅格中“搅乱”，不改变每格的唯一归属。
+    // 基础 inset 仍保留 .14/.05，哈希抖动幅度加大，把粒子从规则栅格中“搅乱”，不改变每格的唯一归属。
     const insetY=.14,insetX=.05,bx=clamp(Number(jitterX)||0,0,1),by=clamp(Number(jitterY)||0,0,1);
-    const ox=(hashText('fx'+cell)/4294967296-.5)*.3;
-    const oy=(hashText('fy'+cell)/4294967296-.5)*.26;
+    const ox=(hashText('fx'+cell)/4294967296-.5)*.5;
+    const oy=(hashText('fy'+cell)/4294967296-.5)*.46;
     const jx=clamp(insetX+bx*(1-insetX*2)+ox,0,1),jy=clamp(insetY+by*(1-insetY*2)+oy,0,1);
     return{x:(col+jx)/shape.cols*W,y:(row+jy)/shape.rows*H,cell,col,row,...shape};
 }
@@ -80,14 +80,17 @@ export function computeFestivalMoonLayout(options={}){
 function flowingPoint(index,count,width,height,jitterX=.5){
     const n=Math.max(1,Math.floor(count)||1),W=Math.max(1,width||1),H=Math.max(1,height||1),bands=Math.min(n,n<=20?4:n<=40?5:n<=60?6:8);
     const col=index,row=index%bands,cycle=Math.floor(index/bands),xInset=.35+clamp(Number(jitterX)||0,0,1)*.3;
-    // x 在全宽低差异铺开；y 以 4–8 个等距相位循环并按组轻微错开。统一纵速平移后既无竖条空洞，也不会因速度差聚团。
-    const stagger=((((cycle*.61803398875)%1)+1)%1-.5)*.08,phase=((row+.42+stagger)/bands+1)%1,span=H+48;
-    return{x:(col+xInset)/n*W,y:-24+phase*span,cols:n,rows:bands,col,row,cell:row*n+col};
+    // 初始即凌乱：纵向按黄金比低差异错相 + 每格哈希抖动，开局就是散点而非 4–8 条等距横带；横向在列槽内按 cell 哈希错开 ±.5 槽宽。
+    const cell=row*n+col,h=(hashText('fyflow'+cell)/4294967296-.5);
+    const phase=(((col*.61803398875)%1+h*.6)%1+1)%1,span=H+48;
+    const slotW=W/n,flowOx=(hashText('fxflow'+cell)/4294967296-.5);
+    const x=clamp((col+xInset)/n*W+flowOx*slotW,2,W-2);
+    return{x,y:-24+phase*span,cols:n,rows:bands,col,row,cell};
 }
 
 function ghostPoint(index,count,width,height,jitterX=.5,jitterY=.5){
     const point=flowingPoint(index,count,width,height,jitterX),H=Math.max(1,height||1),n=Math.max(1,Math.floor(count)||1);
-    const cycle=Math.floor(index/point.rows),visualPhase=((((point.row+cycle)&1)*.5+(clamp(Number(jitterY)||0,0,1)-.5)*.06)+1)%1;
+    const visualPhase=(hashText('fg'+point.cell)/4294967296)%1;
     return{...point,y:clamp((point.y+24)/(H+48),0,1)*H,phase:visualPhase*TAU,cell:point.row*n+point.col};
 }
 
@@ -144,11 +147,24 @@ function buildCornerFrost(rng,reach,detail){
     return segs;
 }
 
-// 角落凝结的水珠位置（相对角落，朝中心方向散布）：用 r*r 偏置让水珠更密集地贴近角落，
-// 每颗水珠带竖向拉长比例与大小分级，模拟窗面结露后往下垂的水珠。
-function buildCornerDrops(rng,reach,count){
+// 腊八水雾包络：整团雾气约 6 秒一个「出现→消失→再出现」循环（出现 .96s、停留 2.4s、消散 1.08s、隐藏 1.56s）。
+export function labaMistEnvelope(age,phase){
+    const t=((age/6+(Number(phase)||0))%1+1)%1;
+    if(t<.16)return smoothstep(0,.16,t);
+    if(t<.56)return 1;
+    if(t<.74)return 1-smoothstep(.56,.74,t);
+    return 0;
+}
+
+// 角落凝结的水珠位置（相对角落，朝中心方向散布）：用 r^1.6 偏置让水珠密集贴近角落，
+// 大小/拉长比差异更大，部分水珠带往下垂的尾痕，模拟窗面结露后挂珠淌水的凌乱质感。
+function buildCornerDrops(rng,reach,count,streakDir){
     const drops=[];
-    for(let i=0;i<count;i++){const rr=rng()*rng(),dist=Math.sqrt(rr)*reach,ang=rng()*Math.PI*.5;const big=rng()<.18;drops.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:(big?2.2:1)+rng()*2.6,el:(big?1.15:1)+rng()*.45})}
+    for(let i=0;i<count;i++){
+        const rr=Math.pow(rng(),1.6),dist=Math.sqrt(rr)*reach,ang=rng()*Math.PI*.5;
+        const big=rng()<.14,r=(big?2.4:1)+rng()*(big?2.6:1.8),el=1+rng()*(big?.5:.9);
+        drops.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r,el,streak:rng()<.35?3+rng()*9:0,dir:streakDir});
+    }
     return drops;
 }
 
@@ -290,7 +306,7 @@ class FestivalScreenFx{
         if(!p){this.springDroppedRockets++;return}
         const r=salt=>this._rand(sequence,80+salt,0),W=this.width,H=this.height;
         p.kind='rocket';p.variant=1;p.golden=sequence%2===0;p.eventIndex=sequence;p.t=0;p.alpha=1;p.drawAlpha=1;p.rot=0;p.vr=0;p.size=2;
-        p.x=W*(.12+r(1)*.76);p.y=H+8;p.vx=(r(2)-.5)*36;p.vy=-(H*.62+r(3)*H*.2);p.springColor='rgba(255,220,140,.9)';
+        p.x=W*(.12+r(1)*.76);p.y=H+8;p.vx=(r(2)-.5)*80;p.vy=-(H*.55+r(3)*H*.32);p.springColor='rgba(255,220,140,.9)';
         this.springLaunchTimes.push(+launchTime.toFixed(4));
     }
     _burstSpring(rocket){
@@ -303,9 +319,9 @@ class FestivalScreenFx{
         const colors=golden?['#ffd166','#ffb84d','#fff3d6','#ff9f43']:['#ff5a4e','#ffd166','#ff8b69','#ffffff'];
         for(let i=0;i<count;i++){
             const p=this._takeSpringParticle();if(!p){this.springDroppedSparks++;continue}
-            const key=(eventIndex+1)*313+i,r=salt=>this._rand(key,100+salt,eventIndex),a=r(1)*TAU,sp=60+r(2)*(golden?230:190);
+            const key=(eventIndex+1)*313+i,r=salt=>this._rand(key,100+salt,eventIndex),a=r(1)*TAU,sp=50+r(2)*(golden?250:200);
             p.kind='spark';p.variant=0;p.golden=golden;p.t=0;p.alpha=1;p.drawAlpha=1;p.rot=0;p.vr=0;p.x=originX;p.y=originY;
-            p.vx=Math.cos(a)*sp;p.vy=Math.sin(a)*sp;p.life=1.1+r(3)*.8;p.size=golden?2.4:2;p.springColor=colors[i%colors.length];
+            p.vx=Math.cos(a)*sp;p.vy=Math.sin(a)*sp;p.life=1.15+r(3)*.85;p.size=golden?2+r(4)*1.6:1.6+r(4)*1.5;p.grav=170+r(5)*80;p.springColor=colors[i%colors.length];
         }
     }
     _advanceSpring(dt){
@@ -325,7 +341,7 @@ class FestivalScreenFx{
             }else if(p.kind==='spark'){
                 p.t+=dt;
                 if(p.t>=p.life){p.kind='inactive';p.drawAlpha=0;continue}
-                p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=200*dt;p.vx*=Math.max(0,1-dt*.6);p.drawAlpha=Math.max(0,1-p.t/p.life);
+                p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=(p.grav||200)*dt;p.vx*=Math.max(0,1-dt*.6);p.drawAlpha=Math.max(0,1-p.t/p.life);
             }else p.drawAlpha=0;
         }
         for(const rocket of bursting)this._burstSpring(rocket);
@@ -357,32 +373,38 @@ class FestivalScreenFx{
         if(FLOW_MODES.has(mode)){const flow=flowingPoint(index,this.activeCount,W,H,r(9));p.cell=flow.cell;p.col=flow.col;p.row=flow.row;p.gridCols=flow.cols;p.gridRows=flow.rows;p.x=flow.x;p.y=flow.y;p.homeX=p.x;p.homeY=p.y}
         p.kind=null;p.golden=false;p.springColor=null;p.t=0;
         p.alpha=.48+r(1)*.34;p.drawAlpha=1;p.size=2+r(2)*4;p.phase=r(3)*TAU;p.rot=(r(4)-.5)*.22;p.vr=(r(5)-.5)*1.5;p.vx=(r(6)-.5)*12;p.vy=18+r(7)*28;p.life=1.1+r(8)*.8;
+        // 凌乱感公共参数：每粒子的速度倍率/摆幅倍率/摆动频率/漂移半径/漂移频率/闪烁频率各随机拉开差异。
+        p.speedK=1;p.swayK=1;p.swayRate=1;p.driftR=1;p.driftRate=1;
         if(mode==='zhongyuan'){const ghost=ghostPoint(index,this.activeCount,W,H,r(9),r(10));p.cell=ghost.cell;p.col=ghost.col;p.row=ghost.row;p.gridCols=ghost.cols;p.gridRows=ghost.rows;p.x=ghost.x;p.y=ghost.y;p.homeX=p.x;p.homeY=p.y;p.phase=ghost.phase}
         switch(mode){
-            case'snow':p.variant=index%5===0?1:0;p.size=p.variant?3.5+r(11)*5.5:1+r(11)*3;p.vy=28+r(12)*20;p.vx=(r(13)-.5)*12;break;
-            case'eve':p.size=2.2+r(11)*5.2;p.vy=24+r(12)*16;p.vx=(r(13)-.5)*10;p.rot=(r(14)-.5)*.7;p.vr=(r(15)-.5)*1.2;break;
+            case'snow':p.variant=r(11)<.24?1:0;p.size=p.variant?2.6+r(11)*8.5:.7+r(11)*3.8;p.vy=14+r(12)*48;p.vx=(r(13)-.5)*26;p.rot=(r(14)-.5)*.9;p.vr=(r(15)-.5)*1.6;p.speedK=.45+r(16)*1.5;p.swayK=.35+r(17)*1.6;p.swayRate=.35+r(18)*1.7;break;
+            case'eve':p.size=1.3+r(11)*8;p.vy=10+r(12)*38;p.vx=(r(13)-.5)*30;p.rot=(r(14)-.5)*1.2;p.vr=(r(15)-.5)*3.4;p.speedK=.5+r(16)*1.4;p.swayK=.3+r(17)*1.8;p.swayRate=.35+r(18)*1.8;break;
             case'spring':p.kind='inactive';p.variant=0;p.golden=false;p.drawAlpha=0;p.alpha=1;p.rot=0;p.vr=0;p.t=0;p.springColor=null;break;
-            case'lantern':p.size=6+r(11)*5;p.vy=-20;p.vx=(r(13)-.5)*4;p.tilt=(r(14)-.5)*.14;p.rot=p.tilt;break;
-            case'dragon':p.variant=index%2;p.size=1.6+r(11)*3;p.vy=-18;p.vx=(r(13)-.5)*8;break;
-            case'qingming':p.size=5+r(11)*8;p.vy=22+r(12)*22;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
-            case'labor':p.variant=index%4===0?1:0;p.size=1.5+r(11)*3.2;p.vy=-10;p.vx=(r(13)-.5)*5;break;
-            case'dragonBoat':p.variant=index%2;p.size=5+r(11)*8;p.vy=24+r(12)*24;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
-            case'qixi':p.variant=r(11)<.45?1:0;p.size=4+r(12)*8;p.vy=24+r(13)*16;p.vx=(r(14)-.5)*18;p.rot=(r(15)-.5)*.16;p.vr=0;break;
-            case'zhongyuan':p.size=5+r(11)*6;p.alpha=.4+r(13)*.35;p.vx=(r(14)-.5)*3;p.rot=(r(15)-.5)*.08;p.vr=0;break;
-            case'midAutumn':p.variant=index%3===0?1:0;p.size=1.8+r(11)*5.4;p.phase=r(12)*TAU;p.alpha=.3+r(13)*.36;break;
-            case'doubleNinth':p.size=5+r(11)*8;p.vy=22+r(12)*22;p.vx=(r(13)-.5)*18;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*1.8;break;
+            case'lantern':p.size=4.5+r(11)*7;p.vy=-(10+r(12)*26);p.vx=(r(13)-.5)*12;p.tilt=(r(14)-.5)*.2;p.rot=p.tilt;p.speedK=.55+r(16)*1.2;p.swayK=.3+r(17)*1.5;p.swayRate=.3+r(18)*1.5;break;
+            case'dragon':p.variant=r(11)<.5?1:0;p.size=1+r(11)*4.8;p.vy=-(8+r(12)*28);p.vx=(r(13)-.5)*22;p.speedK=.45+r(16)*1.5;p.swayK=.3+r(17)*1.8;p.swayRate=.35+r(18)*1.8;break;
+            case'qingming':p.size=3.4+r(11)*11;p.vy=12+r(12)*44;p.vx=(r(13)-.5)*32;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*3.4;p.speedK=.5+r(16)*1.3;p.swayK=.3+r(17)*1.6;p.swayRate=.35+r(18)*1.7;break;
+            case'labor':p.variant=r(11)<.22?1:0;p.size=.9+r(11)*4.4;p.vy=-(5+r(12)*18);p.vx=(r(13)-.5)*14;p.speedK=.45+r(16)*1.4;p.swayK=.3+r(17)*1.7;p.swayRate=.35+r(18)*1.7;break;
+            case'dragonBoat':p.variant=r(11)<.5?1:0;p.size=3.4+r(11)*11;p.vy=12+r(12)*44;p.vx=(r(13)-.5)*32;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*3.4;p.speedK=.5+r(16)*1.3;p.swayK=.3+r(17)*1.6;p.swayRate=.35+r(18)*1.7;break;
+            case'qixi':p.variant=r(11)<.45?1:0;p.size=3+r(12)*10;p.vy=12+r(13)*32;p.vx=(r(14)-.5)*28;p.rot=(r(15)-.5)*.16;p.vr=0;p.speedK=.5+r(16)*1.3;p.swayK=.3+r(17)*1.6;p.swayRate=.35+r(18)*1.7;break;
+            case'zhongyuan':p.size=5+r(11)*6;p.alpha=.4+r(13)*.35;p.vx=(r(14)-.5)*3;p.rot=(r(15)-.5)*.08;p.vr=0;p.driftR=8+r(16)*22;p.driftRate=.25+r(17)*.9;break;
+            case'midAutumn':p.variant=r(11)<.3?1:0;p.size=1.2+r(11)*6.6;p.phase=r(12)*TAU;p.alpha=.3+r(13)*.36;p.driftR=4+r(14)*20;p.driftRate=.1+r(17)*.4;break;
+            case'doubleNinth':p.size=3.4+r(11)*11;p.vy=12+r(12)*44;p.vx=(r(13)-.5)*32;p.rot=r(14)*TAU;p.vr=(r(15)-.5)*3.4;p.speedK=.5+r(16)*1.3;p.swayK=.3+r(17)*1.6;p.swayRate=.35+r(18)*1.7;break;
             case'national':{const starCount=Math.floor(this.activeCount*.5);p.variant=index<starCount?0:1;
-                if(p.variant===0){const starPoint=stratifiedPoint(index,starCount,W,H,r(11),r(12));p.homeX=starPoint.x;p.homeY=starPoint.y;p.x=p.homeX;p.y=p.homeY;p.phase=r(13)*TAU;p.size=2+r(14)*3.4;p.rot=r(15)*TAU;p.vr=(r(16)-.5)*1.6;p.spin=r(17)*TAU}
+                if(p.variant===0){const starPoint=stratifiedPoint(index,starCount,W,H,r(11),r(12));p.homeX=starPoint.x;p.homeY=starPoint.y;p.x=p.homeX;p.y=p.homeY;p.phase=r(13)*TAU;p.size=1.6+r(14)*4;p.rot=r(15)*TAU;p.vr=(r(16)-.5)*1.6;p.spin=r(17)*TAU;p.driftR=3+r(18)*14;p.driftRate=.14+r(19)*.5}
                 else{const sparkIndex=index-starCount,sparkCount=this.activeCount-starCount;p.sparkIndex=sparkIndex;p.angle=sparkIndex/Math.max(1,sparkCount)*TAU+(r(11)-.5)*.12;p.speed=65+r(12)*145;p.life=1.15+r(13)*.7;p.size=1.6+r(14)*2.2;p.rot=0;p.vr=0}break}
             case'winter':{const corner=index%4,rank=Math.floor(index/4)+1,span=.11+rank/(Math.ceil(this.activeCount/4)+1)*.18;p.corner=corner;p.size=1.4+r(11)*2.8;p.phase=corner*.7+r(12)*TAU;p.homeX=(corner%2?1-span:span)*W;p.homeY=(corner>1?1-span:span)*H;p.x=p.homeX;p.y=p.homeY;p.alpha=.5+r(13)*.34;break}
-            case'laba':{const corner=index%4,rank=Math.floor(index/4);p.corner=corner;p.size=2.4+r(11)*3.4;p.phase=r(12)*TAU+corner*.8;p.homeX=(corner%2?W-(22+rank*16):22+rank*16);p.homeY=(corner>1?H-(22+rank*14):22+rank*14);p.x=p.homeX;p.y=p.homeY;p.alpha=.5+r(13)*.3;break}
-            case'xiaonian':p.size=1.6+r(11)*2.6;p.vy=-58;p.vx=(r(13)-.5)*12;p.phase=r(14)*TAU;break;
+            case'laba':{const corner=index%4,rank=Math.floor(index/4);p.corner=corner;p.size=1.8+r(11)*3.6;p.phase=r(12)*TAU+corner*.8;
+                p.homeX=(corner%2?W-(18+rank*13+(r(13)-.5)*30):18+rank*13+(r(13)-.5)*30);
+                p.homeY=(corner>1?H-(18+rank*12+(r(14)-.5)*26):18+rank*12+(r(14)-.5)*26);
+                p.x=p.homeX;p.y=p.homeY;p.alpha=.5+r(15)*.3;p.driftR=5+r(16)*13;p.driftRate=.12+r(17)*.4;break}
+            case'xiaonian':p.size=1.2+r(11)*3.4;p.vy=-(40+r(12)*40);p.vx=(r(13)-.5)*18;p.phase=r(14)*TAU;p.speedK=.6+r(16)*1.1;p.swayK=.4+r(17)*1.3;p.swayRate=.5+r(18)*1.3;break;
         }
     }
     _moveFullHeight(p,dy){p.y=wrapRange(p.y+dy,-24,this.height+24)}
     _swayInsideColumn(p,amount,rate){
-        const cols=Math.max(1,p.gridCols||1),cellW=this.width/cols,maxSway=Math.min(Math.max(0,amount),cellW*.11);
-        p.x=p.homeX+Math.sin(this.age*rate+p.phase)*maxSway;
+        // 摆幅上限放宽到列宽一半（且不低于 8px），配合每粒子的 swayK/swayRate，让漂落不再整齐划一。
+        const cols=Math.max(1,p.gridCols||1),cellW=this.width/cols,maxSway=Math.min(Math.max(0,amount),Math.max(cellW*.75,10));
+        p.x=p.homeX+Math.sin(this.age*(rate||1)*(p.swayRate||1)+p.phase)*maxSway*(p.swayK||1);
     }
     _advance(dt){
         const W=this.width,H=this.height,mode=this.theme.mode;
@@ -390,23 +412,23 @@ class FestivalScreenFx{
         for(let i=0;i<this.activeCount;i++){
             const p=this.pool[i];p.rot+=p.vr*dt;p.drawAlpha=1;
             switch(mode){
-                case'snow':this._swayInsideColumn(p,7,.7);this._moveFullHeight(p,p.vy*dt);break;
-                case'eve':this._swayInsideColumn(p,6,1);this._moveFullHeight(p,p.vy*dt);break;
-                case'lantern':this._swayInsideColumn(p,5,.7);this._moveFullHeight(p,p.vy*dt);p.rot=p.tilt+Math.sin(this.age*.55+p.phase)*.045;break;
-                case'dragon':this._swayInsideColumn(p,6,1);this._moveFullHeight(p,p.vy*dt);break;
-                case'qingming':case'dragonBoat':case'qixi':case'doubleNinth':this._swayInsideColumn(p,10,.75);this._moveFullHeight(p,p.vy*dt);break;
-                case'labor':this._swayInsideColumn(p,8,.6);this._moveFullHeight(p,p.vy*dt);break;
-                case'zhongyuan':{p.x=p.homeX+Math.sin(this.age*.55+p.phase)*7;p.y=p.homeY+Math.cos(this.age*.7+p.phase)*8;
+                case'snow':this._swayInsideColumn(p,22,.7);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);break;
+                case'eve':this._swayInsideColumn(p,20,.9);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);break;
+                case'lantern':this._swayInsideColumn(p,16,.7);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);p.rot=p.tilt+Math.sin(this.age*.55+p.phase)*.045;break;
+                case'dragon':this._swayInsideColumn(p,20,.9);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);break;
+                case'qingming':case'dragonBoat':case'qixi':case'doubleNinth':this._swayInsideColumn(p,26,.8);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);break;
+                case'labor':this._swayInsideColumn(p,20,.7);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);break;
+                case'zhongyuan':{p.x=p.homeX+Math.sin(this.age*p.driftRate+p.phase)*p.driftR;p.y=p.homeY+Math.cos(this.age*p.driftRate*.85+p.phase)*p.driftR*.75;
                     const u=((this.age/6+p.phase/TAU)%1+1)%1;
                     p.drawAlpha=u<.16?smoothstep(0,.16,u):u<.48?1:u<.66?1-smoothstep(.48,.66,u):0;break}
-                case'midAutumn':p.x=p.homeX+Math.sin(this.age*.22+p.phase)*3;p.y=p.homeY+Math.cos(this.age*.18+p.phase)*2;p.drawAlpha=.35+.65*(.5+.5*Math.sin(this.age*1.15+p.phase));break;
-                case'national':if(p.variant===0){p.x=p.homeX+Math.sin(this.age*.3+p.phase)*3;p.y=p.homeY+Math.cos(this.age*.25+p.phase)*2;p.drawAlpha=.5+.5*(.5+.5*Math.sin(this.age*1.2+p.phase))}else{
-                    const cycleLength=3.4,cycle=Math.floor(this.age/cycleLength),t=this.age-cycle*cycleLength,group=(cycle*5)%6;
-                    const originX=((group%3)+.5)/3*W+(this._rand(cycle,201,0)-.5)*W*.035,originY=(Math.floor(group/3)*.38+.2)*H+(this._rand(cycle,202,0)-.5)*H*.035;
+                case'midAutumn':p.x=p.homeX+Math.sin(this.age*p.driftRate+p.phase)*p.driftR;p.y=p.homeY+Math.cos(this.age*p.driftRate*.9+p.phase)*p.driftR*.8;p.drawAlpha=.35+.65*(.5+.5*Math.sin(this.age*1.15+p.phase));break;
+                case'national':if(p.variant===0){p.x=p.homeX+Math.sin(this.age*p.driftRate+p.phase)*p.driftR;p.y=p.homeY+Math.cos(this.age*p.driftRate*.85+p.phase)*p.driftR*.8;p.drawAlpha=.5+.5*(.5+.5*Math.sin(this.age*1.2+p.phase))}else{
+                    const cycleLength=3.4,cycle=Math.floor(this.age/cycleLength),t=this.age-cycle*cycleLength,group=Math.floor(this._rand(cycle,210,0)*6);
+                    const originX=((group%3)+.5)/3*W+(this._rand(cycle,201,0)-.5)*W*.07,originY=(Math.floor(group/3)*.38+.2)*H+(this._rand(cycle,202,0)-.5)*H*.07;
                     p.drawAlpha=t<=p.life?1-t/p.life:0;p.x=originX+Math.cos(p.angle)*p.speed*t;p.y=originY+Math.sin(p.angle)*p.speed*t+65*t*t}break;
                 case'winter':p.drawAlpha=Math.pow(.5+.5*Math.sin(this.age*.48+p.phase),1.3);break;
-                case'laba':p.x=p.homeX+Math.sin(this.age*.28+p.phase)*5;p.y=p.homeY+Math.cos(this.age*.22+p.phase)*4;p.drawAlpha=Math.pow(.5+.5*Math.sin(this.age*.42+p.phase),1.35);break;
-                case'xiaonian':this._swayInsideColumn(p,7,1);this._moveFullHeight(p,p.vy*dt);break;
+                case'laba':p.x=p.homeX+Math.sin(this.age*p.driftRate+p.phase)*p.driftR;p.y=p.homeY+Math.cos(this.age*p.driftRate*.9+p.phase)*p.driftR*.8;p.drawAlpha=Math.pow(.5+.5*Math.sin(this.age*.42+p.phase),1.35);break;
+                case'xiaonian':this._swayInsideColumn(p,22,.9);this._moveFullHeight(p,p.vy*(p.speedK||1)*dt);break;
             }
         }
     }
@@ -414,7 +436,7 @@ class FestivalScreenFx{
         const c=this.ctx,W=this.width,H=this.height;if(!c?.createRadialGradient){return}
         const ice=c.createRadialGradient(0,0,0,0,0,Math.max(W,H)*.42);ice.addColorStop(0,'rgba(210,242,255,.16)');ice.addColorStop(1,'rgba(210,242,255,0)');this.paint={ice};
         const mode=this.theme?.mode,reach=Math.max(40,Math.min(W,H)*.46),detail=this.quality==='low'?1:2;
-        // 冬至/腊八的四角特效结构与四角雾气渐变都在 resize 时一次性预生成；
+        // 冬至的冰窗花/腊八的水珠雾气结构都在 resize 时一次性预生成；
         // 渐变缓存避免每帧重复 createRadialGradient/addColorStop 造成 GC 卡顿（掉帧根因之一）。
         if(mode==='winter'){
             // 冬至冰花范围更收敛：只从角落向内蔓延短边约 30%，不再铺满整块屏角。
@@ -422,8 +444,17 @@ class FestivalScreenFx{
             this.paint.frost=[0,1,2,3].map(corner=>buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),wreach,detail));
             this.paint.wash=[0,1,2,3].map(corner=>{const cx=corner%2?W:0,cy=corner>1?H:0;const g=c.createRadialGradient(cx,cy,0,cx,cy,wreach);g.addColorStop(0,'rgba(224,246,255,.34)');g.addColorStop(.55,'rgba(208,238,255,.14)');g.addColorStop(1,'rgba(208,238,255,0)');return g});
         }else if(mode==='laba'){
-            this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,Math.max(8,Math.ceil(Math.max(W,H)/(detail<=1?130:80)))));
-            this.paint.wash=[0,1,2,3].map(corner=>{const cx=corner%2?W:0,cy=corner>1?H:0;const g=c.createRadialGradient(cx,cy,0,cx,cy,reach);g.addColorStop(0,'rgba(226,234,242,.5)');g.addColorStop(.5,'rgba(222,232,242,.26)');g.addColorStop(1,'rgba(226,236,246,0)');return g});
+            this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,Math.max(10,Math.ceil(Math.max(W,H)/(detail<=1?110:70))),corner>1?-1:1));
+            this.paint.mist=[0,1,2,3].map(corner=>{
+                const rng=makeRng((this.seed+corner*999983+13)>>>0),blobs=[];
+                for(let b=0;b<3;b++){
+                    const ang=(b+.5)/3*Math.PI*.5*(.8+rng()*.4),dist=reach*(.18+rng()*.6),r=reach*(.4+rng()*.42);
+                    const g=c.createRadialGradient(dist*Math.cos(ang),dist*Math.sin(ang),0,dist*Math.cos(ang),dist*Math.sin(ang),r);
+                    g.addColorStop(0,`rgba(226,234,242,${(.34+rng()*.3).toFixed(3)})`);g.addColorStop(.55,'rgba(222,232,242,.16)');g.addColorStop(1,'rgba(226,236,246,0)');
+                    blobs.push({x:dist*Math.cos(ang),y:dist*Math.sin(ang),r,g});
+                }
+                return blobs;
+            });
         }
     }
     _draw(){
@@ -450,17 +481,20 @@ class FestivalScreenFx{
                 c.globalAlpha=1;c.restore();
             }
         }else if(mode==='laba'){
-            // 角落磨砂水雾：静态雾化渐变 + 竖向拉长的凝结水珠（含高光），随呼吸极缓明灭，模拟窗面结露。
+            // 角落磨砂水雾：2–3 团不规则雾气 + 竖向拉长的凝结水珠（含高光与下淌尾痕），
+            // 每个角按 labaMistEnvelope 缓慢「出现→消失→再出现」，四角相位错开，呼吸微动叠加其上。
             const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46);
             for(let corner=0;corner<4;corner++){
-                const rx=corner%2?W-reach:0,ry=corner>1?H-reach:0;
-                c.globalAlpha=breath;c.fillStyle=this.paint.wash?.[corner]||'rgba(226,234,242,.42)';c.fillRect(rx,ry,reach,reach);
+                const env=labaMistEnvelope(this.age,corner*.17);
+                if(env<=.004)continue;
                 c.save();cornerTransform(c,corner,W,H);
+                for(const bl of this.paint.mist?.[corner]||[]){c.globalAlpha=breath*env;c.fillStyle=bl.g;c.fillRect(bl.x-bl.r,bl.y-bl.r,bl.r*2,bl.r*2)}
                 const drops=this.paint.drops?.[corner]||[];
                 for(const d of drops){
-                    c.globalAlpha=breath*.55;c.fillStyle='rgba(240,246,252,.95)';
+                    if(d.streak>0){c.globalAlpha=breath*env*.4;c.strokeStyle='rgba(238,245,251,.7)';c.lineWidth=Math.max(.6,d.r*.5);c.beginPath();c.moveTo(d.x,d.y);c.lineTo(d.x,d.y+d.dir*d.streak);c.stroke()}
+                    c.globalAlpha=breath*env*.55;c.fillStyle='rgba(240,246,252,.95)';
                     c.beginPath();c.ellipse(d.x,d.y,d.r,d.r*d.el,0,0,TAU);c.fill();
-                    c.globalAlpha=breath*.3;c.fillStyle='#fff';
+                    c.globalAlpha=breath*env*.3;c.fillStyle='#fff';
                     c.beginPath();c.ellipse(d.x-d.r*.3,d.y-d.r*.3*d.el,d.r*.4,d.r*.4*d.el,0,0,TAU);c.fill();
                 }
                 c.globalAlpha=1;c.restore();

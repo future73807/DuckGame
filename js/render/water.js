@@ -29,7 +29,7 @@ export function createWater(ctx){
     // ===== 波浪更新时间调度 =====
     // 不再用 frameCount % N：窗口被浏览器降到约 30 FPS 时，按帧取模会产生 33/66ms 交替，
     // 令水面、鸭子和相机的垂直位置呈阶梯跳动。时间闸口在接近目标频率时允许每个 rAF 更新一次。
-    const DEFAULT_WAVE_HZ=30,DEFAULT_STORM_WAVE_HZ=40,DEFAULT_NORMAL_HZ=10;
+    const DEFAULT_WAVE_HZ=60,DEFAULT_STORM_WAVE_HZ=60,DEFAULT_NORMAL_HZ=10;
     let pendingWaveX=0,pendingWaveZ=0;
     let lastSurfaceUpdateMs=null;
     const surfaceTimeGate=createRafTimeGate({defaultHz:DEFAULT_WAVE_HZ,fullRateEnabled:true});
@@ -232,6 +232,9 @@ export function createWater(ctx){
     function updatePhase(dt,waveSpeedTarget){
         state.waveSpeed+=(waveSpeedTarget-state.waveSpeed)*Math.min(1,dt*1.4);
         state.waveClock+=dt*state.waveSpeed;
+        // 鸭子/道具/涟漪/鲨鱼采样的 renderedWaveClock 逐帧推进：即使浪面网格按闸口降频重建，
+        // 漂浮物也不会被冻结在旧相位上——移动时鸭子相对浪面不再呈 33ms 阶梯抖动。
+        state.renderedWaveClock+=dt*state.waveSpeed;
     }
 
     // ===== 水面网格跟随目标（鸭子位置） =====
@@ -243,7 +246,8 @@ export function createWater(ctx){
     }
 
     // ===== 波浪顶点位移 + 顶点色更新（performance.now 时间闸口控制频率） =====
-    // 更新后定格 renderedWaveClock：鸭子/道具/涟漪/鲨鱼都以它采样，与渲染浪面严格一致
+    // 每次重建时把 renderedWaveClock 对齐到 waveClock（两者逐帧同量推进，这里仅兜底消除浮点漂移），
+    // 保证重建瞬间鸭子/道具/涟漪/鲨鱼与渲染浪面严格同相。
     function updateVertices(gameClock,targetX,targetZ,nowMs){
         if(Number.isFinite(targetX))pendingWaveX=targetX;
         if(Number.isFinite(targetZ))pendingWaveZ=targetZ;

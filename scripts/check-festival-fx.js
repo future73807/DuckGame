@@ -249,7 +249,9 @@ async function main(){
         }
     }
 
-    // 低/中档与竖屏同样是正式路径：连续 30 秒每次采样四象限都有粒子，中央不能长期空缺。
+    // 低/中档与竖屏同样是正式路径：连续 30 秒流动必须保持全屏覆盖，中央不能长期空缺。
+    // 凌乱版速度差异会让粒子在 30 秒内充分错相，允许个别采样瞬间一个象限稀疏，但每帧至少覆盖两个象限，
+    // 且绝大多数采样（≥46/61）四个象限齐全——既保证不挖空，也不再把粒子锁回整齐网格。
     {
         const fullScreenIds=[
             'festival_new_year','festival_eve','festival_lantern','festival_dragon_heads','festival_qingming','festival_labor',
@@ -257,14 +259,17 @@ async function main(){
         ];
         const{fx}=makeHarness(mod);
         for(const quality of['low','mid'])for(const[width,height]of[[1280,720],[720,1280]])for(const id of fullScreenIds){
-            fx.start(id,{deferIntro:true});fx.setQuality(quality);fx.resize(width,height,1);let centerSamples=0;
+            fx.start(id,{deferIntro:true});fx.setQuality(quality);fx.resize(width,height,1);let centerSamples=0,fullQuadrantSamples=0;
             for(let sample=0;sample<=60;sample++){
                 if(sample)advanceFrames(fx,30);
                 const stats=liveGridStats(fx);
-                assert.ok(stats.quadrants.every(Boolean),`${id}/${quality}/${width}x${height}/${sample*.5}s 出现空象限 (${stats.quadrants.join(',')})`);
+                const filled=stats.quadrants.filter(Boolean).length;
+                assert.ok(filled>=2,`${id}/${quality}/${width}x${height}/${sample*.5}s 两个以上象限空缺 (${stats.quadrants.join(',')})`);
+                if(filled===4)fullQuadrantSamples++;
                 if(stats.center>0)centerSamples++;
             }
             // 稀疏低档（最少 12 粒）不应被强迫每帧占据中央；超过半数采样命中即可排除人为挖空，同时保留自然流动间隙。
+            assert.ok(fullQuadrantSamples>=46,`${id}/${quality}/${width}x${height} 四象限齐全采样过少: ${fullQuadrantSamples}/61`);
             assert.ok(centerSamples>=31,`${id}/${quality}/${width}x${height} 中央区域长期空缺: ${centerSamples}/61`);
         }
     }
@@ -445,17 +450,33 @@ async function main(){
         const{fx}=makeHarness(mod);
         fx.start('festival_qixi',{deferIntro:true});let before=fx.getParticleSnapshot();fx.update(1/60);let after=fx.getParticleSnapshot();
         assert.ok(before.every(p=>p.vy>0),'七夕粒子速度必须向下');
-        assert.ok(after.every((p,index)=>p.y>before[index].y),'七夕粒子实际位置必须向下推进');
+        // 初始即凌乱的散点允许出生在底部环绕带内：首帧允许「越底环绕」之外的每颗粒子都必须向下推进。
+        assert.ok(after.every((p,index)=>{const b=before[index];return p.y>b.y||(b.y>fx.height-1&&p.y<1)}),'七夕粒子实际位置必须向下推进');
         advanceFrames(fx,30*60,(_frame,snapshot)=>{
             assert.ok(snapshot.every(p=>p.vr===0),'七夕爱心不得持续自转');
             assert.ok(snapshot.every(p=>Math.abs(p.rot)<=.081),'七夕爱心倾角必须保持精致且克制');
         });
         fx.start('festival_xiaonian',{deferIntro:true});before=fx.getParticleSnapshot();fx.update(1/60);after=fx.getParticleSnapshot();
         assert.ok(before.every(p=>p.vy<0),'小年粒子速度必须向上');
-        assert.ok(after.every((p,index)=>p.y<before[index].y),'小年粒子实际位置必须向上推进');
+        // 首帧允许「越顶环绕」；其余每颗粒子都必须向上推进。
+        assert.ok(after.every((p,index)=>{const b=before[index];return p.y<b.y||(b.y<1&&p.y>fx.height-1)}),'小年粒子实际位置必须向上推进');
     }
 
-    // 冬至冰花与腊八雾气各自稳定分配到四个角，并真正经历消失→重新出现的完整周期。
+    // 凌乱度契约：流动粒子不得整齐成列 —— 横向位置逐粒错开、纵向速度拉开差异（抽 10 套流动主题）。
+    {
+        const{fx}=makeHarness(mod);
+        const flowIds=['festival_new_year','festival_eve','festival_lantern','festival_dragon_heads','festival_qingming','festival_labor','festival_dragon_boat','festival_qixi','festival_double_ninth','festival_xiaonian'];
+        for(const id of flowIds){
+            fx.start(id,{deferIntro:true});
+            const snapshot=fx.getParticleSnapshot();
+            assert.ok(new Set(snapshot.map(p=>p.vy.toFixed(2))).size>=Math.max(3,Math.floor(snapshot.length/3)),`${id}: 纵向速度过于整齐`);
+            assert.ok(new Set(snapshot.map(p=>p.homeX.toFixed(1))).size>=Math.ceil(snapshot.length*.75),`${id}: 横向位置过于整齐`);
+            assert.ok(new Set(snapshot.map(p=>p.homeY.toFixed(1))).size>=Math.ceil(snapshot.length*.8),`${id}: 初始纵向位置过于整齐`);
+        }
+    }
+
+    // 冬至冰花与腊八雾气各自稳定分配到四个角，并真正经历消失→重新出现的完整周期；
+    // 腊八整团水雾另按约 6 秒的包络「出现→消失→再出现」，四角相位错开。
     {
         const{fx}=makeHarness(mod);
         for(const id of['festival_winter_solstice','festival_laba']){
@@ -466,6 +487,18 @@ async function main(){
             });
             assert.ok(minAlpha.every(alpha=>alpha<.02),`${id}: 每个角落粒子都必须慢慢消失`);
             assert.ok(maxAlpha.every(alpha=>alpha>.98),`${id}: 每个角落粒子都必须重新完整出现`);
+        }
+        // 腊八水雾：每个角在 30 秒内（约 5 个 6s 周期）都必须完整隐没、完整出现，并保留隐藏停顿。
+        for(const cornerPhase of[0,.17,.34,.51]){
+            let min=1,max=0,hidden=0;
+            for(let t=0;t<=30;t+=1/60){
+                const env=mod.labaMistEnvelope(t,cornerPhase);
+                min=Math.min(min,env);max=Math.max(max,env);
+                if(env<=.0001)hidden++;
+            }
+            assert.ok(min<=.0001,`腊八水雾(相位${cornerPhase})从未完全消失: ${min}`);
+            assert.ok(max>=.999,`腊八水雾(相位${cornerPhase})从未完整出现: ${max}`);
+            assert.ok(hidden>=180,`腊八水雾(相位${cornerPhase})隐藏停顿过短: ${hidden}帧`);
         }
     }
 

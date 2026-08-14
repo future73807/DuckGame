@@ -46,6 +46,7 @@ export function createEnvironment(ctx){
     const _mistHor=new THREE.Color(0xece5d8); // 晨雾时地平线泛白
     const _windTop=new THREE.Color(0x9fc4d8),_windHor=new THREE.Color(0xd8e8ee); // 刮风时天空泛白偏冷
     const _wc=new THREE.Color(); // 环境系统临时色
+    let _clockH=-1,_clockM=-1,_clockIcon=null; // 时钟 DOM 缓存：仅在显示内容变化时才写 DOM
     // 时段/事件特效强度因子（setCartoonSky 每帧重算，各特效系统读取）
     const timeFx={mist:0,aurora:0,meteor:0,gull:0,noon:0,wind:0,rainbow:0};
     state.timeFx=timeFx;
@@ -538,14 +539,15 @@ export function createEnvironment(ctx){
             duckSpot.position.copy(duckModel.position);duckSpot.position.y+=2;
             duckSpot.target.position.copy(duckModel.position);duckSpot.target.position.y=-1;
         }
-        // 时钟
+        // 时钟：仅在显示内容真正变化时才写 DOM。setCartoonSky 每 2~3 帧就调用一次，
+        // 若每次都重写 textContent/innerHTML，会持续触发样式重算与重绘，白白占用主线程。
         const h=Math.floor(time)%24,m=Math.floor((time%1)*60);let period,icon;
         if(h>=5&&h<7){period='日出';icon='sunrise'}else if(h>=7&&h<11){period='上午';icon='fa-cloud-sun'}else if(h>=11&&h<13){period='中午';icon='fa-sun'}else if(h>=13&&h<17){period='下午';icon='fa-mountain-sun'}else if(h>=17&&h<19){period='日落';icon='sunset'}else if(h>=19&&h<24){period='夜晚';icon='fa-moon'}else if(h>=0&&h<5){period='凌晨';icon='fa-star'}else{period='凌晨';icon='fa-star'}
-        document.getElementById('clock-text').textContent=`${period} ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-        const clockIconEl=document.querySelector('#clock-icon');
-        if(icon==='sunrise'){clockIconEl.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/></svg>'}
-        else if(icon==='sunset'){clockIconEl.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="16 5 12 9 8 5"/></svg>'}
-        else{const ie=clockIconEl.querySelector('i')||clockIconEl.firstElementChild;if(ie&&ie.tagName==='I'){ie.className=`fa-solid ${icon}`}else{clockIconEl.innerHTML=`<i class="fa-solid ${icon}"></i>`}}
+        if(h!==_clockH||m!==_clockM){_clockH=h;_clockM=m;document.getElementById('clock-text').textContent=`${period} ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
+        if(icon!==_clockIcon){_clockIcon=icon;const clockIconEl=document.querySelector('#clock-icon');
+            if(icon==='sunrise'){clockIconEl.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/></svg>'}
+            else if(icon==='sunset'){clockIconEl.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="16 5 12 9 8 5"/></svg>'}
+            else{clockIconEl.innerHTML=`<i class="fa-solid ${icon}"></i>`}}
     }
 
     // ===== 天空氛围系统：凌晨极光 / 夜晚流星 / 上下午海鸥 / 中午动物云 / 彩虹拱门 / 晨雾+刮风滤镜 =====
