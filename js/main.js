@@ -15,6 +15,10 @@ import {createWater} from './render/water.js';
 import {createEnvironment} from './render/environment.js';
 import {createFestivalScreenFx,FESTIVAL_SCREEN_FX_IDS,FESTIVAL_SCREEN_FX_THEMES} from './render/festival-screen-fx.js';
 import {createRunStats,recordCollection,resetCollectionChain,recordComboMultiplier,beginLowHealth,finishLowHealth,selectRunHighlight,createNearMissState,updateNearMissState,criticalHeartPolicy,shouldSpawnHeart,isDownHostSceneCaretaker,circleClearance,selectSafeHeartCandidate,isOutsideAllPlayerRanges} from './core/run-feedback.js';
+import {initDuoSceneSync,duoItemsHash,duoSceneStats,duoIsGuest,duoIsDownHostCaretaker,duoQueueCollectedItem,duoPendingCollectionIds,duoApplyGuestCollections,resetDuoSceneSync,resetDuoHostSceneBase,setDuoNextItemId,updateDuoClock,duoSerializeScene,duoBuildHostSceneUpload,duoAcceptHostSceneAck,duoReconcileWhirls,duoApplyScene} from './duo/scene-sync.js';
+import {initDuoRemoteDuck,duoRemoteDuck,duoRemoteTarget,duoLocalNameLabel,duoRemoteSkin,duoRemotePalette,setDuoRemoteIdentity,resetDuoRemoteMotion,acceptDuoRemoteSnapshot,removeDuoLocalNameLabel,setDuoRemoteNameLabel,setDuoLocalNameLabel,removeDuoRemoteDuck,createDuoRemoteDuck,updateDuoRemoteDuck,duoRemoteDebugFxSnapshot} from './duo/remote-duck.js';
+import {initDebugPanel,dbgSpawnItem,updateDebugBlessingStatus} from './debug/panel.js';
+import {joySensitivity,setJoySensitivity,initControls} from './input/controls.js';
 
 // ===== 检测 =====
 const isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent)||('ontouchstart' in window&&innerWidth<1024);
@@ -314,173 +318,7 @@ function playSFX(t,sc){
     }
 }
 document.getElementById('help-btn').onclick=()=>document.getElementById('help').classList.toggle('show');
-// 调试模式：开关面板 + 立即触发指定事件 + 在附近生成物品 + 修改生命分数
-// 通过 <meta name="env" content="MODE=dev"> 决定是否显示调试按钮，避免外部 fetch
-let dbgNextEvent=null; // 指定下一事件（null=自动随机）
-(function(){
-    const meta=document.querySelector('meta[name="env"]');
-    const txt=meta?meta.getAttribute('content')||'':'';
-    const env={};
-    txt.split(/[;&]/).forEach(kv=>{const i=kv.indexOf('=');if(i>0)env[kv.slice(0,i).trim().toUpperCase()]=kv.slice(i+1).trim()});
-    window.__ENV=env;
-    if((env.MODE||'prod').toLowerCase()!=='dev'){
-        const btn=document.getElementById('dbg-btn');
-        if(btn)btn.style.display='none';
-    }
-})();
-document.getElementById('dbg-btn').onclick=()=>{
-    const p=document.getElementById('dbg-panel');
-    p.classList.toggle('show');
-    if(p.classList.contains('show')){
-        // 面板打开时用当前游戏值初始化显示
-        const hh=document.getElementById('dbg-set-hearts');if(hh)hh.textContent=hearts;
-        const is=document.getElementById('dbg-set-score');if(is)is.value=score;
-        if(typeof updateDebugBlessingStatus==='function')updateDebugBlessingStatus();
-    }
-};
-// 生命 +/− 按钮（本地显示值，应用修改时才写入 hearts）
-function _dbgH(){const el=document.getElementById('dbg-set-hearts');return el?parseInt(el.textContent)||0:0}
-function _dbgSetH(v){const el=document.getElementById('dbg-set-hearts');if(el)el.textContent=Math.max(0,Math.min(MAX_HEARTS,v))}
-document.getElementById('dbg-hearts-plus').onclick=()=>_dbgSetH(_dbgH()+1);
-document.getElementById('dbg-hearts-minus').onclick=()=>_dbgSetH(_dbgH()-1);
-// 通用自定义下拉绑定
-function bindCsel(id,onChange){
-    const csel=document.getElementById(id);
-    if(!csel)return;
-    const btn=csel.querySelector('.dbg-csel-btn');
-    const list=csel.querySelector('.dbg-csel-list');
-    const opts=[...list.querySelectorAll('.dbg-csel-opt')];
-    const listParent=list.parentElement;
-    function closeList(){
-        if(list.parentElement!==listParent&&listParent)listParent.appendChild(list);
-        list.style.display='';
-        list.style.position='';list.style.left='';list.style.right='';list.style.top='';list.style.bottom='';list.style.width='';list.style.maxHeight='';
-        csel.classList.remove('open');
-    }
-    csel._closeList=closeList;
-    function positionList(){
-        if(list.parentElement!==document.body)document.body.appendChild(list);
-        const btnRect=btn.getBoundingClientRect();
-        const listNaturalH=Math.min(220,opts.length*32+10);
-        const belowH=window.innerHeight-btnRect.bottom-12;
-        const aboveH=btnRect.top-12;
-        list.style.display='block';
-        list.style.position='fixed';
-        list.style.left=btnRect.left+'px';
-        list.style.right='auto';
-        list.style.width=btnRect.width+'px';
-        if(belowH<listNaturalH&&aboveH>belowH){
-            list.style.maxHeight=Math.min(220,aboveH)+'px';
-            list.style.top='auto';
-            list.style.bottom=(window.innerHeight-btnRect.top+4)+'px';
-        }else{
-            list.style.maxHeight=Math.max(80,Math.min(220,belowH))+'px';
-            list.style.top=(btnRect.bottom+4)+'px';
-            list.style.bottom='auto';
-        }
-    }
-    btn.addEventListener('click',e=>{
-        e.stopPropagation();
-        e.preventDefault();
-        document.querySelectorAll('.dbg-csel.open').forEach(c=>{if(c!==csel){if(typeof c._closeList==='function')c._closeList()}});
-        const willOpen=!csel.classList.contains('open');
-        if(willOpen){
-            csel.classList.add('open');
-            positionList();
-        }else{
-            closeList();
-        }
-    });
-    btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();btn.click()}});
-    opts.forEach(o=>o.addEventListener('click',ev=>{
-        ev.stopPropagation();
-        ev.preventDefault();
-        const v=o.dataset.value;
-        csel.dataset.value=v;
-        btn.textContent=o.textContent;
-        opts.forEach(x=>x.classList.remove('sel'));
-        o.classList.add('sel');
-        closeList();
-        if(onChange)onChange(v);
-    }));
-    const panel=document.getElementById('dbg-panel');
-    if(panel)panel.addEventListener('scroll',()=>{if(csel.classList.contains('open'))closeList()},{passive:true});
-    window.addEventListener('resize',()=>{if(csel.classList.contains('open'))positionList()},{passive:true});
-}
-document.addEventListener('click',e=>{if(!e.target.closest('.dbg-csel')&&!e.target.closest('.dbg-csel-list')){document.querySelectorAll('.dbg-csel.open').forEach(c=>{if(typeof c._closeList==='function')c._closeList()})}});
-bindCsel('dbg-event-csel',v=>{dbgNextEvent=v||null;
-    if(dbgNextEvent){pendingEvent=dbgNextEvent;warnedFor=null}else{pendingEvent=null;warnedFor=null}
-});
-bindCsel('dbg-spawn-csel',null);
-bindCsel('dbg-blessing-csel',null);
-bindCsel('dbg-festival-csel',null);
-function updateDebugBlessingStatus(){
-    const el=document.getElementById('dbg-blessing-status');
-    if(!el||typeof Blessings==='undefined')return;
-    const daily=Blessings.current?.name||'未选择';
-    const festival=Blessings.festival?`${Blessings.festival.name} · ${Blessings.festival.desc}`:'无节日加成';
-    el.textContent=`今日：${daily}；节日：${festival}`;
-}
-document.getElementById('dbg-apply-blessings').onclick=()=>{
-    const dailyId=document.getElementById('dbg-blessing-csel')?.dataset.value||'';
-    const festivalKey=document.getElementById('dbg-festival-csel')?.dataset.value||'';
-    Blessings.applyDebugSelection(dailyId,festivalKey);
-    if(typeof updateSettingsPanel==='function')updateSettingsPanel();
-    updateDebugBlessingStatus();
-    const effects=Blessings.getEffects().map(effect=>effect.name).join(' + ');
-    toast('<i class="fa-solid fa-wand-magic-sparkles"></i> 已生效：'+(effects||'无'),'s');
-};
-document.getElementById('dbg-trigger').onclick=()=>{
-    const csel=document.getElementById('dbg-event-csel');
-    const sel=csel?csel.dataset.value:'';
-    // 立即触发：若有事件进行中，先结束
-    if(activeEvent)endEvent();
-    const key=sel||pickEvent();
-    startEvent(key);
-    globalEventTimer=30;
-    toast('<i class="fa-solid fa-bug"></i> 已触发：'+EVENTS[key].n,'s');
-};
-// 在鸭子附近生成指定物品（包括漩涡）
-function dbgSpawnItem(type,count=1){
-    if(!duckModel){toast('<i class="fa-solid fa-bug"></i> 鸭子未加载','m');return}
-    const dp=duckModel.position;
-    for(let i=0;i<count;i++){
-        const ang=Math.random()*Math.PI*2,dist=3+Math.random()*8;
-        const x=dp.x+Math.cos(ang)*dist,z=dp.z+Math.sin(ang)*dist;
-        if(type==='whirlpool'){
-            const w=mkWhirlpool(x,z);
-            // mkWhirlpool 内部已完成 scene.add 与 whirlZones.push，此处只需登记数组
-            whirlpools.push(w);
-        }else{
-            let mesh,radius;
-            switch(type){
-                case'rock':{const rs=.3+Math.random()*.5;const rm=1+Math.floor(Math.random()*5)*.5;mesh=isFestival('festival_national_day')?mkCake(new THREE.Vector3(x,-.1,z),rs):mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);radius=rs*1.2*rm;break}
-                case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;break}
-                case'grass':{const gm=1+Math.floor(Math.random()*3)*.5;mesh=isFestival('festival_dragon_boat')?mkZongzi(x,z):mkGrass(x,z,5+Math.floor(Math.random()*4));mesh.scale.multiplyScalar(gm);radius=.4*gm;break}
-                case'lily':{const ls=.3+Math.random()*.25;const lm=1+Math.floor(Math.random()*3)*.5;mesh=mkLily(x,z,ls);mesh.scale.multiplyScalar(lm);radius=ls*lm;break}
-                case'magnet':{const mm=1+Math.floor(Math.random()*3)*.5;mesh=mkMagnet(x,z);mesh.scale.multiplyScalar(mm);radius=.35*mm;break}
-                case'heart':{mesh=mkHeart(x,z);radius=.6;break}
-                default:continue;
-            }
-            if(mesh){scene.add(mesh);items.push({mesh,type,r:radius,coll:false})}
-        }
-    }
-    const lbl={flower:'花',grass:'水草',lily:'荷叶',rock:'石头',heart:'血瓶',magnet:'磁铁',whirlpool:'漩涡'}[type]||type;
-    toast('<i class="fa-solid fa-bug"></i> 已生成 '+count+' 个'+lbl,'s');
-}
-document.getElementById('dbg-spawn-1').onclick=()=>{const csel=document.getElementById('dbg-spawn-csel');dbgSpawnItem(csel?csel.dataset.value:'flower',1)};
-document.getElementById('dbg-spawn-5').onclick=()=>{const csel=document.getElementById('dbg-spawn-csel');dbgSpawnItem(csel?csel.dataset.value:'flower',5)};
-// 修改生命和分数
-document.getElementById('dbg-apply').onclick=()=>{
-    const h=_dbgH();
-    const s=parseInt(document.getElementById('dbg-set-score').value)||0;
-    const beforeHearts=hearts;hearts=Math.max(0,Math.min(MAX_HEARTS,h));recordHealthTransition(beforeHearts,hearts);
-    score=Math.max(0,s);
-    updateHeartsUI();
-    document.getElementById('score').textContent=formatScore(score);
-    if(hearts<=0)gameOver();
-    toast('<i class="fa-solid fa-bug"></i> 已修改：'+hearts+'心 / '+score+'分','s');
-};
+// ===== 调试面板（已迁移至 js/debug/panel.js） =====
 
 // ===== 渲染器（已迁移至 js/render/runtime.js） =====
 const {canvas,renderer,scene,camera,controls,quality,cam,applyDRS,resize:resizeRuntime}=createRuntime();
@@ -902,297 +740,7 @@ function spawnAround(cx,cz){
     }
 }
 
-// ===== 双人模式场景同步（房主权威） =====
-let duoItemsHash=null,duoNextItemId=1,duoLastSceneSeq=-1;
-let duoHostSceneBase=null,duoHostSceneBaseRev=null,duoHostSceneDeltaCapable=false;
-let duoClockTarget=null,duoClockTargetAt=0;
-const duoSceneStats={packets:0,hashSkips:0,fullPackets:0,deltaPackets:0,reconciles:0,totalCreated:0,totalRemoved:0,totalReused:0,lastApplyMs:0,maxApplyMs:0,totalApplyMs:0,last:null};
-const duoLocalCollected=new Map();
-const duoCollectedPending=new Map();
-function duoMarkCollected(x,z){duoLocalCollected.set(Math.round(x*2)+','+Math.round(z*2),performance.now()+5000)}
-function duoIsCollected(x,z){const k=Math.round(x*2)+','+Math.round(z*2);const e=duoLocalCollected.get(k);if(e===undefined)return false;if(performance.now()>e){duoLocalCollected.delete(k);return false}return true}
-function duoIsGuest(){return typeof Duo!=='undefined'&&Duo.active&&Duo.role==='guest'}
-function duoIsDownHostCaretaker(){return typeof Duo!=='undefined'&&isDownHostSceneCaretaker({gameActive,duoActive:Duo.active,role:Duo.role,down:Duo._down,status:Duo.room?.status})}
-function duoQueueCollectedItem(item){
-    if(!duoIsGuest()||!Number.isInteger(item?.duoId)||item.duoId<=0)return;
-    // 在房主场景确认隐藏/移除前重复携带数个状态包，抵抗单包丢失；确认后由 duoApplyScene 删除。
-    // 单次请求会依次尝试两个地址，最坏可到 7 秒；30 秒窗口覆盖超时/短暂断网且仍保持有界。
-    duoCollectedPending.set(item.duoId,{generation:Number.isSafeInteger(item.duoGen)&&item.duoGen>=0?item.duoGen:0,expires:performance.now()+30000});
-}
-function duoPendingCollectionIds(){
-    const now=performance.now();for(const[id,claim]of duoCollectedPending)if(claim.expires<=now)duoCollectedPending.delete(id);
-    return Array.from(duoCollectedPending,([id,claim])=>[id,claim.generation]).slice(0,64);
-}
-function duoApplyGuestCollections(claims){
-    if(typeof Duo==='undefined'||!Duo.active||Duo.role!=='host'||!Array.isArray(claims)||!claims.length)return;
-    const wanted=new Map();
-    for(const raw of claims.slice(0,64)){
-        const id=Array.isArray(raw)?Number(raw[0]):Number(raw);
-        const generation=Array.isArray(raw)?Number(raw[1]):null;
-        if(Number.isSafeInteger(id)&&id>0&&(generation===null||Number.isSafeInteger(generation)&&generation>=0))wanted.set(id,generation);
-    }
-    for(const item of items){
-        if(item.coll||!wanted.has(item.duoId))continue;
-        const claimedGeneration=wanted.get(item.duoId);
-        const itemGeneration=Number.isSafeInteger(item.duoGen)&&item.duoGen>=0?item.duoGen:0;
-        // 旧代号只能确认旧生命周期，绝不能在同一 stable ID 已复活后再次收集。
-        if(claimedGeneration!==null&&claimedGeneration!==itemGeneration)continue;
-        if(RESPAWNING_ITEM_TYPES.has(item.type))scheduleItemRespawn(item,item.type==='lily'?3000:2000,item.type==='flower'?-.02:item.type==='lily'?.01:0);
-        else{item.coll=true;scene.remove(item.mesh)}
-    }
-}
-function resetDuoSceneSync(resetItemIds=false){
-    duoItemsHash=null;duoLastSceneSeq=-1;duoClockTarget=null;duoClockTargetAt=0;duoHostSceneBase=null;duoHostSceneBaseRev=null;duoHostSceneDeltaCapable=false;duoLocalCollected.clear();duoCollectedPending.clear();
-    if(resetItemIds){duoNextItemId=1;for(const it of items){delete it.duoId;delete it.duoGen;delete it.duoHX;delete it.duoHZ;delete it.duoTargetX;delete it.duoTargetZ}}
-}
-function updateDuoClock(dt){
-    if(!duoIsGuest()||duoClockTarget===null)return;
-    const expected=duoClockTarget+(performance.now()-duoClockTargetAt)/1000;
-    const diff=expected-gameClock;
-    // 以略快/略慢的单调时钟逐帧追赶房主，避免网络回调直接改时间导致全屏动画前后跳。
-    gameClock+=THREE.MathUtils.clamp(diff*dt*1.25,-dt*.35,dt*.5);
-}
-function duoSerializeScene(){
-    const its=[];
-    for(const it of items){
-        if(it.coll&&!it.respawning)continue;
-        // 稳定 id 让客机在道具被磁铁/漩涡推动时原位更新，不再按坐标误判为新物体反复重建。
-        if(!Number.isInteger(it.duoId)||it.duoId<=0)it.duoId=duoNextItemId++;
-        if(!Number.isSafeInteger(it.duoGen)||it.duoGen<0)it.duoGen=0;
-        const fallY=it.falling!==undefined&&it.falling>0&&it.mesh.position.y>1?Math.round(it.mesh.position.y*100)/100:null;
-        its.push([it.type,it.mesh.position.x,it.mesh.position.z,it.mesh.scale.y,fallY,it.duoId,it.respawning?1:0,it.duoGen]);
-    }
-    // 漩涡：房主权威同步（位置 + 缩放）
-    const ws=[];
-    for(const w of whirlpools){ws.push([w.x,w.z,w.scale])}
-    let h=its.length;
-    for(let i=0;i<its.length;i++)h=(h*31+its[i][5]+its[i][6]*17+its[i][7]*23+Math.round(its[i][1]*10)+Math.round(its[i][2]*10)+Math.round(its[i][3]*100))|0;
-    for(let i=0;i<ws.length;i++)h=(h*31+Math.round(ws[i][0]*10)+Math.round(ws[i][1]*10))|0;
-    // 鲨鱼位置同步（房主权威）：[x, z, rotationY] 或 null
-    let sharkData=null;
-    if(shark){const p=shark.g.position;sharkData=[Math.round(p.x*100)/100,Math.round(p.z*100)/100,shark.g.rotation.y]}
-    // 事件状态同步：wind/storm/rainbow 布尔值 + 风向 evWindDir（随机量必须房主权威同步）
-    return{clk:gameClock,evT:globalEventTimer,evN:activeEvent,evTm:activeEventTime,wS:waveSpeed,wST:waveSpeedTarget,eWT:eventWaveTarget,ih:h,items:its,whirls:ws,
-        waveDir:[waveEventDir.x,waveEventDir.z],waveStr:waveEventStrength,waveActive:waveEventActive?1:0,waveDur:waveEventDuration,
-        shark:sharkData,
-        windAct:windActive?1:0,windMul:windSpeedMul,evWindDir:[evWindDir.x,evWindDir.z],
-        stormAct:stormActive?1:0,stormBolt:getStormSync(),rbAct:rainbowActive?1:0};
-}
-function duoSameSerializedItem(left,right){
-    if(!Array.isArray(left)||!Array.isArray(right)||left.length!==right.length)return false;
-    for(let i=0;i<left.length;i++)if(left[i]!==right[i])return false;
-    return true;
-}
-function duoBuildHostSceneUpload(fullScene){
-    const fullUpload=()=>({...fullScene,uploadProtocol:2});
-    if(!duoHostSceneDeltaCapable||!duoHostSceneBase||!Number.isSafeInteger(duoHostSceneBaseRev)||duoHostSceneBaseRev<=0||!Array.isArray(fullScene?.items)||!Array.isArray(duoHostSceneBase.items))return fullUpload();
-    const before=new Map();
-    for(const item of duoHostSceneBase.items){const id=Array.isArray(item)?item[5]:null;if(!Number.isSafeInteger(id)||id<=0||before.has(id))return fullUpload();before.set(id,item)}
-    const currentIds=new Set(),upserts=[];
-    for(const item of fullScene.items){
-        const id=Array.isArray(item)?item[5]:null;
-        if(!Number.isSafeInteger(id)||id<=0||currentIds.has(id))return fullUpload();
-        currentIds.add(id);if(!duoSameSerializedItem(before.get(id),item))upserts.push(item);
-    }
-    const removed=[];for(const id of before.keys())if(!currentIds.has(id))removed.push(id);
-    const upload={...fullScene,uploadProtocol:2,baseRev:duoHostSceneBaseRev};delete upload.items;
-    // 纯 metadata 包不带任何道具数组；发生变化时才携带 stable-id upsert/remove。
-    if(upserts.length||removed.length)upload.itemDelta={upserts,removed};
-    return upload;
-}
-function duoAcceptHostSceneAck(fullScene,ack){
-    if(ack?.protocol===2&&Number.isSafeInteger(Number(ack.rev))&&Number(ack.rev)>0){duoHostSceneDeltaCapable=true;duoHostSceneBase=fullScene;duoHostSceneBaseRev=Number(ack.rev);return true}
-    // 旧服务端没有 sceneAck：持续发送全量，避免把它无法重建的增量当作空场景。
-    duoHostSceneDeltaCapable=false;duoHostSceneBase=null;duoHostSceneBaseRev=null;return false;
-}
-const DUO_ITEM_BASE_RADIUS={rock:.6,flower:.4,grass:.4,lily:.4,magnet:.35,heart:.6};
-function duoParseItemSnapshot(raw){
-    if(!Array.isArray(raw)||raw.length<4)return null;
-    const[type,x,z,scale,fy,id,hidden,generation]=raw;
-    if(!Object.prototype.hasOwnProperty.call(DUO_ITEM_BASE_RADIUS,type)||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(scale))return null;
-    return{type,x,z,scale,fy,id:Number.isInteger(id)&&id>0?id:null,hidden:!!hidden,generation:Number.isSafeInteger(generation)&&generation>=0?generation:0};
-}
-function duoCreateItemFromSnapshot(snap){
-    const{type,x,z,scale,fy,id,hidden}=snap;let mesh;
-    switch(type){
-        case'rock':{const rs=.5;mesh=isFestival('festival_national_day')?mkCake(new THREE.Vector3(x,-.1,z),rs):mkRock(new THREE.Vector3(x,-.1,z),rs);break}
-        case'flower':mesh=mkFlower(x,z);break;
-        case'grass':mesh=isFestival('festival_dragon_boat')?mkZongzi(x,z):mkGrass(x,z,7);break;
-        case'lily':mesh=mkLily(x,z,.4);break;
-        case'magnet':mesh=mkMagnet(x,z);break;
-        case'heart':mesh=mkHeart(x,z);break;
-    }
-    if(!mesh)return null;
-    mesh.scale.setScalar(scale);
-    const isFalling=typeof fy==='number'&&fy>1;
-    if(isFalling)mesh.position.y=fy;
-    scene.add(mesh);
-    const item={mesh,type,r:DUO_ITEM_BASE_RADIUS[type]*scale,coll:hidden,respawning:hidden,duoHidden:hidden,duoId:id,duoGen:snap.generation,duoHX:x,duoHZ:z,duoTargetX:x,duoTargetZ:z};
-    mesh.visible=!hidden;
-    if(isFalling){item.falling=10;item.fallVy=0}
-    items.push(item);return item;
-}
-function duoApplyItemSnapshot(item,snap,firstAuthority=false){
-    const wasLocallyInactive=!!(item.duoHidden||item.coll||item.respawning);
-    let claim=duoIsGuest()&&Number.isInteger(snap.id)?duoCollectedPending.get(snap.id):null;
-    if(claim&&(snap.generation>claim.generation||snap.generation===claim.generation&&snap.hidden)){duoCollectedPending.delete(snap.id);claim=null}
-    const collectionPending=!!claim;
-    item.duoId=snap.id;item.duoGen=snap.generation;item.duoHX=snap.x;item.duoHZ=snap.z;item.duoTargetX=snap.x;item.duoTargetZ=snap.z;item.duoHidden=snap.hidden;
-    if(duoIsGuest()&&Number.isInteger(snap.id)&&snap.hidden){
-        if(item.respawnTimer){clearTimeout(item.respawnTimer);item.respawnTimer=null}
-        item.coll=true;item.respawning=true;item.mesh.visible=false;
-    }else if(duoIsGuest()&&Number.isInteger(snap.id)&&!collectionPending&&wasLocallyInactive){
-        if(item.respawnTimer){clearTimeout(item.respawnTimer);item.respawnTimer=null}
-        item.coll=false;item.respawning=false;item.mesh.visible=true;item.mesh.position.x=snap.x;item.mesh.position.z=snap.z;
-    }else if(snap.hidden)item.mesh.visible=false;else if(!item.coll)item.mesh.visible=true;
-    if(!item.coll){
-        if(Math.abs(item.mesh.scale.y-snap.scale)>.02)item.mesh.scale.setScalar(snap.scale);
-        item.r=DUO_ITEM_BASE_RADIUS[item.type]*snap.scale;
-        const dx=snap.x-item.mesh.position.x,dz=snap.z-item.mesh.position.z;
-        // 客机本地磁吸期间不让 10Hz 房主快照把同一道具硬拽回去；收集声明仍由 stable id 交给房主确认。
-        const locallyAttracted=duoIsGuest()&&magnetFxActive()&&(item.magT||0)>.01;
-        if(firstAuthority||!locallyAttracted&&dx*dx+dz*dz>16)item.mesh.position.set(snap.x,item.mesh.position.y,snap.z);
-        if(typeof snap.fy==='number'&&snap.fy>1){item.mesh.position.y=snap.fy;item.falling=10;item.fallVy=0}
-    }
-}
-function duoReconcileWhirls(rawWhirls){
-    const wkey=(x,z)=>Math.round(x*10)/10+'|'+Math.round(z*10)/10,want=new Map();
-    if(Array.isArray(rawWhirls))for(const raw of rawWhirls)if(Array.isArray(raw)&&raw.length>=3)want.set(wkey(raw[0],raw[1]),{x:raw[0],z:raw[1],wm:raw[2]});
-    for(let i=whirlpools.length-1;i>=0;i--){
-        const whirl=whirlpools[i],key=wkey(whirl.x,whirl.z),snap=want.get(key);
-        if(!snap){disposeWhirlpoolVisuals(whirl);const zi=whirlZones.indexOf(whirl.zone);if(zi>=0)whirlZones.splice(zi,1);whirlpools.splice(i,1);continue}
-        want.delete(key);if(Math.abs((whirl.scale||1)-snap.wm)>.02){whirl.scale=snap.wm;whirl.group.scale.setScalar(snap.wm)}
-    }
-    for(const whirl of want.values())whirlpools.push(mkWhirlpool(whirl.x,whirl.z,whirl.wm));
-}
-function duoApplySceneDelta(sc,sceneSeq){
-    const delta=sc?.itemDelta;
-    if(!delta||Number(delta.baseHash)!==Number(duoItemsHash)||!Array.isArray(delta.upserts)||!Array.isArray(delta.removed)||!Array.isArray(sc.whirls))return false;
-    const byId=new Map();for(const item of items)if(Number.isInteger(item.duoId)&&item.duoId>0)byId.set(item.duoId,item);
-    let removed=0,created=0,reused=0;
-    for(const rawId of delta.removed){
-        const id=Number(rawId),item=byId.get(id);duoCollectedPending.delete(id);if(!item)continue;
-        const index=items.indexOf(item);if(index>=0){scene.remove(item.mesh);disposeItemVisual(item);items.splice(index,1);removed++}byId.delete(id);
-    }
-    for(const raw of delta.upserts){
-        const snap=duoParseItemSnapshot(raw);if(!snap||snap.id===null)continue;
-        let item=byId.get(snap.id);
-        if(item&&item.type!==snap.type){const index=items.indexOf(item);if(index>=0){scene.remove(item.mesh);disposeItemVisual(item);items.splice(index,1);removed++}byId.delete(snap.id);item=null}
-        if(item){duoApplyItemSnapshot(item,snap);reused++}
-        else{item=duoCreateItemFromSnapshot(snap);if(item){byId.set(snap.id,item);created++}}
-    }
-    duoItemsHash=sc.ih;duoSceneStats.deltaPackets++;
-    const reconcile={mode:'delta',seq:Number.isFinite(sceneSeq)?sceneSeq:null,hash:sc.ih,upserts:delta.upserts.length,removed,created,reused,after:items.length};
-    duoSceneStats.reconciles++;duoSceneStats.totalCreated+=created;duoSceneStats.totalRemoved+=removed;duoSceneStats.totalReused+=reused;duoSceneStats.last=reconcile;
-    return true;
-}
-function duoApplyScene(sc,sceneSeq){
-    if(!sc)return;
-    if(Number.isFinite(sceneSeq)){
-        if(sceneSeq<=duoLastSceneSeq)return;
-        duoLastSceneSeq=sceneSeq;
-    }
-    const applyStarted=performance.now(),finishApply=()=>{const ms=performance.now()-applyStarted;duoSceneStats.lastApplyMs=ms;duoSceneStats.maxApplyMs=Math.max(duoSceneStats.maxApplyMs,ms);duoSceneStats.totalApplyMs+=ms};
-    window.__duoApplyCalls=window.__duoApplyCalls||[];
-    window.__duoApplyCalls.push({t:Date.now(),seq:Number.isFinite(sceneSeq)?sceneSeq:null,whirlsCount:Array.isArray(sc.whirls)?sc.whirls.length:null,itemsCount:Array.isArray(sc.items)?sc.items.length:null,ih:sc.ih});
-    if(window.__duoApplyCalls.length>20)window.__duoApplyCalls.shift();
-    // 只记录最新房主时钟目标，实际校准在渲染循环内按帧率无关的速度连续完成。
-    if(typeof sc.clk==='number'){
-        duoClockTarget=sc.clk;
-        duoClockTargetAt=performance.now();
-    }
-    waveSpeed=sc.wS;waveSpeedTarget=sc.wST;eventWaveTarget=sc.eWT;
-    globalEventTimer=sc.evT;activeEventTime=sc.evTm;
-    if(activeEvent!==sc.evN){activeEvent=sc.evN;if(activeEvent){startEvent(activeEvent);activeEventTime=sc.evTm}else endEvent()}
-    // 水流方向箭头事件同步（房主权威）：方向 / 强度 / 是否激活 / 剩余时长
-    if(Array.isArray(sc.waveDir)){
-        const newDir={x:sc.waveDir[0],z:sc.waveDir[1]};
-        const dirChanged=Math.abs(newDir.x-waveEventDir.x)>.01||Math.abs(newDir.z-waveEventDir.z)>.01;
-        waveEventDir=newDir;waveEventStrength=sc.waveStr||0;waveEventActive=!!sc.waveActive;waveEventDuration=sc.waveDur||0;
-        // 方向变化时重绘箭头贴图（与房主一致）
-        if(dirChanged&&waveEventActive){const ang=Math.atan2(newDir.z,newDir.x);drawArrowTexture(ang);arrowTex.needsUpdate=true}
-        if(!waveEventActive){cur.x=0;cur.z=0;arrowPlane.material.opacity=0}
-    }
-    // 鲨鱼同步（房主权威）：客机端按房主数据创建/更新/销毁本地鲨鱼
-    if(sc.shark){
-        const[sx,sz,sry]=sc.shark;
-        duoSharkTarget={x:sx,z:sz,ry:sry};
-        if(!shark){spawnShark();if(shark){shark.g.position.set(sx,0,sz);shark.g.rotation.y=sry}}
-    }else{duoSharkTarget=null;removeShark()}
-    // 事件状态同步（房主权威）：wind/storm/rainbow 布尔值 + 风向 evWindDir
-    // 必须在 startEvent/endEvent 之后执行，覆盖本地随机生成的 evWindDir，确保两端粒子方向一致
-    if(sc.windAct!==undefined){
-        windActive=!!sc.windAct;
-        windSpeedMul=Number.isFinite(sc.windMul)?sc.windMul:1;
-        if(Array.isArray(sc.evWindDir)&&sc.evWindDir.length>=2){
-            evWindDir={x:sc.evWindDir[0],z:sc.evWindDir[1]};
-        }
-    }
-    if(sc.stormAct!==undefined)stormActive=!!sc.stormAct;
-    if(sc.stormBolt)applyStormSync(sc.stormBolt);
-    if(sc.rbAct!==undefined){
-        const newRb=!!sc.rbAct;
-        if(newRb!==rainbowActive){
-            rainbowActive=newRb;
-            if(rainbowActive)document.getElementById('rainbow-overlay').classList.add('show');
-            else document.getElementById('rainbow-overlay').classList.remove('show');
-        }
-    }
-    duoSceneStats.packets++;
-    // 漩涡生命周期独立于道具 hash；必须先应用，再决定是否跳过 items 调和。
-    if(Array.isArray(sc.whirls))duoReconcileWhirls(sc.whirls);
-    if(sc.ih===duoItemsHash){duoSceneStats.hashSkips++;finishApply();return}
-    if(duoApplySceneDelta(sc,sceneSeq)){finishApply();return}
-    // hash 不同却没有数组，说明服务端按请求发出后客户端已前进到更新快照；等待下一包，绝不拿空数组清场。
-    if(!Array.isArray(sc.items)||!Array.isArray(sc.whirls)){finishApply();return}
-    duoItemsHash=sc.ih;duoSceneStats.fullPackets++;
-    // 道具增量调和：优先按房主稳定 id 匹配；旧服务端才退回坐标指纹。
-    const r5=v=>Math.round(v*20)/20; // 0.05 精度网格对齐，容忍房主端浮点微差
-    const keyOf=(type,x,z,id)=>Number.isInteger(id)&&id>0?'id|'+type+'|'+id:'pos|'+type+'|'+r5(x)+'|'+r5(z);
-    const want=new Map();
-    const wantByType=new Map();
-    if(Array.isArray(sc.items)){
-        for(const raw of sc.items){
-            const snap=duoParseItemSnapshot(raw);if(!snap)continue;
-            const{type,x,z}=snap;
-            if(duoIsCollected(x,z))continue;
-            snap.key=keyOf(type,x,z,snap.id);want.set(snap.key,snap);
-            if(!wantByType.has(type))wantByType.set(type,[]);
-            wantByType.get(type).push(snap);
-        }
-    }
-    if(duoIsGuest()&&duoCollectedPending.size){
-        const snapshotIds=new Set();for(const snap of want.values())if(Number.isInteger(snap.id)){
-            snapshotIds.add(snap.id);
-            const claim=duoCollectedPending.get(snap.id);
-            // hidden=true 是同一生命周期的确认；generation 变大则说明即使错过隐藏帧，房主也已处理并完成复活。
-            if(claim&&(snap.generation>claim.generation||snap.generation===claim.generation&&snap.hidden))duoCollectedPending.delete(snap.id);
-        }
-        for(const id of duoCollectedPending.keys())if(!snapshotIds.has(id))duoCollectedPending.delete(id);
-    }
-    const reconcile={seq:Number.isFinite(sceneSeq)?sceneSeq:null,hash:sc.ih,wanted:want.size,existing:items.length,withStableId:items.filter(it=>Number.isInteger(it.duoId)).length,reused:0,firstAuthority:0,removed:0,created:0};
-    for(let i=items.length-1;i>=0;i--){
-        const it=items[i];
-        const k=keyOf(it.type,it.duoHX??it.mesh.position.x,it.duoHZ??it.mesh.position.z,it.duoId);
-        let snap=want.get(k);
-        // 首个客机快照到达前页面已有一批随机物品：按类型复用现有网格，避免同帧销毁并重建约 244 个复杂模型。
-        if(!snap&&!Number.isInteger(it.duoId)){
-            const pool=wantByType.get(it.type);
-            while(pool?.length&&!want.has(pool[pool.length-1].key))pool.pop();
-            if(pool?.length)snap=pool.pop();
-        }
-        if(!snap){ // 快照里没有了（被吃/消失/漂远）→ 移除
-            scene.remove(it.mesh);disposeItemVisual(it);items.splice(i,1);reconcile.removed++;continue;
-        }
-        want.delete(snap.key); // 匹配成功：复用现有 mesh（动画相位/状态保留，无任何跳变）
-        const firstAuthority=!Number.isInteger(it.duoId)&&Number.isInteger(snap.id);
-        reconcile.reused++;if(firstAuthority)reconcile.firstAuthority++;
-        duoApplyItemSnapshot(it,snap,firstAuthority);
-    }
-    // 快照里有而本地没有 → 新建（仅增量，通常每次 0~2 个）
-    for(const it of want.values())if(duoCreateItemFromSnapshot(it))reconcile.created++;
-    reconcile.after=items.length;duoSceneStats.reconciles++;duoSceneStats.totalCreated+=reconcile.created;duoSceneStats.totalRemoved+=reconcile.removed;duoSceneStats.totalReused+=reconcile.reused;duoSceneStats.last=reconcile;finishApply();
-}
+// ===== 双人模式场景同步（已迁移至 js/duo/scene-sync.js） =====
 
 // 护盾
 const shieldMesh=new THREE.Mesh(new THREE.SphereGeometry(1.8,32,24),new THREE.MeshPhysicalMaterial({color:0x44ddff,transparent:true,opacity:0,roughness:0,metalness:.3,clearcoat:1,side:THREE.DoubleSide,depthWrite:false}));shieldMesh.renderOrder=20;shieldMesh.visible=false;scene.add(shieldMesh);
@@ -1624,287 +1172,7 @@ function updateCur(dt){
 
 // 鸭子（base64 内嵌 GLB 模型）
 let duckModel=null;const duckVel=new THREE.Vector3();const mv={f:false,b:false,l:false,r:false,str:0};
-let duoRemoteDuck=null,duoRemoteTarget=null,duoLocalNameLabel=null,duoRemoteSkin=null,duoRemotePalette=null;
-let duoRemoteShield=null,duoRemoteMagnetRing=null,duoRemoteCrown=null,duoRemoteAura=null,duoRemoteMagGlow=null,duoRemoteMagnetPulse=[],duoRemoteMagParticles=null,duoRemoteMagParticleGeo=null,duoRemoteMagParticleData=[],duoRemoteMagParticleMat=null,duoRemoteMagVisualAccumulator=0;
-const duoRemotePosition=new THREE.Vector3();
-// 远程鸭子航迹推算（Dead Reckoning）：对端状态约 5.5Hz 到达，按速度外推 + 柔性收敛，消除橡皮筋抖动
-let duoRemotePrevSnapT=0,duoRemotePrevTarget=null;
-const duoRemoteVel=new THREE.Vector3();
-function resetDuoRemoteMotion(){duoRemotePrevSnapT=0;duoRemotePrevTarget=null;duoRemoteVel.set(0,0,0);duoRemoteTarget=null}
-function acceptDuoRemoteSnapshot(state,down){
-    if(!state)return;
-    let x=Number(state.x)||0,z=Number(state.z)||0;
-    if(x===0&&z===0&&typeof Duo!=='undefined'&&Duo.active){x=Duo.role==='host'?3.5:-3.5}
-    const now=performance.now();
-    if(duoRemotePrevTarget&&duoRemotePrevSnapT>0){
-        const snapDt=(now-duoRemotePrevSnapT)/1000,dx=x-duoRemotePrevTarget.x,dz=z-duoRemotePrevTarget.z;
-        if(snapDt>.05&&snapDt<1.5&&dx*dx+dz*dz<16){
-            const ivx=dx/snapDt,ivz=dz/snapDt;
-            duoRemoteVel.x+=(ivx-duoRemoteVel.x)*.35;duoRemoteVel.z+=(ivz-duoRemoteVel.z)*.35;
-            const spd=Math.hypot(duoRemoteVel.x,duoRemoteVel.z);
-            if(spd>6){duoRemoteVel.x*=6/spd;duoRemoteVel.z*=6/spd}
-        }else if(dx*dx+dz*dz>=16)duoRemoteVel.set(0,0,0);
-    }
-    duoRemotePrevTarget={x,z,ry:state.ry||0};duoRemotePrevSnapT=now;
-    duoRemoteTarget={...state,x,z,down:!!down};
-}
-function duoOffsetXFor(role){return role==='guest'?3.5:role==='host'?-3.5:0}
-function createDuoNameLabel(name){
-    const labelCanvas=document.createElement('canvas');labelCanvas.width=360;labelCanvas.height=96;
-    const ctx=labelCanvas.getContext('2d');ctx.fillStyle='rgba(9,15,26,.76)';ctx.roundRect(8,8,344,80,38);ctx.fill();
-    ctx.fillStyle='#fff';ctx.font='600 38px -apple-system, BlinkMacSystemFont, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name||'鸭鸭',180,49);
-    const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(labelCanvas),transparent:true,depthTest:false,depthWrite:false}));label.userData.duoNameLabel=true;label.userData.duoName=name||'鸭鸭';
-    // 漩涡是 renderOrder 4..8 的透明层；名字必须最后绘制，且不能污染深度缓冲。
-    label.renderOrder=2000;label.position.set(0,2.7,0);label.scale.set(2.7,.72,1);return label;
-}
-function disposeDuoNameLabel(label){
-    if(!label)return;
-    label.parent?.remove(label);
-    const mats=Array.isArray(label.material)?label.material:[label.material];
-    for(const mat of mats){if(!mat)continue;mat.map?.dispose();mat.dispose()}
-}
-function removeDuoLocalNameLabel(){disposeDuoNameLabel(duoLocalNameLabel);duoLocalNameLabel=null}
-function disposeDuoRemoteDuck(){
-    if(!duoRemoteDuck)return;
-    const labels=[],materials=new Set();
-    duoRemoteDuck.traverse(node=>{
-        if(node.userData?.duoNameLabel){labels.push(node);return}
-        if(!node.isMesh||!node.material)return;
-        const mats=Array.isArray(node.material)?node.material:[node.material];
-        // createDuoRemoteDuck 为远端模型逐材质 clone；纹理与几何仍和本地模型共享，不能释放。
-        for(const mat of mats)if(mat)materials.add(mat);
-    });
-    for(const label of labels)disposeDuoNameLabel(label);
-    for(const mat of materials)mat.dispose();
-}
-function setDuoRemoteNameLabel(name){
-    if(!duoRemoteDuck)return;
-    const nextName=name||'好友',current=duoRemoteDuck.children.find(node=>node.userData?.duoNameLabel);
-    if(current?.userData?.duoName===nextName)return;
-    if(current)disposeDuoNameLabel(current);
-    duoRemoteDuck.add(createDuoNameLabel(nextName));
-}
-function setDuoLocalNameLabel(name){
-    removeDuoLocalNameLabel();
-    if(!duckModel)return;
-    duoLocalNameLabel=createDuoNameLabel(name);duckModel.add(duoLocalNameLabel);
-}
-function removeDuoRemoteDuck(preserveMotion=false){
-    if(duoRemoteDuck){scene.remove(duoRemoteDuck);disposeDuoRemoteDuck()}
-    if(duoRemoteShield){scene.remove(duoRemoteShield);duoRemoteShield.geometry.dispose();duoRemoteShield.material.dispose();duoRemoteShield=null}
-    if(duoRemoteMagnetRing){scene.remove(duoRemoteMagnetRing);duoRemoteMagnetRing.geometry.dispose();duoRemoteMagnetRing.material.dispose();duoRemoteMagnetRing=null}
-    if(duoRemoteCrown){scene.remove(duoRemoteCrown);duoRemoteCrown=null}
-    if(duoRemoteAura){scene.remove(duoRemoteAura);duoRemoteAura.geometry.dispose();duoRemoteAura.material.dispose();duoRemoteAura=null}
-    if(duoRemoteMagGlow){scene.remove(duoRemoteMagGlow);duoRemoteMagGlow.material.dispose();duoRemoteMagGlow=null}
-    if(duoRemoteMagnetPulse.length){duoRemoteMagnetPulse.forEach(r=>{scene.remove(r);r.geometry.dispose();r.material.dispose()});duoRemoteMagnetPulse=[]}
-    if(duoRemoteMagParticles){scene.remove(duoRemoteMagParticles);duoRemoteMagParticleGeo.dispose();duoRemoteMagParticleMat.dispose();duoRemoteMagParticles=null;duoRemoteMagParticleGeo=null;duoRemoteMagParticleMat=null;duoRemoteMagParticleData=[]}
-    duoRemoteDuck=null;duoRemoteSkin=null;duoRemotePalette=null;duoRemoteMagVisualAccumulator=0;
-    if(!preserveMotion)resetDuoRemoteMotion();
-}
-function createDuoRemoteDuck(name,state){
-    removeDuoRemoteDuck(true);
-    if(!duckModel)return;
-    duoRemoteDuck=duckModel.clone(true);
-    duoRemoteDuck.name='duo-remote-duck';
-    const inheritedLabels=[];
-    duoRemoteDuck.traverse(node=>{
-        if(node.userData.duoNameLabel){inheritedLabels.push(node);return}
-        if(!node.isMesh||!node.material)return;
-        if(Array.isArray(node.material))node.material=node.material.map(mat=>{const next=mat.clone();if(mat.userData.duckOriginalMap)next.userData.duckOriginalMap=mat.userData.duckOriginalMap;return next});
-        else{const original=node.material;node.material=original.clone();if(original.userData.duckOriginalMap)node.material.userData.duckOriginalMap=original.userData.duckOriginalMap}
-    });
-    inheritedLabels.forEach(label=>label.parent?.remove(label));
-    duoRemoteSkin=state?.skin||'classic';
-    duoRemotePalette=state?.palette||null;
-    // 自定义皮肤缺合法 palette 时降级为 classic（避免误用本地 palette）
-    if(duoRemoteSkin==='custom'&&( !duoRemotePalette || typeof duoRemotePalette!=='object' || !/^#[0-9a-fA-F]{6}$/.test(duoRemotePalette.body||'') || !/^#[0-9a-fA-F]{6}$/.test(duoRemotePalette.beak||'') )){duoRemoteSkin='classic';duoRemotePalette=null}
-    applyDuckSkinToRoot(duoRemoteDuck,duoRemoteSkin,duoRemotePalette);
-    duoRemoteDuck.add(createDuoNameLabel(name||'好友'));
-    if(state){
-        // 初始状态（房主/客机刚加入，state.x/z 均为 0）时，把对端鸭子放在本地鸭子对面，避免重叠
-        // 优先使用 Duo.role 决定对端所在侧（房主端看到客机在 +3.5，客机端看到房主在 -3.5）
-        let rx=state.x,rz=state.z;
-        if(rx===0&&rz===0&&typeof Duo!=='undefined'&&Duo.active){
-            rx=Duo.role==='host'?3.5:-3.5;
-            rz=0;
-        }
-        const y=waveHeight(rx,rz,renderedWaveClock)-.08;
-        duoRemoteDuck.position.set(rx,y,rz);duoRemoteDuck.rotation.y=state.ry||0;
-    }
-    duoRemoteDuck.visible=!!state&&!state.down;scene.add(duoRemoteDuck);
-    // 远程鸭子的盾/磁铁光环/连胜皇冠/光环（与本地版本独立，避免互相覆盖可见性）
-    if(!duoRemoteShield){
-        duoRemoteShield=new THREE.Mesh(new THREE.SphereGeometry(1.8,32,24),new THREE.MeshPhysicalMaterial({color:0x44ddff,transparent:true,opacity:0,roughness:0,metalness:.3,clearcoat:1,side:THREE.DoubleSide,depthWrite:false}));
-        duoRemoteShield.renderOrder=20;duoRemoteShield.visible=false;scene.add(duoRemoteShield);
-    }
-    if(!duoRemoteMagnetRing){
-        duoRemoteMagnetRing=mkWaveRing(2,96,new THREE.MeshBasicMaterial({map:magnetDashTex,transparent:true,opacity:0,color:0x86d4ff,depthWrite:false,fog:false,side:THREE.DoubleSide}),6);
-        duoRemoteMagnetRing.visible=false;scene.add(duoRemoteMagnetRing);
-    }
-    if(!duoRemoteCrown){
-        duoRemoteCrown=crownGroup.clone(true);
-        duoRemoteCrown.visible=false;scene.add(duoRemoteCrown);
-    }
-    if(!duoRemoteAura){
-        duoRemoteAura=new THREE.Mesh(new THREE.SphereGeometry(2.5,24,16),auraMat.clone());
-        duoRemoteAura.visible=false;duoRemoteAura.renderOrder=30;scene.add(duoRemoteAura);
-    }
-    // 远程鸭子磁铁吸引特效：普通磁铁读取 mt，小磁吸读取 cm，二者共用固定视觉池。
-    if(duoRemoteMagnetPulse.length===0){
-        for(let i=0;i<2;i++){
-            const r=mkWaveRing(1,72,new THREE.MeshBasicMaterial({map:magnetPulse[i].material.map,transparent:true,opacity:0,color:0x9fe0ff,depthWrite:false,fog:false,side:THREE.DoubleSide}),8);
-            r.visible=false;scene.add(r);duoRemoteMagnetPulse.push(r);
-        }
-    }
-    if(!duoRemoteMagGlow){
-        duoRemoteMagGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,opacity:0,color:0x7fd4ff,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
-        duoRemoteMagGlow.scale.set(2.6,2.6,1);duoRemoteMagGlow.visible=false;scene.add(duoRemoteMagGlow);
-    }
-    // 远程鸭子磁场粒子（与本地 magParticles 对应，按普通/小磁吸切换预算）
-    if(!duoRemoteMagParticles){
-        duoRemoteMagParticleGeo=new THREE.BufferGeometry();
-        const pos=new Float32Array(MAG_PARTICLES*3),col=new Float32Array(MAG_PARTICLES*3);
-        const initialRange=getMagnetRange();
-        for(let i=0;i<MAG_PARTICLES;i++){
-            duoRemoteMagParticleData.push({angle:Math.random()*Math.PI*2,radius:2+Math.random()*(initialRange-2),yOff:(Math.random()-.5)*1.2,speed:.6+Math.random()*.9});
-        }
-        duoRemoteMagParticleGeo.setAttribute('position',new THREE.BufferAttribute(pos,3).setUsage(THREE.DynamicDrawUsage));
-        duoRemoteMagParticleGeo.setAttribute('color',new THREE.BufferAttribute(col,3).setUsage(THREE.DynamicDrawUsage));
-        duoRemoteMagParticleMat=new THREE.PointsMaterial({size:.32,transparent:true,opacity:0,vertexColors:true,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,map:sparkTex});
-        duoRemoteMagParticles=new THREE.Points(duoRemoteMagParticleGeo,duoRemoteMagParticleMat);
-        duoRemoteMagParticles.frustumCulled=false;duoRemoteMagParticles.visible=false;scene.add(duoRemoteMagParticles);
-    }
-}
-function hideDuoRemoteMagnetFx(){
-    duoRemoteMagVisualAccumulator=0;
-    if(duoRemoteMagnetRing){duoRemoteMagnetRing.visible=false;duoRemoteMagnetRing.material.opacity=0}
-    for(const pulse of duoRemoteMagnetPulse){pulse.visible=false;pulse.material.opacity=0}
-    if(duoRemoteMagGlow){duoRemoteMagGlow.visible=false;duoRemoteMagGlow.material.opacity=0}
-    if(duoRemoteMagParticles){duoRemoteMagParticles.visible=false;duoRemoteMagParticleMat.opacity=0}
-}
-function hideDuoRemoteStatusFx(){
-    if(duoRemoteShield)duoRemoteShield.visible=false;
-    hideDuoRemoteMagnetFx();
-    if(duoRemoteCrown)duoRemoteCrown.visible=false;
-    if(duoRemoteAura)duoRemoteAura.visible=false;
-}
-function updateDuoRemoteDuck(dt){
-    if(!duoRemoteDuck||!duoRemoteTarget)return;
-    const target=duoRemoteTarget;
-    if(target.down){duoRemoteDuck.visible=false;hideDuoRemoteStatusFx();return}
-    duoRemoteDuck.visible=true;
-    // 对端鸭子初始 state.x/z 为 0 时，使用 Duo.role 决定对端所在侧，避免两只鸭子重叠
-    let tx=target.x,tz=target.z;
-    if(tx===0&&tz===0&&typeof Duo!=='undefined'&&Duo.active){
-        tx=Duo.role==='host'?3.5:-3.5;
-        tz=0;
-    }
-    const y=waveHeight(tx,tz,renderedWaveClock)-.08+Math.sin(gameClock*1.8)*.035;
-    // ---- 航迹推算：先按估计速度外推，再向最新快照柔性收敛 ----
-    // 旧实现 dt*6 硬 lerp 追 5.5Hz 的离散目标点 → 每个新快照到达都"弹射"一下（橡皮筋抖动）
-    const nowMs=performance.now();
-    // 快照已过去的时间：外推补偿网络延迟（封顶 400ms，避免无限发散）
-    const age=Math.min(.4,(nowMs-duoRemotePrevSnapT)/1000);
-    const px=tx+duoRemoteVel.x*age,pz=tz+duoRemoteVel.z*age;
-    duoRemotePosition.set(px,0,pz);
-    // 位置收敛：误差小则慢速柔性逼近（视觉连续），误差大（重生/瞬移）直接归位
-    const dx=px-duoRemoteDuck.position.x,dz=pz-duoRemoteDuck.position.z;
-    const err2=dx*dx+dz*dz;
-    if(err2>16){duoRemoteDuck.position.set(px,y,pz);duoRemoteVel.set(0,0,0)} // 瞬移：直接落位并清空速度
-    else{
-        // 误差越大收敛越快（dt*2~dt*10 自适应），小误差几乎不动 → 全程无级平滑
-        const k=Math.min(1,dt*(2+Math.min(8,Math.sqrt(err2)*2.5)));
-        duoRemoteDuck.position.x+=dx*k;duoRemoteDuck.position.z+=dz*k;
-        duoRemoteDuck.position.y=waveHeight(duoRemoteDuck.position.x,duoRemoteDuck.position.z,renderedWaveClock)-.08+Math.sin(gameClock*1.8)*.035;
-    }
-    // 朝向：由移动方向推算（连续平滑）+ 快照 ry 慢速校准（防漂移）
-    if(Math.abs(duoRemoteVel.x)+Math.abs(duoRemoteVel.z)>.15){
-        // 模型默认面朝 +X，与本地鸭子相同需补偿 -90°，否则速度朝向和快照朝向会互相拉扯。
-        const moveRy=Math.atan2(duoRemoteVel.x,duoRemoteVel.z)-Math.PI/2;
-        let md=moveRy-duoRemoteDuck.rotation.y;md=Math.atan2(Math.sin(md),Math.cos(md));
-        duoRemoteDuck.rotation.y+=md*Math.min(1,dt*5);
-    }
-    let diff=(target.ry||0)-duoRemoteDuck.rotation.y;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
-    duoRemoteDuck.rotation.y+=diff*Math.min(1,dt*2.5);
-    // ---- 对端特效同步：盾/磁铁/变大/无敌 ----
-    // 远程鸭子盾：target.sh>0 时显示半透明盾罩
-    if(target.sh>0){
-        duoRemoteShield.visible=true;
-        duoRemoteShield.position.copy(duoRemoteDuck.position);duoRemoteShield.position.y+=.3*.72;
-        duoRemoteShield.scale.setScalar(.72);
-        duoRemoteShield.material.opacity=.15+Math.sin(gameClock*3)*.08;
-        duoRemoteShield.rotation.y=gameClock*.5;
-    }else{duoRemoteShield.visible=false}
-    // 远程鸭子变大效果：target.bt>0 时缩放 4 倍
-    const targetScale=target.bt>0?.72*4:.72;
-    duoRemoteDuck.scale.setScalar(targetScale);
-    // 远程鸭子无敌闪烁：target.iv>0 时半透明。
-    // 材质表在创建时缓存一次，避免每帧 traverse 遍历整棵子树（客机每帧数百次对象枚举 → 卡顿来源之一）
-    if(!duoRemoteDuck.userData.fxMats){
-        const mats=[];
-        duoRemoteDuck.traverse(n=>{if(n.isMesh&&n.material){const m=Array.isArray(n.material)?n.material:[n.material];m.forEach(mm=>mats.push(mm))}});
-        duoRemoteDuck.userData.fxMats=mats;
-    }
-    if(target.iv>0){duoRemoteDuck.userData.fxMats.forEach(mm=>{mm.transparent=true;mm.opacity=.5+Math.sin(gameClock*8)*.3})}
-    else{duoRemoteDuck.userData.fxMats.forEach(mm=>{if(mm.opacity!==1)mm.opacity=1})}
-    // 普通磁铁优先；伙伴的三连小磁吸固定 8 米并使用紧凑预算，避免增加双窗压力。
-    const remoteFullMagnet=target.mt>0,remoteComboMagnet=target.cm>0;
-    if((remoteFullMagnet||remoteComboMagnet)&&duoRemoteMagnetRing){
-        if(!duoRemoteMagnetRing.visible)duoRemoteMagVisualAccumulator=1;
-        duoRemoteMagnetRing.visible=true;if(duoRemoteMagGlow)duoRemoteMagGlow.visible=true;if(duoRemoteMagParticles)duoRemoteMagParticles.visible=true;
-        const visual=magnetVisualConfig(true,!remoteFullMagnet);duoRemoteMagVisualAccumulator+=dt;
-        for(let i=0;i<duoRemoteMagnetPulse.length;i++){const show=i<visual.pulses;duoRemoteMagnetPulse[i].visible=show;if(!show)duoRemoteMagnetPulse[i].material.opacity=0}
-        if(duoRemoteMagParticles)duoRemoteMagParticleGeo.setDrawRange(0,visual.particles);
-        if(duoRemoteMagVisualAccumulator>=1/visual.hz){
-            const visualDt=Math.min(.1,duoRemoteMagVisualAccumulator);duoRemoteMagVisualAccumulator%=1/visual.hz;
-            const mRange=remoteFullMagnet?getMagnetRange():COMBO_MAGNET_RANGE,rdx=duoRemoteDuck.position.x,rdz=duoRemoteDuck.position.z;
-            if(typeof duoRemoteMagnetRing.userData.update==='function')duoRemoteMagnetRing.userData.update(rdx,rdz,mRange-1.2,mRange,.15);
-            else duoRemoteMagnetRing.position.set(rdx,waveHeight(rdx,rdz,renderedWaveClock),rdz);
-            duoRemoteMagnetRing.material.opacity=(remoteFullMagnet?.55:.38)+Math.sin(gameClock*4)*(remoteFullMagnet?.2:.12);
-            // 脉冲环（两圈交替从外向内收缩，与本地 magnetPulse 一致）
-            for(let i=0;i<visual.pulses;i++){
-                const ph=(gameClock*.45+i*.5)%1,r=1+ph*(mRange-1),pr=duoRemoteMagnetPulse[i];
-                if(typeof pr.userData.update==='function')pr.userData.update(rdx,rdz,Math.max(r-.5,.2),r,.12);
-                pr.material.opacity=(1-ph)*(remoteFullMagnet?.4:.26);
-            }
-            // 鸭子周身磁场辉光（与本地 magGlow 一致）
-            if(duoRemoteMagGlow){
-                duoRemoteMagGlow.position.set(rdx,duoRemoteDuck.position.y+.7,rdz);
-                duoRemoteMagGlow.material.opacity=(remoteFullMagnet?.3:.22)+Math.sin(gameClock*5)*(remoteFullMagnet?.15:.1);
-                const gs=(remoteFullMagnet?2.4:1.9)+Math.sin(gameClock*5)*.25;duoRemoteMagGlow.scale.set(gs,gs,1);
-            }
-            // 磁场粒子：螺旋向内汇聚到鸭子（与本地 magParticles 一致）
-            if(duoRemoteMagParticles){
-                const pos=duoRemoteMagParticleGeo.attributes.position,col=duoRemoteMagParticleGeo.attributes.color;
-                for(let i=0;i<visual.particles;i++){
-                    const p=duoRemoteMagParticleData[i];
-                    p.angle+=visualDt*p.speed*1.5;p.radius-=visualDt*p.speed*2.2;
-                    if(p.radius<.6||p.radius>mRange){p.radius=Math.max(1,mRange-Math.random()*Math.min(2,mRange*.25));p.angle=Math.random()*Math.PI*2;p.yOff=(Math.random()-.5)*1.2}
-                    const t=1-p.radius/mRange,y=duoRemoteDuck.position.y+.3+p.yOff*(1-t)+Math.sin(gameClock*3+p.angle*2)*.15+t*.6;
-                    pos.setXYZ(i,rdx+Math.cos(p.angle)*p.radius,y,rdz+Math.sin(p.angle)*p.radius);col.setXYZ(i,.35+t*.65,.75+t*.25,1);
-                }
-                pos.needsUpdate=true;col.needsUpdate=true;duoRemoteMagParticleMat.opacity=(remoteFullMagnet?.85:.62)*(.5+Math.sin(gameClock*4)*.25);
-            }
-        }
-    }else hideDuoRemoteMagnetFx();
-    // 远程鸭子连胜皇冠 + 光环：target.sk>0 时显示（与本地 streakActive 一致，包含 streakBonus 延长）
-    if(duoRemoteCrown&&duoRemoteAura){
-        if(target.sk>0){
-            duoRemoteCrown.visible=true;
-            duoRemoteCrown.position.copy(duoRemoteDuck.position);
-            duoRemoteCrown.position.y+=1.754*targetScale; // 跟随 scale 的 y 偏移（本地 crownGroup 在 duckModel 中 y=1.754）
-            duoRemoteCrown.scale.setScalar(targetScale);  // 王冠跟随鸭子 scale（变大时同步变大）
-            duoRemoteCrown.rotation.y=gameClock*2;
-            duoRemoteCrown.children.forEach((c,i)=>{if(c.material)c.material.opacity=.7+Math.sin(gameClock*6+i)*.3});
-            duoRemoteAura.visible=true;
-            duoRemoteAura.position.copy(duoRemoteDuck.position);duoRemoteAura.position.y+=.5;
-            duoRemoteAura.material.opacity=.04+Math.sin(gameClock*3)*.02;
-            duoRemoteAura.rotation.y=gameClock*.5;
-            const auraScale=duoRemoteDuck.scale.x*1.5+Math.sin(gameClock*2)*.2;
-            duoRemoteAura.scale.setScalar(auraScale);
-        }else{duoRemoteCrown.visible=false;duoRemoteAura.visible=false}
-    }
-}
+// ===== 双人远程鸭子（已迁移至 js/duo/remote-duck.js） =====
 const loader=new GLTFLoader();
 const bar=document.getElementById('load-bar'),loadTxt=document.querySelector('#loader .txt');
 const loaderBoot=window.__duckLoadBoot;
@@ -1975,7 +1243,7 @@ function resetRunState(){
     for(const item of items){scene.remove(item.mesh);disposeItemVisual(item)}items.length=0;
     for(const whirl of whirlpools)disposeWhirlpoolVisuals(whirl);
     whirlpools.length=0;whirlZones.length=0;
-    duoNextItemId=1;resetDuoSceneSync();resetDuoRemoteMotion();duoSharkTarget=null;
+    setDuoNextItemId(1);resetDuoSceneSync();resetDuoRemoteMotion();duoSharkTarget=null;
     for(const fx of transientFx){scene.remove(fx.m);disposeTransientVisual(fx.m)}transientFx.length=0;
     endEvent();removeShark();hideWarn();
     score=0;hearts=3;hasShield=false;shieldTimer=0;invincible=0;
@@ -2380,29 +1648,7 @@ finishMagnetTrailFrame();
 updateMagnet(dt);
 if(!duoIsGuest()){spawnRefreshTimer-=dt;if(spawnRefreshTimer<=0){spawnAround(duckModel.position.x,duckModel.position.z);spawnRefreshTimer=.2}}checkHit()}
 
-// 键盘（W/S 前后，A/D 左右，均相对相机视角）
-if(!isMobile){addEventListener('keydown',e=>{switch(e.code){case'KeyW':case'ArrowUp':mv.f=true;break;case'KeyS':case'ArrowDown':mv.b=true;break;case'KeyA':case'ArrowLeft':mv.l=true;break;case'KeyD':case'ArrowRight':mv.r=true;break;case'KeyM':document.getElementById('music-btn').click();break}});
-addEventListener('keyup',e=>{switch(e.code){case'KeyW':case'ArrowUp':mv.f=false;break;case'KeyS':case'ArrowDown':mv.b=false;break;case'KeyA':case'ArrowLeft':mv.l=false;break;case'KeyD':case'ArrowRight':mv.r=false;break}})}
-
-// 摇杆（视角相对：推上=朝相机前方移动，推右=朝相机右方移动）
-let joySensitivity=Math.max(.5,Math.min(1.5,Number(localStorage.getItem('duck_joy_sensitivity'))||1));
-if(isMobile){const zone=document.getElementById('joy-zone'),base=document.getElementById('joy-base'),knob=document.getElementById('joy-knob');
-let ja=false,jc={x:0,y:0};
-zone.ontouchstart=e=>{e.preventDefault();e.stopPropagation();const t=e.touches[0];ja=true;
-const rect=zone.getBoundingClientRect();
-const bx=t.clientX-rect.left,by=t.clientY-rect.top;
-base.style.display='block';
-base.style.left=Math.max(0,Math.min(bx-65,rect.width-130))+'px';
-base.style.top=Math.max(0,Math.min(by-65,rect.height-130))+'px';
-jc={x:t.clientX,y:t.clientY};knob.style.left='50%';knob.style.top='50%'};
-zone.ontouchmove=e=>{e.preventDefault();if(!ja)return;const t=e.touches[0],dx=t.clientX-jc.x,dy=t.clientY-jc.y,dist=Math.sqrt(dx*dx+dy*dy),max=65,cl=Math.min(dist,max),ang=Math.atan2(dy,dx);knob.style.left=`${50+(cl/max)*50*Math.cos(ang)}%`;knob.style.top=`${50+(cl/max)*50*Math.sin(ang)}%`;const dead=18;if(dist>dead){
-// 摇杆方向转换为归一化分量（上=前进，右=右移）
-const speedRatio=Math.min((dist-dead)/(max-dead),1);
-mv.joyDx=dx/dist; // 右分量
-mv.joyDy=-dy/dist; // 前分量（屏幕Y轴向下，取反）
-mv._joySpeed=speedRatio*DUCK_MAX_SPEED*joySensitivity;
-}else{mv.f=mv.b=mv.l=mv.r=false;mv.str=0;mv._joySpeed=0;mv.joyDx=0;mv.joyDy=0}};
-const rst=()=>{ja=false;base.style.display='none';mv.f=mv.b=mv.l=mv.r=false;mv.str=0;mv._joySpeed=0;mv.joyDx=0;mv.joyDy=0};zone.ontouchend=rst;zone.ontouchcancel=rst}
+// ===== 输入（键盘/摇杆已迁移至 js/input/controls.js） =====
 
 // 动画
 // ===== v2.0 生命 / 排行榜 / 漩涡 / 血瓶 / 随机事件 系统 =====
@@ -2637,7 +1883,7 @@ const Duo={
             let newPal=newSkin==='custom'?other.state.palette:null;
             if(newSkin==='custom'&&( !newPal || typeof newPal!=='object' || !/^#[0-9a-fA-F]{6}$/.test(newPal.body||'') || !/^#[0-9a-fA-F]{6}$/.test(newPal.beak||'') )){newSkin='classic';newPal=null}
             const palChanged=duoRemoteSkin!==newSkin||(newSkin==='custom'&&JSON.stringify(duoRemotePalette)!==JSON.stringify(newPal));
-            if(palChanged){duoRemoteSkin=newSkin;duoRemotePalette=newPal;applyDuckSkinToRoot(duoRemoteDuck,newSkin,newPal)}
+            if(palChanged){setDuoRemoteIdentity(newSkin,newPal);applyDuckSkinToRoot(duoRemoteDuck,newSkin,newPal)}
         }
         if(room.status==='finished'&&wasDown&&!this._teamDefeated){this._teamDefeated=true;this._down=false;clearInterval(this._stateTimer);this._stateTimer=null;this.hideRespawn();finishGameOver(true)}
         else if(mine?.down){this._down=true;if(duckModel)duckModel.visible=false;if(!wasDown)this.showRespawn(mine.downAt)}
@@ -2678,7 +1924,7 @@ const Duo={
         if(this.role==='host'){fullScene=duoSerializeScene();st.scene=duoBuildHostSceneUpload(fullScene)}
         const result=await this.request('state',{room:this.room.code,state:st});
         if(fullScene)duoAcceptHostSceneAck(fullScene,result.sceneAck);
-        this.applyRoom(result.room)}catch(error){if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA'){duoHostSceneBase=null;duoHostSceneBaseRev=null}}finally{this._statePending=false}
+        this.applyRoom(result.room)}catch(error){if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA')resetDuoHostSceneBase()}finally{this._statePending=false}
     },
     async down(){
         if(!this.active||!this.room||!duckModel)return false;
@@ -2707,6 +1953,7 @@ const Duo={
     async restart(){if(this.role!=='host')throw new Error('ONLY_HOST_CAN_RESTART');const result=await this.request('restart',{room:this.room.code});this._started=false;this.applyRoom(result.room)},
     reset(){clearInterval(this._pollTimer);clearInterval(this._stateTimer);clearTimeout(this._nameSyncTimer);this.hideRespawn();this.active=false;this.room=null;this.remoteState=null;this._pollPending=false;this._statePending=false;this._started=false;this._down=false;this._teamDefeated=false;this._name='';this._remoteSeq=-1;this._remoteFingerprint=null;this._roomRev=-1;this._uiKey='';resetDuoSceneSync();if(duckModel)duckModel.visible=true;removeDuoRemoteDuck();removeDuoLocalNameLabel();document.getElementById('duo-hud').classList.remove('show')}
 };
+window.Duo=Duo; // 双人模块（scene-sync/remote-duck）通过全局守卫访问
 window.openDuoModal=function(){
     hideModeEntry();
     const code=(new URLSearchParams(location.search).get('duo')||'').replace(/\D/g,'').slice(0,6);
@@ -3279,11 +2526,11 @@ window.__gameState=()=>({
     remoteDuckPos:duoRemoteDuck?{x:Math.round(duoRemoteDuck.position.x*100)/100,y:Math.round(duoRemoteDuck.position.y*100)/100,z:Math.round(duoRemoteDuck.position.z*100)/100}:null,
     remoteDuckVisible:duoRemoteDuck?duoRemoteDuck.visible:null,
     remoteTarget:duoRemoteTarget?{x:Math.round(duoRemoteTarget.x*100)/100,z:Math.round(duoRemoteTarget.z*100)/100,sh:duoRemoteTarget.sh,mt:duoRemoteTarget.mt,cm:duoRemoteTarget.cm,bt:duoRemoteTarget.bt,iv:duoRemoteTarget.iv}:null,
-    remoteShieldVisible:duoRemoteShield?duoRemoteShield.visible:null,
-    remoteMagnetRingVisible:duoRemoteMagnetRing?duoRemoteMagnetRing.visible:null,
-    remoteMagnetParticlesVisible:duoRemoteMagParticles?duoRemoteMagParticles.visible:null,
-    remoteCrownVisible:duoRemoteCrown?duoRemoteCrown.visible:null,
-    remoteAuraVisible:duoRemoteAura?duoRemoteAura.visible:null,
+    remoteShieldVisible:(()=>{const fx=duoRemoteDebugFxSnapshot();return fx.shield?fx.shield.visible:null})(),
+    remoteMagnetRingVisible:(()=>{const fx=duoRemoteDebugFxSnapshot();return fx.ring?fx.ring.visible:null})(),
+    remoteMagnetParticlesVisible:(()=>{const fx=duoRemoteDebugFxSnapshot();return fx.particles?fx.particles.visible:null})(),
+    remoteCrownVisible:(()=>{const fx=duoRemoteDebugFxSnapshot();return fx.crown?fx.crown.visible:null})(),
+    remoteAuraVisible:(()=>{const fx=duoRemoteDebugFxSnapshot();return fx.aura?fx.aura.visible:null})(),
     remoteDuckScale:duoRemoteDuck?Math.round(duoRemoteDuck.scale.x*100)/100:null,
     sharkExists:typeof shark!=='undefined'&&shark?{x:Math.round(shark.g.position.x*100)/100,z:Math.round(shark.g.position.z*100)/100}:null,
     waveEventActive:typeof waveEventActive!=='undefined'?waveEventActive:null,
@@ -4900,7 +4147,7 @@ document.querySelectorAll('#set-skin .skin-opt').forEach(el=>el.onclick=()=>{app
         applyDuckSkin('custom');
     };
 });
-document.getElementById('set-joy').oninput=e=>{joySensitivity=Number(e.target.value)/100;localStorage.setItem('duck_joy_sensitivity',String(joySensitivity));document.getElementById('set-joy-val').textContent=joySensitivity.toFixed(1)};
+document.getElementById('set-joy').oninput=e=>{setJoySensitivity(Number(e.target.value)/100);localStorage.setItem('duck_joy_sensitivity',String(joySensitivity));document.getElementById('set-joy-val').textContent=joySensitivity.toFixed(1)};
 document.getElementById('set-retut').onclick=()=>{window.closeSettings();showTutorial()};
 document.getElementById('set-help').onclick=()=>{window.closeSettings();document.getElementById('help').classList.add('show')};
 applyGraphicsQuality(graphicsQuality);
@@ -5093,6 +4340,47 @@ setAchievementsCtx({
 });
 
 let gameClock=0,frameCount=0;const clock=new THREE.Clock();setCartoonSky(12);
+// ===== 阶段 7-8 迁移模块依赖注入（惰性求值：箭头函数/访问器在运行期才解引用） =====
+initDuoSceneSync({
+    gameActive:()=>gameActive,items,RESPAWNING_ITEM_TYPES,scheduleItemRespawn,scene,
+    gameClock:()=>gameClock,addGameClock:v=>gameClock+=v,globalEventTimer:()=>globalEventTimer,activeEvent:()=>activeEvent,activeEventTime:()=>activeEventTime,
+    syncState:{
+        waveSpeed:{get:()=>waveSpeed,set:v=>waveSpeed=v},
+        waveSpeedTarget:{get:()=>waveSpeedTarget,set:v=>waveSpeedTarget=v},
+        eventWaveTarget:{get:()=>eventWaveTarget,set:v=>eventWaveTarget=v},
+        globalEventTimer:{get:()=>globalEventTimer,set:v=>globalEventTimer=v},
+        activeEventTime:{get:()=>activeEventTime,set:v=>activeEventTime=v},
+        activeEvent:{get:()=>activeEvent,set:v=>activeEvent=v},
+        waveEventDir:{get:()=>waveEventDir,set:v=>waveEventDir=v},
+        waveEventStrength:{get:()=>waveEventStrength,set:v=>waveEventStrength=v},
+        waveEventActive:{get:()=>waveEventActive,set:v=>waveEventActive=v},
+        waveEventDuration:{get:()=>waveEventDuration,set:v=>waveEventDuration=v},
+        windActive:{get:()=>windActive,set:v=>windActive=v},
+        windSpeedMul:{get:()=>windSpeedMul,set:v=>windSpeedMul=v},
+        evWindDir:{get:()=>evWindDir,set:v=>evWindDir=v},
+        stormActive:{get:()=>stormActive,set:v=>stormActive=v},
+        rainbowActive:{get:()=>rainbowActive,set:v=>rainbowActive=v}
+    },
+    getShark:()=>shark,setDuoSharkTarget:v=>duoSharkTarget=v,getStormSync,applyStormSync,isFestival,
+    mkCake,mkRock,mkFlower,mkZongzi,mkGrass,mkLily,mkMagnet,mkHeart,magnetFxActive,
+    whirlpools,whirlZones,disposeWhirlpoolVisuals,mkWhirlpool,disposeItemVisual,
+    startEvent,endEvent,drawArrowTexture,arrowTex,arrowPlane,cur,spawnShark,removeShark
+});
+initDuoRemoteDuck({
+    scene,applyDuckSkinToRoot,mkWaveRing,waveHeight,
+    getRenderedWaveClock:()=>renderedWaveClock,getGameClock:()=>gameClock,getDuckModel:()=>duckModel,
+    magnetDashTex,crownGroup,auraMat,magnetPulse,glowTex,sparkTex,MAG_PARTICLES,
+    getMagnetRange,magnetVisualConfig,COMBO_MAGNET_RANGE
+});
+initDebugPanel({
+    getHearts:()=>hearts,setHearts:v=>hearts=v,getMaxHearts:()=>MAX_HEARTS,recordHealthTransition,
+    getScore:()=>score,setScore:v=>score=v,gameOver,
+    setPendingEvent:v=>pendingEvent=v,setWarnedFor:v=>warnedFor=v,
+    getActiveEvent:()=>activeEvent,endEvent,pickEvent,startEvent,setGlobalEventTimer:v=>globalEventTimer=v,
+    getBlessings:()=>Blessings,updateSettingsPanel,getDuckModel:()=>duckModel,isFestival,
+    mkCake,mkRock,mkFlower,mkZongzi,mkGrass,mkLily,mkMagnet,mkHeart,mkWhirlpool,whirlpools,scene,items
+});
+initControls({isMobile,mv,getDuckMaxSpeed:()=>DUCK_MAX_SPEED});
 let sceneShadersCompiled=false; // 首局开局后一次性预编译全部着色器，避免新材质首次渲染时同步编译造成卡顿
 let fpsAccum=0,fpsFrames=0,fpsValue=60;
 let lastShadowUpdateMs=0;

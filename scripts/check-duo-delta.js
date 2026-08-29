@@ -10,7 +10,7 @@ const acorn = require('acorn');
 const ROOT = path.resolve(__dirname, '..');
 
 function checkClientUploadCapabilityFallback() {
-    const source = fs.readFileSync(path.join(ROOT, 'js', 'main.js'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'js', 'duo', 'scene-sync.js'), 'utf8');
     const ast = acorn.parse(source, { ecmaVersion: 'latest', sourceType: 'module' });
     const wanted = new Set(['duoSameSerializedItem', 'duoBuildHostSceneUpload', 'duoAcceptHostSceneAck']);
     const declarations = ast.body.filter(node => node.type === 'FunctionDeclaration' && wanted.has(node.id?.name));
