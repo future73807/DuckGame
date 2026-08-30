@@ -257,14 +257,14 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 #gameover .go-score{font-size:14px;margin:3px 0;color:rgba(255,255,255,.75)}
 #gameover .go-score b{color:#fff;font-size:22px;font-weight:800}
 #gameover .go-best{font-size:11px;color:rgba(255,255,255,.45);margin-bottom:6px}
-#gameover .go-highlight{--highlight-rgb:255,205,103;display:flex;align-items:center;justify-content:center;gap:5px;max-width:100%;min-height:25px;margin:0 0 9px;padding:4px 10px;box-sizing:border-box;border:1px solid rgba(var(--highlight-rgb),.2);border-radius:999px;background:linear-gradient(100deg,rgba(var(--highlight-rgb),.11),rgba(var(--highlight-rgb),.035));color:rgba(255,255,255,.88);font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+#gameover .go-highlight{--highlight-rgb:255,205,103;display:flex;align-items:center;justify-content:center;gap:5px;max-width:100%;min-height:25px;margin:0 0 9px;padding:4px 10px;box-sizing:border-box;border:1px solid rgba(15,23,36,.08);border-radius:999px;background:#fff;color:#223041;font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 #gameover .go-highlight[data-kind="multiplier"],#gameover .go-highlight[data-kind="combo"]{--highlight-rgb:255,202,83}
 #gameover .go-highlight[data-kind="collection"],#gameover .go-highlight[data-kind="collector"],#gameover .go-highlight[data-kind="streak"]{--highlight-rgb:99,220,255}
 #gameover .go-highlight[data-kind="clutch"],#gameover .go-highlight[data-kind="survivor"],#gameover .go-highlight[data-kind="rescue"]{--highlight-rgb:255,126,145}
 #gameover .go-highlight-icon{flex:0 0 auto;color:rgb(var(--highlight-rgb));font-size:12px}
 #gameover .go-highlight-icon:empty{display:none}
-#gameover .go-highlight-label{flex:0 0 auto;color:rgba(var(--highlight-rgb),.86);font-weight:800}
-#gameover .go-highlight-text{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:650}
+#gameover .go-highlight-label{flex:0 0 auto;color:rgba(30,42,58,.75);font-weight:800}
+#gameover .go-highlight-text{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:650;color:#1c2733}
 #gameover .go-name{padding:7px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;font-size:13px;text-align:center;width:160px;outline:none}
 #gameover .go-name:focus{border-color:rgba(255,255,255,.5)}
 #gameover .go-name-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px}

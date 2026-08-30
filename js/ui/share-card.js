@@ -299,12 +299,10 @@ async function generateShareCardDataURL(){
     const hlLabelW=ctx.measureText(hlLabel).width;
     const hlBody=ellipsizeText(ctx,hlBodyRaw,highlightMaxW-hlLabelW-58);
     const highlightW=Math.min(highlightMaxW,Math.ceil(hlLabelW+ctx.measureText(hlBody).width)+58);
-    const highlightBg=ctx.createLinearGradient(highlightX,0,highlightX+highlightW,0);
-    highlightBg.addColorStop(0,`rgba(${highlightRGB.join(',')},.16)`);
-    highlightBg.addColorStop(1,`rgba(${highlightRGB.join(',')},.045)`);
-    ctx.fillStyle=highlightBg;
+    // 白色胶囊：白底 + 彩色星芒 + 深色文字，在深色卡面上更清爽
+    ctx.fillStyle='#ffffff';
     roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.fill();
-    ctx.strokeStyle=`rgba(${highlightRGB.join(',')},.28)`;ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(15,23,36,.08)';ctx.lineWidth=1;
     roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.stroke();
     // 矢量四芒星图标（纯色平涂，不加发光）
     ctx.save();
@@ -314,11 +312,11 @@ async function generateShareCardDataURL(){
     for(let i=0;i<8;i++){const a=-Math.PI/2+i*Math.PI/4,r=i%2?3:8.5;const px=sparkX+Math.cos(a)*r,py=highlightY+Math.sin(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}
     ctx.closePath();ctx.fill();
     ctx.restore();
-    // 两段文字：标签用高光色，正文用白色
+    // 两段文字：标签用中性深灰，正文用近黑
     ctx.textBaseline='middle';
-    ctx.fillStyle=`rgb(${highlightRGB.join(',')})`;
+    ctx.fillStyle='rgba(30,42,58,.78)';
     ctx.fillText(hlLabel,highlightX+42,highlightY+1);
-    ctx.fillStyle='rgba(255,255,255,.92)';
+    ctx.fillStyle='rgba(15,23,36,.92)';
     ctx.fillText(hlBody,highlightX+42+hlLabelW,highlightY+1);
     ctx.textBaseline='alphabetic';
     // ===== 底部 URL 区（对应 sm-bottom）=====
