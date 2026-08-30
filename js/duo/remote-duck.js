@@ -39,7 +39,11 @@ export function duoOffsetXFor(role){return role==='guest'?3.5:role==='host'?-3.5
 export function createDuoNameLabel(name){
     const labelCanvas=document.createElement('canvas');labelCanvas.width=360;labelCanvas.height=96;
     const lctx=labelCanvas.getContext('2d');lctx.fillStyle='rgba(9,15,26,.76)';lctx.roundRect(8,8,344,80,38);lctx.fill();
-    lctx.fillStyle='#fff';lctx.font='600 38px -apple-system, BlinkMacSystemFont, sans-serif';lctx.textAlign='center';lctx.textBaseline='middle';lctx.fillText(name||'鸭鸭',180,49);
+    // 昵称最长 12 个汉字：字号按实测宽度收缩，避免超出画布被左右边缘硬切
+    const txt=name||'鸭鸭';let fontSize=38;
+    lctx.font=`600 ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    while(fontSize>20&&lctx.measureText(txt).width>328){fontSize-=2;lctx.font=`600 ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`}
+    lctx.fillStyle='#fff';lctx.textAlign='center';lctx.textBaseline='middle';lctx.fillText(txt,180,49);
     const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(labelCanvas),transparent:true,depthTest:false,depthWrite:false}));label.userData.duoNameLabel=true;label.userData.duoName=name||'鸭鸭';
     // 漩涡是 renderOrder 4..8 的透明层；名字必须最后绘制，且不能污染深度缓冲。
     label.renderOrder=2000;label.position.set(0,2.7,0);label.scale.set(2.7,.72,1);return label;
