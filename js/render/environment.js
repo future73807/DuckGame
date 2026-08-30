@@ -271,7 +271,7 @@ export function createEnvironment(ctx){
     let hostBoltSyncSeq=-Infinity,hostBoltSyncNext=-Infinity;
     const stormDebug={updates:0,totalTriggers:0,lastTriggers:0,maxTriggersPerUpdate:0,thunderCalls:0,audioBuffersCreated:0,camShakeWrites:0,lastUpdateMs:0,maxUpdateMs:0,lastThunderBuildMs:0,maxThunderBuildMs:0,enteredAt:null,history:[]};
     const rainDrops=[];for(let i=0;i<190;i++)rainDrops.push({x:duoRand(i+1),y:duoRand(i*7+3),v:.7+duoRand(i*13+5)*.6,l:.02+duoRand(i*17+7)*.03,a:.15+duoRand(i*23+11)*.3});
-    const mistBlobs=[];for(let i=0;i<8;i++)mistBlobs.push({x:duoRand(i*31+13),y:.55+duoRand(i*37+17)*.5,r:.18+duoRand(i*41+19)*.22,vx:(duoRand(i*43+23)-.5)*.02,ph:duoRand(i*47+29)*6});
+    const mistBlobs=[];for(let i=0;i<8;i++)mistBlobs.push({x:duoRand(i*31+13),y:.55+duoRand(i*37+17)*.5,r:.18+duoRand(i*41+19)*.22,vx:(duoRand(i*43+23)-.5)*.02,ph:duoRand(i*47+29)*6,g:null});
     let boltLife=0,boltPts=[],boltBranches=[];
     function genBolt(seed){
         boltPts=[];boltBranches=[];
@@ -374,9 +374,11 @@ export function createEnvironment(ctx){
                 b.x+=b.vx*dt;b.ph+=dt*.3;
                 if(b.x<-.2)b.x=1.2;if(b.x>1.2)b.x=-.2;
                 const bx=b.x*W,by=(b.y+Math.sin(b.ph)*.03)*H,br=b.r*Math.max(W,H);
-                const g=x.createRadialGradient(bx,by,0,bx,by,br);
-                g.addColorStop(0,'rgba(205,220,238,'+(.1*sf)+')');g.addColorStop(1,'rgba(205,220,238,0)');
-                x.fillStyle=g;x.fillRect(bx-br,by-br,br*2,br*2);
+                // 单位半径渐变随 translate/scale 移动缩放，不再每帧 createRadialGradient（GC 卡顿根因之一）
+                if(!b.g){b.g=x.createRadialGradient(0,0,0,0,0,1);b.g.addColorStop(0,'rgba(205,220,238,.1)');b.g.addColorStop(1,'rgba(205,220,238,0)')}
+                x.save();x.translate(bx,by);x.scale(br,br);
+                x.globalAlpha=sf;x.fillStyle=b.g;x.fillRect(-1,-1,2,2);
+                x.restore();
             }
             const g2=x.createLinearGradient(0,H*.6,0,H);
             g2.addColorStop(0,'rgba(190,205,228,0)');g2.addColorStop(1,'rgba(190,205,228,'+(.16*sf)+')');

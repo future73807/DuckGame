@@ -3411,6 +3411,7 @@ const FestivalFx={
 };
 window.__festivalFxTest={
     info:()=>FestivalFx.info(),
+    screen:()=>festivalScreenFx,
     themes:()=>FESTIVAL_SCREEN_FX_IDS.map(id=>({id,label:FESTIVAL_SCREEN_FX_THEMES[id].label,theme:FESTIVAL_SCREEN_FX_THEMES[id].theme,mode:FESTIVAL_SCREEN_FX_THEMES[id].mode,palette:[...FESTIVAL_SCREEN_FX_THEMES[id].palette],quality:{...FESTIVAL_SCREEN_FX_THEMES[id].quality}})),
     particles:()=>FestivalFx.screen.getParticleSnapshot(),
     playIntro:()=>FestivalFx.playIntro(),

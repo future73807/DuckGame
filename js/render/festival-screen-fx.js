@@ -498,16 +498,37 @@ class FestivalScreenFx{
         const mode=this.theme?.mode,reach=Math.max(40,Math.min(W,H)*.46),detail=this.quality==='low'?1:2;
         // 冬至的冰窗花/腊八的水珠雾气结构都在 resize 时一次性预生成；
         // 渐变缓存避免每帧重复 createRadialGradient/addColorStop 造成 GC 卡顿（掉帧根因之一）。
+        // 静态图层（霜雾打底/贴边亮带/雾团/微珠/水珠）进一步预烘焙到每角离屏画布：
+        // 运行时每角只做一次 drawImage + 整体透明度，彻底消除每帧的大面积渐变填充与数百次路径操作。
+        const bake=(w,h,draw)=>{
+            if(!this.document?.createElement)return null;
+            const cv=this.document.createElement('canvas');cv.width=Math.max(1,Math.round(w*this.resolution));cv.height=Math.max(1,Math.round(h*this.resolution));
+            const b=cv.getContext&&cv.getContext('2d');if(!b)return null;
+            b.setTransform(this.resolution,0,0,this.resolution,0,0);draw(b);
+            return cv;
+        };
         if(mode==='winter'){
             // 冬至冰花范围更收敛：只从角落向内蔓延短边约 30%，不再铺满整块屏角。
             const wreach=Math.max(28,Math.min(W,H)*.3);
-            this.paint.frost=[0,1,2,3].map(corner=>buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),wreach,detail));
-            // 霜雾渐变改为角落局部坐标，绘制时套用 cornerTransform 与生长缩放，随整簇冰花一起明灭。
-            this.paint.wash=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach);g.addColorStop(0,'rgba(226,247,255,.38)');g.addColorStop(.55,'rgba(208,238,255,.15)');g.addColorStop(1,'rgba(208,238,255,0)');return g});
-            // 角部核心辉光 + 贴边亮带：对应参考实拍中窗框处浓密发光的冰晶带。
-            this.paint.core=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach*.58);g.addColorStop(0,'rgba(242,251,255,.5)');g.addColorStop(.6,'rgba(224,244,255,.2)');g.addColorStop(1,'rgba(224,244,255,0)');return g});
-            // 贴边亮带用径向渐变在绘制时沿边压扁成椭圆：沿边可延伸 1.15×reach、向内衰减到 .3×reach，双向都无硬边。
-            this.paint.rim=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach*1.15);g.addColorStop(0,'rgba(240,251,255,.55)');g.addColorStop(.45,'rgba(224,244,255,.22)');g.addColorStop(1,'rgba(222,242,255,0)');return g});
+            this.paint.frost=[0,1,2,3].map(corner=>{
+                const frost=buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),wreach,detail);
+                // 宽度分桶在构建期完成一次，运行时不再逐帧分类
+                frost.buckets=[[],[],[],[]];
+                for(const sg of frost.segs){const b=sg.w<.4?0:sg.w<.75?1:sg.w<1.15?2:3;frost.buckets[b].push(sg)}
+                return frost;
+            });
+            // 霜雾打底 + 角部核心辉光 + 贴边亮带：预烘焙为单张离屏图层。
+            const S=Math.ceil(wreach*1.15)+2;
+            this.paint.backdrop=[0,1,2,3].map(()=>bake(S,S,b=>{
+                b.fillStyle='rgba(226,247,255,.38)';const wash=b.createRadialGradient(0,0,0,0,0,wreach);wash.addColorStop(0,'rgba(226,247,255,.38)');wash.addColorStop(.55,'rgba(208,238,255,.15)');wash.addColorStop(1,'rgba(208,238,255,0)');
+                b.fillStyle=wash;b.fillRect(0,0,wreach,wreach);
+                const core=b.createRadialGradient(0,0,0,0,0,wreach*.58);core.addColorStop(0,'rgba(242,251,255,.5)');core.addColorStop(.6,'rgba(224,244,255,.2)');core.addColorStop(1,'rgba(224,244,255,0)');
+                b.fillStyle=core;b.fillRect(0,0,wreach*.62,wreach*.62);
+                // 贴边亮带：径向渐变沿边压扁成椭圆，双向平滑无硬边
+                const rim=b.createRadialGradient(0,0,0,0,0,wreach*1.15);rim.addColorStop(0,'rgba(240,251,255,.55)');rim.addColorStop(.45,'rgba(224,244,255,.22)');rim.addColorStop(1,'rgba(222,242,255,0)');
+                b.save();b.scale(1,.3);b.fillStyle=rim;b.fillRect(0,0,S,S);b.restore();
+                b.save();b.scale(.3,1);b.fillStyle=rim;b.fillRect(0,0,S,S);b.restore();
+            }));
         }else if(mode==='laba'){
             this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,corner>1?-1:1,detail));
             // 角部核心浓雾 + 4 团错落薄雾：叠加出参考实拍那种整面磨砂、明暗不均的雾层。
@@ -524,6 +545,33 @@ class FestivalScreenFx{
                 }
                 return blobs;
             });
+            // 整角静态层（雾团+微珠+水珠）预烘焙为单张离屏画布：运行时每角一次 drawImage。
+            const S=Math.ceil(reach)+24;
+            this.paint.layer=[0,1,2,3].map(corner=>bake(S,S,b=>{
+                for(const bl of this.paint.mist[corner]){b.fillStyle=bl.g;b.fillRect(bl.x-bl.r,bl.y-bl.r,bl.r*2,bl.r*2)}
+                const paint=this.paint.drops[corner];
+                for(let shade=0;shade<2;shade++){
+                    b.globalAlpha=shade?.6:.3;b.fillStyle='rgba(244,248,253,.9)';
+                    b.beginPath();
+                    for(const m of paint.micro){if(m.shade!==shade)continue;b.moveTo(m.x+m.r*m.el,m.y);b.ellipse(m.x,m.y,m.r*m.el,m.r,0,0,TAU)}
+                    b.fill();
+                }
+                for(const d of paint.falls){
+                    if(d.streak>0){
+                        b.globalAlpha=.3;b.strokeStyle='rgba(238,245,251,.8)';b.lineWidth=Math.max(.6,d.r*.42);
+                        b.beginPath();b.moveTo(d.x+d.wob,d.y+d.r*.4);b.lineTo(d.x+d.wob*2,d.y+d.dir*d.streak);b.stroke();
+                        b.globalAlpha=.16;b.lineWidth=Math.max(.4,d.r*.2);
+                        b.beginPath();b.moveTo(d.x+d.wob*2,d.y+d.dir*d.streak*.5);b.lineTo(d.x+d.wob*2.6,d.y+d.dir*d.streak);b.stroke();
+                    }
+                    b.globalAlpha=.2;b.fillStyle='rgba(186,201,214,.8)';
+                    b.beginPath();b.ellipse(d.x+d.r*.16,d.y+d.r*.2,d.r,d.r*d.el,0,0,TAU);b.fill();
+                    b.globalAlpha=.62;b.fillStyle='rgba(240,246,252,.95)';
+                    b.beginPath();b.ellipse(d.x,d.y,d.r,d.r*d.el,0,0,TAU);b.fill();
+                    b.globalAlpha=.34;b.fillStyle='#fff';
+                    b.beginPath();b.ellipse(d.x-d.r*.32,d.y-d.r*.3*d.el,d.r*.38,d.r*.38*d.el,0,0,TAU);b.fill();
+                }
+                b.globalAlpha=1;
+            }));
         }
     }
     _draw(){
@@ -559,68 +607,53 @@ class FestivalScreenFx{
                 const t=((this.age/FROST_BLOOM_PERIOD+phase)%1+1)%1;
                 const reveal=t<.22?smoothstep(0,.22,t):(t<.5?1:(t<.72?1-smoothstep(.5,.72,t):0));
                 c.save();cornerTransform(c,corner,W,H);
-                c.globalAlpha=env*.5;c.fillStyle=this.paint.wash?.[corner]||'rgba(226,247,255,.34)';c.fillRect(0,0,reach,reach);
-                c.globalAlpha=env*.55;c.fillStyle=this.paint.core?.[corner]||'rgba(242,251,255,.4)';c.fillRect(0,0,reach*.62,reach*.62);
-                if(this.paint.rim?.[corner]){
-                    c.save();c.scale(1,.3);c.globalAlpha=env*.48;c.fillStyle=this.paint.rim[corner];c.fillRect(0,0,reach*1.15,reach*1.15);c.restore();
-                    c.save();c.scale(.3,1);c.globalAlpha=env*.48;c.fillStyle=this.paint.rim[corner];c.fillRect(0,0,reach*1.15,reach*1.15);c.restore();
-                }
+                // 静态霜雾层（打底+核心辉光+贴边亮带）已预烘焙：一次 drawImage，整体随 env 明灭
+                const backdrop=this.paint.backdrop?.[corner];
+                if(backdrop)c.drawImage(backdrop,0,0,Math.ceil(reach*1.15)+2,Math.ceil(reach*1.15)+2);
                 const frost=this.paint.frost?.[corner];
                 if(frost){
-                    const buckets=[[],[],[],[]];
-                    for(const sg of frost.segs){const b=sg.w<.4?0:sg.w<.75?1:sg.w<1.15?2:3;buckets[b].push(sg)}
+                    const buckets=frost.buckets;
                     // 柔光层：宽幅淡青，把成百根冰针晕成整片发光冰晶带
                     strokeGrown(buckets,reveal,'#b8e0fc',[.07,.1,.13,.17],[3.4,4.4,5.6,6.8]);
                     // 冰晶层：中宽冰蓝主体
                     strokeGrown(buckets,reveal,'#d8f1ff',[.24,.34,.44,.54],[.55,.85,1.2,1.6]);
                     // 高亮层：纤细亮白结晶线
                     strokeGrown(buckets,reveal,'#ffffff',[.4,.5,.6,.68],[.26,.4,.55,.72]);
-                    // 冰粒：细碎霜花点，独立相位微闪，随生长前沿逐粒点亮、随消融前沿逐粒隐去
-                    c.fillStyle='#ffffff';
-                    for(const d of frost.dots){
-                        const k=clamp((reveal-d.grow)/edge,0,1);if(k<=0)continue;
-                        c.globalAlpha=(.3+.4*(.5+.5*Math.sin(this.age*1.3+d.phase)))*k;
-                        c.beginPath();c.arc(d.x,d.y,d.r,0,TAU);c.fill();
+                    // 冰粒：按最终透明度分 6 桶批量绘制（原逐粒 fill 一次太贵），保留独立相位闪烁
+                    const dots=frost.dots,LVL=6,step=.7/LVL;
+                    if(dots.length){
+                        if(!(this._dotBucket&&this._dotBucket.length>=dots.length))this._dotBucket=new Uint8Array(dots.length);
+                        const bucket=this._dotBucket;
+                        for(let i=0;i<dots.length;i++){
+                            const d=dots[i],k=clamp((reveal-d.grow)/edge,0,1);
+                            const a=(.3+.4*(.5+.5*Math.sin(this.age*1.3+d.phase)))*k;
+                            bucket[i]=a<step*.5?255:Math.min(LVL-1,Math.floor(a/step));
+                        }
+                        c.fillStyle='#ffffff';
+                        for(let lvl=0;lvl<LVL;lvl++){
+                            c.globalAlpha=step*(lvl+.5);
+                            c.beginPath();
+                            for(let i=0;i<dots.length;i++){if(bucket[i]!==lvl)continue;const d=dots[i];c.moveTo(d.x+d.r,d.y);c.arc(d.x,d.y,d.r,0,TAU)}
+                            c.fill();
+                        }
                     }
                 }
                 c.restore();
             }
             c.globalAlpha=1;
         }else if(mode==='laba'){
-            // 角落磨砂水雾（对照实拍雾窗重做）：角部核心浓雾 + 4 团错落薄雾叠成整面磨砂，
-            // 细密微珠分两种明暗批量铺底，中大水珠带底部微影、左上高光与微弯下淌尾痕；
+            // 角落磨砂水雾（对照实拍雾窗重做）：雾团+微珠+水珠整角静态层已预烘焙为离屏画布，
+            // 每角每帧只做一次 drawImage（呼吸×包络整体透明度），彻底消除每帧的大面积渐变填充与数百次路径操作；
             // 每个角按 labaMistEnvelope 缓慢「出现→消失→再出现」，四角相位错开，呼吸微动叠加其上。
-            const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46);
+            const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46),S=Math.ceil(reach)+24;
             for(let corner=0;corner<4;corner++){
                 const env=labaMistEnvelope(this.age,corner*.17);
                 if(env<=.004)continue;
+                const layer=this.paint.layer?.[corner];
+                if(!layer)continue;
                 c.save();cornerTransform(c,corner,W,H);
-                for(const bl of this.paint.mist?.[corner]||[]){c.globalAlpha=breath*env;c.fillStyle=bl.g;c.fillRect(bl.x-bl.r,bl.y-bl.r,bl.r*2,bl.r*2)}
-                const paint=this.paint.drops?.[corner];
-                if(paint){
-                    // 细密微珠：两种明暗各合并成一次填充，铺出雾面凝结颗粒感
-                    for(let shade=0;shade<2;shade++){
-                        c.globalAlpha=breath*env*(shade?.66:.36);c.fillStyle='rgba(244,248,253,.9)';
-                        c.beginPath();
-                        for(const m of paint.micro){if(m.shade!==shade)continue;c.moveTo(m.x+m.r*m.el,m.y);c.ellipse(m.x,m.y,m.r*m.el,m.r,0,0,TAU)}
-                        c.fill();
-                    }
-                    // 中大水珠：底部微影增加立体感 + 主体 + 左上高光；挂尾痕的先画渐细水线
-                    for(const d of paint.falls){
-                        if(d.streak>0){
-                            c.globalAlpha=breath*env*.3;c.strokeStyle='rgba(238,245,251,.8)';c.lineWidth=Math.max(.6,d.r*.42);
-                            c.beginPath();c.moveTo(d.x+d.wob,d.y+d.r*.4);c.lineTo(d.x+d.wob*2,d.y+d.dir*d.streak);c.stroke();
-                            c.globalAlpha=breath*env*.16;c.lineWidth=Math.max(.4,d.r*.2);
-                            c.beginPath();c.moveTo(d.x+d.wob*2,d.y+d.dir*d.streak*.5);c.lineTo(d.x+d.wob*2.6,d.y+d.dir*d.streak);c.stroke();
-                        }
-                        c.globalAlpha=breath*env*.2;c.fillStyle='rgba(186,201,214,.8)';
-                        c.beginPath();c.ellipse(d.x+d.r*.16,d.y+d.r*.2,d.r,d.r*d.el,0,0,TAU);c.fill();
-                        c.globalAlpha=breath*env*.62;c.fillStyle='rgba(240,246,252,.95)';
-                        c.beginPath();c.ellipse(d.x,d.y,d.r,d.r*d.el,0,0,TAU);c.fill();
-                        c.globalAlpha=breath*env*.34;c.fillStyle='#fff';
-                        c.beginPath();c.ellipse(d.x-d.r*.32,d.y-d.r*.3*d.el,d.r*.38,d.r*.38*d.el,0,0,TAU);c.fill();
-                    }
-                }
+                c.globalAlpha=breath*env;
+                c.drawImage(layer,0,0,S,S);
                 c.globalAlpha=1;c.restore();
             }
         }
