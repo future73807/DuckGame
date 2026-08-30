@@ -27,7 +27,7 @@ function ensureQRCodeLib(){
     return new Promise((resolve)=>{
         if(typeof QRCode!=='undefined'){resolve();return}
         const s=document.createElement('script');
-        s.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        s.src='./vendor/qrcode/qrcode.min.js';
         s.onload=()=>resolve();
         s.onerror=()=>resolve();
         document.head.appendChild(s);
