@@ -128,41 +128,57 @@ function drawGhostFlame(ctx,s,quality){
 // 局部确定性 PRNG：种子固定则序列固定，用于一次性预生成分形/水珠结构（仅在 resize 时重建）。
 function makeRng(seed){let x=(seed>>>0)||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}}
 
-// 四角冰窗花：从角落(0,0)向屏内扇形展开的冰晶蕨丛 + 细碎冰粒。
-// 每根蕨带自然曲率（向尖端渐直），两侧羽枝长短交错、末梢再分细杈，主干粗细向尖端收敛；
-// 冰粒沿主干与角落周边撒开，形成霜花颗粒质感。detail≤1（低档）减少蕨数与羽枝密度。
+// 四角冰窗花：对照实拍结霜窗（浓密羽状冰晶丛）重做 —— 三层结构：
+//   1) 贴边冰针带：沿两条屏幕边密排细短冰针，越靠角落越密，营造「冻住窗框」的浓密亮边；
+//   2) 羽状冰针丛：主茎从角落小范围丛生，几乎垂直的成对短羽枝向尖端渐细渐短，蓬松如羽毛；
+//   3) 游离碎霜：冰丛前沿与缝隙间散落小冰粒，补出颗粒闪烁感。
+// 每段仍带 grow（0=紧贴角落，1=最远端）：生长按它逐段点亮、消融按它从枝梢逐段退去。
 function buildCornerFrost(rng,reach,detail){
-    // 每段都带 grow（0=紧贴角落，1=最远端），生长动画按它逐段点亮：主干先长、羽枝随后、细杈最后。
-    const segs=[],dots=[],fronds=detail<=1?4:6+Math.floor(rng()*2),steps=detail<=1?10:14,spread=1.12;
-    for(let f=0;f<fronds;f++){
-        const angle=.1+spread*(fronds>1?f/(fronds-1):.5)+(rng()-.5)*.12,len=reach*(.5+rng()*.42);
-        const curve=(rng()-.5)*.3,spine=[];
-        let x=0,y=0,a=angle;
+    const segs=[],dots=[],low=detail<=1;
+    // ---- 贴边冰针带 ----
+    const edgeCount=low?16:34;
+    for(let e=0;e<2;e++)for(let i=0;i<edgeCount;i++){
+        const d=Math.pow(rng(),1.8)*reach*1.1,off=(rng()-.5)*5,bx=(e?d:off),by=(e?off:d),base=e?Math.PI/2:0;
+        const a=base+(rng()-.5)*1.15,len=reach*(.04+rng()*.17)*(1-.45*d/(reach*1.2));
+        const ex=bx+Math.cos(a)*len,ey=by+Math.sin(a)*len,g=clamp(d/(reach*1.08),0,1);
+        segs.push({x1:bx,y1:by,x2:ex,y2:ey,w:.45+rng()*.55,tip:.04+g*.3,grow:g*.6});
+        if(!low&&rng()<.65){const fa=a+(rng()<.5?1:-1)*(.9+rng()*.7),fl=len*(.3+rng()*.5);
+            segs.push({x1:ex,y1:ey,x2:ex+Math.cos(fa)*fl,y2:ey+Math.sin(fa)*fl,w:.3+rng()*.3,tip:.08+g*.3,grow:g*.6+.05})}
+    }
+    // ---- 羽状冰针丛 ----
+    const plumes=low?8:15+Math.floor(rng()*3),steps=low?9:13;
+    for(let f=0;f<plumes;f++){
+        const angle=.05+1.14*(plumes>1?f/(plumes-1):.5)+(rng()-.5)*.13;
+        const len=reach*(.4+Math.pow(rng(),1.15)*.52),curve=(rng()-.5)*.45,spine=[];
+        let x=rng()*reach*.05,y=rng()*reach*.05,a=angle;
         for(let s=0;s<steps;s++){
-            const sl=len/steps;a+=curve*(1-s/steps)*.5;
+            const sl=len/steps;a+=curve*(1-s/steps)*.6;
             const nx=x+Math.cos(a)*sl,ny=y+Math.sin(a)*sl;spine.push([x,y,nx,ny,a]);x=nx;y=ny;
         }
-        spine.forEach(([px,py,nx,ny],i)=>{
-            const t=i/spine.length;segs.push({x1:px,y1:py,x2:nx,y2:ny,w:1.5*(1-t*.86)+.24,tip:t,grow:t});
-            if(t<.05)return;if(detail<=1&&i%2)return;
-            const ba=Math.atan2(ny-py,nx-px),br=(1-t)*reach*.3*(.5+rng()*.55),bw=.95*(1-t)+.12;
+        spine.forEach(([px,py,nx,ny,sa],i)=>{
+            const t=i/spine.length,g=t*.92;
+            segs.push({x1:px,y1:py,x2:nx,y2:ny,w:1.2*(1-t*.82)+.18,tip:t,grow:g});
+            if(t<.03||(low&&i%2))return;
+            const br=(1-t)*reach*.15*(.4+rng()*.7),bw=.46*(1-t)+.13;
             for(const dir of[1,-1]){
-                const sa=ba+dir*(Math.PI*.4+(rng()-.5)*.22);
-                const ex=nx+Math.cos(sa)*br,ey=ny+Math.sin(sa)*br;
-                segs.push({x1:nx,y1:ny,x2:ex,y2:ey,w:bw,tip:t+.04,grow:t+.05});
-                if(t<.68&&detail>1&&rng()<.55){
-                    const ba2=sa+dir*(rng()-.5)*.9,bl2=br*(.45+rng()*.35);
-                    segs.push({x1:ex,y1:ey,x2:ex+Math.cos(ba2)*bl2,y2:ey+Math.sin(ba2)*bl2,w:bw*.5,tip:t+.1,grow:t+.12});
-                }
+                if(rng()<.08)continue; // 偶尔缺一根羽枝，打破鱼骨般的规律感
+                // 羽枝向前掠扫（约 40–65°）而非严格垂直，长度随机拉开，蓬松接近实拍羽毛霜
+                const fa=sa+dir*(.7+rng()*.45),ex=nx+Math.cos(fa)*br,ey=ny+Math.sin(fa)*br;
+                segs.push({x1:nx,y1:ny,x2:ex,y2:ey,w:bw,tip:t+.03,grow:g+.045});
+                if(!low&&t<.72&&rng()<.55){const fa2=fa+dir*(.12+rng()*.32),bl=br*(.3+rng()*.35);
+                    segs.push({x1:ex,y1:ey,x2:ex+Math.cos(fa2)*bl,y2:ey+Math.sin(fa2)*bl,w:bw*.42,tip:t+.08,grow:g+.09})}
+                // 内半段再加一对更短的贴茎绒羽，堆出实拍霜羽的厚度
+                if(!low&&t<.5&&rng()<.6){const fb=sa-dir*(.85+rng()*.3),bl=br*(.4+rng()*.35);
+                    segs.push({x1:nx,y1:ny,x2:nx+Math.cos(fb)*bl,y2:ny+Math.sin(fb)*bl,w:bw*.7,tip:t+.04,grow:g+.06})}
             }
         });
-        // 主干上的冰粒（随主干生长点亮）
-        spine.forEach(([px,py],i)=>{if(i%2||rng()>.55)return;dots.push({x:px+(rng()-.5)*3.2,y:py+(rng()-.5)*3.2,r:.45+rng()*.9,phase:rng()*TAU,grow:i/spine.length})});
+        spine.forEach(([px,py],i)=>{if(rng()>.45)return;dots.push({x:px+(rng()-.5)*3,y:py+(rng()-.5)*3,r:.35+rng()*.75,phase:rng()*TAU,grow:(i/spine.length)*.92+.03})});
     }
-    // 游离冰粒：贴近角落向屏内撒开，按离角距离顺序生长
-    for(let i=0;i<(detail<=1?16:30);i++){
-        const ang=rng()*Math.PI*.5,dist=Math.pow(rng(),1.3)*reach*.95;
-        dots.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:.4+rng()*1.1,phase:rng()*TAU,grow:dist/reach});
+    // ---- 游离碎霜 ----
+    const loose=low?16:48;
+    for(let i=0;i<loose;i++){
+        const ang=rng()*Math.PI*.5,dist=Math.pow(rng(),1.3)*reach;
+        dots.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:.3+rng()*.9,phase:rng()*TAU,grow:dist/reach*.92});
     }
     return{segs,dots};
 }
@@ -188,16 +204,23 @@ export function labaMistEnvelope(age,phase){
     return 0;
 }
 
-// 角落凝结的水珠位置（相对角落，朝中心方向散布）：用 r^1.6 偏置让水珠密集贴近角落，
-// 大小/拉长比差异更大，部分水珠带往下垂的尾痕，模拟窗面结露后挂珠淌水的凌乱质感。
-function buildCornerDrops(rng,reach,count,streakDir){
-    const drops=[];
-    for(let i=0;i<count;i++){
-        const rr=Math.pow(rng(),1.6),dist=Math.sqrt(rr)*reach,ang=rng()*Math.PI*.5;
-        const big=rng()<.14,r=(big?2.4:1)+rng()*(big?2.6:1.8),el=1+rng()*(big?.5:.9);
-        drops.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r,el,streak:rng()<.35?3+rng()*9:0,dir:streakDir});
+// 角落凝结的水珠（对照实拍雾窗重做）：细密微珠铺满近整角形成雾面颗粒感，
+// 中大水珠带高光与微偏移的底部阴影，部分挂微微摆弯的下淌尾痕。
+// 返回 {micro,falls}：micro 按两种明暗分组批量绘制，falls 逐颗绘制。
+function buildCornerDrops(rng,reach,streakDir,detail){
+    const micro=[],falls=[],low=detail<=1;
+    const mCount=low?120:320;
+    for(let i=0;i<mCount;i++){
+        const dist=Math.sqrt(rng())*reach*1.02,ang=rng()*Math.PI*.5;
+        micro.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r:.4+rng()*.95,el:1+rng()*.6,shade:rng()<.55?0:1});
     }
-    return drops;
+    const fCount=low?10:18;
+    for(let i=0;i<fCount;i++){
+        const dist=Math.sqrt(Math.pow(rng(),1.35))*reach,ang=rng()*Math.PI*.5;
+        const big=rng()<.16,r=(big?2.2:1.1)+rng()*(big?2.2:1.5),el=1+rng()*(big?.45:.85);
+        falls.push({x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,r,el,streak:rng()<.32?4+rng()*11:0,dir:streakDir,wob:(rng()-.5)*4});
+    }
+    return{micro,falls};
 }
 
 // 四角通用变换：把角落局部坐标(0,0=角，+x,+y 朝中心)映射到屏幕。
@@ -476,14 +499,22 @@ class FestivalScreenFx{
             this.paint.frost=[0,1,2,3].map(corner=>buildCornerFrost(makeRng((this.seed+corner*2654435761)>>>0),wreach,detail));
             // 霜雾渐变改为角落局部坐标，绘制时套用 cornerTransform 与生长缩放，随整簇冰花一起明灭。
             this.paint.wash=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach);g.addColorStop(0,'rgba(226,247,255,.38)');g.addColorStop(.55,'rgba(208,238,255,.15)');g.addColorStop(1,'rgba(208,238,255,0)');return g});
+            // 角部核心辉光 + 贴边亮带：对应参考实拍中窗框处浓密发光的冰晶带。
+            this.paint.core=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach*.58);g.addColorStop(0,'rgba(242,251,255,.5)');g.addColorStop(.6,'rgba(224,244,255,.2)');g.addColorStop(1,'rgba(224,244,255,0)');return g});
+            // 贴边亮带用径向渐变在绘制时沿边压扁成椭圆：沿边可延伸 1.15×reach、向内衰减到 .3×reach，双向都无硬边。
+            this.paint.rim=[0,1,2,3].map(()=>{const g=c.createRadialGradient(0,0,0,0,0,wreach*1.15);g.addColorStop(0,'rgba(240,251,255,.55)');g.addColorStop(.45,'rgba(224,244,255,.22)');g.addColorStop(1,'rgba(222,242,255,0)');return g});
         }else if(mode==='laba'){
-            this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,Math.max(10,Math.ceil(Math.max(W,H)/(detail<=1?110:70))),corner>1?-1:1));
+            this.paint.drops=[0,1,2,3].map(corner=>buildCornerDrops(makeRng((this.seed+corner*40503+7)>>>0),reach,corner>1?-1:1,detail));
+            // 角部核心浓雾 + 4 团错落薄雾：叠加出参考实拍那种整面磨砂、明暗不均的雾层。
             this.paint.mist=[0,1,2,3].map(corner=>{
                 const rng=makeRng((this.seed+corner*999983+13)>>>0),blobs=[];
-                for(let b=0;b<3;b++){
-                    const ang=(b+.5)/3*Math.PI*.5*(.8+rng()*.4),dist=reach*(.18+rng()*.6),r=reach*(.4+rng()*.42);
+                const core=c.createRadialGradient(0,0,0,0,0,reach*.62);
+                core.addColorStop(0,'rgba(230,238,246,.48)');core.addColorStop(.6,'rgba(224,233,243,.22)');core.addColorStop(1,'rgba(226,236,246,0)');
+                blobs.push({x:0,y:0,r:reach*.62,g:core});
+                for(let b=0;b<4;b++){
+                    const ang=((b+.35+rng()*.5)/4.7)*Math.PI*.5,dist=reach*(.2+rng()*.55),r=reach*(.42+rng()*.4);
                     const g=c.createRadialGradient(dist*Math.cos(ang),dist*Math.sin(ang),0,dist*Math.cos(ang),dist*Math.sin(ang),r);
-                    g.addColorStop(0,`rgba(226,234,242,${(.34+rng()*.3).toFixed(3)})`);g.addColorStop(.55,'rgba(222,232,242,.16)');g.addColorStop(1,'rgba(226,236,246,0)');
+                    g.addColorStop(0,`rgba(226,234,242,${(.2+rng()*.22).toFixed(3)})`);g.addColorStop(.55,'rgba(222,232,242,.1)');g.addColorStop(1,'rgba(226,236,246,0)');
                     blobs.push({x:dist*Math.cos(ang),y:dist*Math.sin(ang),r,g});
                 }
                 return blobs;
@@ -500,8 +531,9 @@ class FestivalScreenFx{
             c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.save();c.translate(W,H);c.scale(-1,-1);c.fillStyle=this.paint.ice||'rgba(210,242,255,.08)';c.fillRect(0,0,W,H);c.restore();
         }else if(mode==='winter'){
             // 四角冰窗花：整簇冰晶随 frostBloomEnvelope 完整「生长出现→绽放→消散→消失」，四角相位错开；
-            // 出现与消失都按每段的 grow 顺序逐段推进——出现时从角落沿蕨枝一点一点长出来，
-            // 消失时从枝梢向角落一点一点退去；柔光/冰晶/高亮三层描边 + 冰粒闪烁 + 霜雾打底。
+            // 出现与消失都按每段的 grow 顺序逐段推进——出现时从角落沿冰针一点一点长出来，
+            // 消失时从针梢向角落一点一点退去。实拍参照：贴边亮带打底 + 角部核心辉光，
+            // 大量羽状冰针以柔光/冰晶/高亮三层描边堆出蓬松发光感，冰粒在缝隙间闪烁。
             const reach=Math.max(28,Math.min(W,H)*.3),edge=.07;
             c.lineCap='round';
             // 逐段生长/消融描边：已长成的段落合并一次 stroke，前沿的一段段单独渐显（生长）或渐隐（消融），
@@ -522,17 +554,22 @@ class FestivalScreenFx{
                 const t=((this.age/FROST_BLOOM_PERIOD+phase)%1+1)%1;
                 const reveal=t<.22?smoothstep(0,.22,t):(t<.5?1:(t<.72?1-smoothstep(.5,.72,t):0));
                 c.save();cornerTransform(c,corner,W,H);
-                c.globalAlpha=env*.55;c.fillStyle=this.paint.wash?.[corner]||'rgba(226,247,255,.34)';c.fillRect(0,0,reach,reach);
+                c.globalAlpha=env*.5;c.fillStyle=this.paint.wash?.[corner]||'rgba(226,247,255,.34)';c.fillRect(0,0,reach,reach);
+                c.globalAlpha=env*.55;c.fillStyle=this.paint.core?.[corner]||'rgba(242,251,255,.4)';c.fillRect(0,0,reach*.62,reach*.62);
+                if(this.paint.rim?.[corner]){
+                    c.save();c.scale(1,.3);c.globalAlpha=env*.48;c.fillStyle=this.paint.rim[corner];c.fillRect(0,0,reach*1.15,reach*1.15);c.restore();
+                    c.save();c.scale(.3,1);c.globalAlpha=env*.48;c.fillStyle=this.paint.rim[corner];c.fillRect(0,0,reach*1.15,reach*1.15);c.restore();
+                }
                 const frost=this.paint.frost?.[corner];
                 if(frost){
                     const buckets=[[],[],[],[]];
                     for(const sg of frost.segs){const b=sg.w<.4?0:sg.w<.75?1:sg.w<1.15?2:3;buckets[b].push(sg)}
-                    // 柔光层：宽幅淡青，托出冰晶的发光轮廓
-                    strokeGrown(buckets,reveal,'#b8e0fc',[.1,.15,.2,.26],[2.8,3.6,4.6,5.8]);
+                    // 柔光层：宽幅淡青，把成百根冰针晕成整片发光冰晶带
+                    strokeGrown(buckets,reveal,'#b8e0fc',[.07,.1,.13,.17],[3.4,4.4,5.6,6.8]);
                     // 冰晶层：中宽冰蓝主体
-                    strokeGrown(buckets,reveal,'#d8f1ff',[.3,.44,.58,.72],[.55,.85,1.2,1.6]);
+                    strokeGrown(buckets,reveal,'#d8f1ff',[.24,.34,.44,.54],[.55,.85,1.2,1.6]);
                     // 高亮层：纤细亮白结晶线
-                    strokeGrown(buckets,reveal,'#ffffff',[.55,.68,.8,.9],[.26,.4,.55,.72]);
+                    strokeGrown(buckets,reveal,'#ffffff',[.4,.5,.6,.68],[.26,.4,.55,.72]);
                     // 冰粒：细碎霜花点，独立相位微闪，随生长前沿逐粒点亮、随消融前沿逐粒隐去
                     c.fillStyle='#ffffff';
                     for(const d of frost.dots){
@@ -545,7 +582,8 @@ class FestivalScreenFx{
             }
             c.globalAlpha=1;
         }else if(mode==='laba'){
-            // 角落磨砂水雾：2–3 团不规则雾气 + 竖向拉长的凝结水珠（含高光与下淌尾痕），
+            // 角落磨砂水雾（对照实拍雾窗重做）：角部核心浓雾 + 4 团错落薄雾叠成整面磨砂，
+            // 细密微珠分两种明暗批量铺底，中大水珠带底部微影、左上高光与微弯下淌尾痕；
             // 每个角按 labaMistEnvelope 缓慢「出现→消失→再出现」，四角相位错开，呼吸微动叠加其上。
             const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46);
             for(let corner=0;corner<4;corner++){
@@ -553,13 +591,30 @@ class FestivalScreenFx{
                 if(env<=.004)continue;
                 c.save();cornerTransform(c,corner,W,H);
                 for(const bl of this.paint.mist?.[corner]||[]){c.globalAlpha=breath*env;c.fillStyle=bl.g;c.fillRect(bl.x-bl.r,bl.y-bl.r,bl.r*2,bl.r*2)}
-                const drops=this.paint.drops?.[corner]||[];
-                for(const d of drops){
-                    if(d.streak>0){c.globalAlpha=breath*env*.4;c.strokeStyle='rgba(238,245,251,.7)';c.lineWidth=Math.max(.6,d.r*.5);c.beginPath();c.moveTo(d.x,d.y);c.lineTo(d.x,d.y+d.dir*d.streak);c.stroke()}
-                    c.globalAlpha=breath*env*.55;c.fillStyle='rgba(240,246,252,.95)';
-                    c.beginPath();c.ellipse(d.x,d.y,d.r,d.r*d.el,0,0,TAU);c.fill();
-                    c.globalAlpha=breath*env*.3;c.fillStyle='#fff';
-                    c.beginPath();c.ellipse(d.x-d.r*.3,d.y-d.r*.3*d.el,d.r*.4,d.r*.4*d.el,0,0,TAU);c.fill();
+                const paint=this.paint.drops?.[corner];
+                if(paint){
+                    // 细密微珠：两种明暗各合并成一次填充，铺出雾面凝结颗粒感
+                    for(let shade=0;shade<2;shade++){
+                        c.globalAlpha=breath*env*(shade?.66:.36);c.fillStyle='rgba(244,248,253,.9)';
+                        c.beginPath();
+                        for(const m of paint.micro){if(m.shade!==shade)continue;c.moveTo(m.x+m.r*m.el,m.y);c.ellipse(m.x,m.y,m.r*m.el,m.r,0,0,TAU)}
+                        c.fill();
+                    }
+                    // 中大水珠：底部微影增加立体感 + 主体 + 左上高光；挂尾痕的先画渐细水线
+                    for(const d of paint.falls){
+                        if(d.streak>0){
+                            c.globalAlpha=breath*env*.3;c.strokeStyle='rgba(238,245,251,.8)';c.lineWidth=Math.max(.6,d.r*.42);
+                            c.beginPath();c.moveTo(d.x+d.wob,d.y+d.r*.4);c.lineTo(d.x+d.wob*2,d.y+d.dir*d.streak);c.stroke();
+                            c.globalAlpha=breath*env*.16;c.lineWidth=Math.max(.4,d.r*.2);
+                            c.beginPath();c.moveTo(d.x+d.wob*2,d.y+d.dir*d.streak*.5);c.lineTo(d.x+d.wob*2.6,d.y+d.dir*d.streak);c.stroke();
+                        }
+                        c.globalAlpha=breath*env*.2;c.fillStyle='rgba(186,201,214,.8)';
+                        c.beginPath();c.ellipse(d.x+d.r*.16,d.y+d.r*.2,d.r,d.r*d.el,0,0,TAU);c.fill();
+                        c.globalAlpha=breath*env*.62;c.fillStyle='rgba(240,246,252,.95)';
+                        c.beginPath();c.ellipse(d.x,d.y,d.r,d.r*d.el,0,0,TAU);c.fill();
+                        c.globalAlpha=breath*env*.34;c.fillStyle='#fff';
+                        c.beginPath();c.ellipse(d.x-d.r*.32,d.y-d.r*.3*d.el,d.r*.38,d.r*.38*d.el,0,0,TAU);c.fill();
+                    }
                 }
                 c.globalAlpha=1;c.restore();
             }
