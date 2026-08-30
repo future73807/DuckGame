@@ -546,8 +546,15 @@ class FestivalScreenFx{
                 return blobs;
             });
             // 整角静态层（雾团+微珠+水珠）预烘焙为单张离屏画布：运行时每角一次 drawImage。
-            const S=Math.ceil(reach)+24;
-            this.paint.layer=[0,1,2,3].map(corner=>bake(S,S,b=>{
+            // 画布尺寸按每角实际内容边界取——雾团中心+半径最远可达约 1.57×reach，
+            // 尺寸不足会在离屏边缘把渐变硬切出矩形边界（v7.2 性能优化引入过此回归）。
+            this.paint.layerSize=[];
+            this.paint.layer=[0,1,2,3].map(corner=>{
+                let ext=Math.max(reach*1.02+4,reach+20);
+                for(const bl of this.paint.mist[corner])ext=Math.max(ext,Math.hypot(bl.x,bl.y)+bl.r);
+                const S=Math.ceil(ext)+4;
+                this.paint.layerSize[corner]=S;
+                return bake(S,S,b=>{
                 for(const bl of this.paint.mist[corner]){b.fillStyle=bl.g;b.fillRect(bl.x-bl.r,bl.y-bl.r,bl.r*2,bl.r*2)}
                 const paint=this.paint.drops[corner];
                 for(let shade=0;shade<2;shade++){
@@ -571,8 +578,9 @@ class FestivalScreenFx{
                     b.beginPath();b.ellipse(d.x-d.r*.32,d.y-d.r*.3*d.el,d.r*.38,d.r*.38*d.el,0,0,TAU);b.fill();
                 }
                 b.globalAlpha=1;
-            }));
-        }
+            });
+        });
+    }
     }
     _draw(){
         const c=this.ctx,W=this.width,H=this.height;if(!c)return;c.setTransform(this.resolution,0,0,this.resolution,0,0);c.clearRect(0,0,W,H);c.save();this._drawBackdrop(c,W,H);
@@ -643,9 +651,10 @@ class FestivalScreenFx{
             c.globalAlpha=1;
         }else if(mode==='laba'){
             // 角落磨砂水雾（对照实拍雾窗重做）：雾团+微珠+水珠整角静态层已预烘焙为离屏画布，
-            // 每角每帧只做一次 drawImage（呼吸×包络整体透明度），彻底消除每帧的大面积渐变填充与数百次路径操作；
+            // 画布尺寸按每角实际内容边界取（雾团最远可达约 1.57×reach，尺寸不足会切出矩形边界），
+            // 每角每帧只做一次 drawImage（呼吸×包络整体透明度）；
             // 每个角按 labaMistEnvelope 缓慢「出现→消失→再出现」，四角相位错开，呼吸微动叠加其上。
-            const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46),S=Math.ceil(reach)+24;
+            const breath=.72+.16*Math.sin(this.age*.24),reach=Math.max(40,Math.min(W,H)*.46);
             for(let corner=0;corner<4;corner++){
                 const env=labaMistEnvelope(this.age,corner*.17);
                 if(env<=.004)continue;
@@ -653,7 +662,7 @@ class FestivalScreenFx{
                 if(!layer)continue;
                 c.save();cornerTransform(c,corner,W,H);
                 c.globalAlpha=breath*env;
-                c.drawImage(layer,0,0,S,S);
+                c.drawImage(layer,0,0,this.paint.layerSize[corner],this.paint.layerSize[corner]);
                 c.globalAlpha=1;c.restore();
             }
         }
