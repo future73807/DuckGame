@@ -514,6 +514,27 @@ async function main(){
         }
     }
 
+    // 国庆礼花燃点：每 6 发（一轮约 20 秒）必须覆盖全部 6 个燃点各一次，不得连燃堆叠。
+    // 抽样窗口取每发 t=1.2s（径向对称 + 重力垂直偏置不影响列/行均值分类）。
+    {
+        const{fx}=makeHarness(mod);fx.start('festival_national_day',{deferIntro:true});
+        const spots=[];
+        for(let cycle=0;cycle<30;cycle++){
+            fx.age=cycle*3.4+1.2;fx._advance(0);
+            const lit=fx.getParticleSnapshot().filter(p=>p.variant===1&&(p.drawAlpha??0)>0.3);
+            if(lit.length){
+                const xs=lit.map(p=>p.x),ys=lit.map(p=>p.y);
+                spots.push(Math.round(xs.reduce((a,b)=>a+b)/xs.length/fx.width*3-0.5)+'-'+Math.round((ys.reduce((a,b)=>a+b)/ys.length/fx.height-0.2)/0.38));
+            }
+        }
+        const detail=[];
+        for(let r=0;r*6+6<=spots.length;r++){
+            const win=spots.slice(r*6,r*6+6),set=new Set(win);
+            if(set.size!==6)detail.push(`轮${r}(${win.join(' ')})只覆盖${set.size}个燃点`);
+        }
+        assert.ok(detail.length===0,'国庆礼花燃点连燃堆叠: '+detail.join(' | ')+' —— 全序列 '+spots.join(' '));
+    }
+
     // 中秋仅使用半透明白/黄色星星调色板。
     {
         const{fx}=makeHarness(mod);fx.start('festival_mid_autumn',{deferIntro:true});
