@@ -49,6 +49,7 @@ export function createEnvironment(ctx){
     let _clockH=-1,_clockM=-1,_clockIcon=null; // 时钟 DOM 缓存：仅在显示内容变化时才写 DOM
     // 时段/事件特效强度因子（setCartoonSky 每帧重算，各特效系统读取）
     const timeFx={mist:0,aurora:0,meteor:0,gull:0,noon:0,wind:0,rainbow:0};
+    const ss01=v=>{const t=Math.max(0,Math.min(1,v));return t*t*(3-2*t)}; // 平滑 0-1 插值
     state.timeFx=timeFx;
 
     // ===== 卡通天空（渐变球体） =====
@@ -459,7 +460,9 @@ export function createEnvironment(ctx){
         // 时段特效因子（供极光/流星/海鸥/动物云/晨雾系统读取）
         const h24=((time%24)+24)%24;
         timeFx.mist=h24>=4.5&&h24<7.5?Math.max(0,1-Math.abs(h24-6)/1.5):0;   // 日出晨雾（6点最浓）
-        timeFx.aurora=h24>=0&&h24<5?Math.min(h24,5-h24,1):0;                 // 凌晨极光
+        // 凌晨极光：约 7 游戏分钟平滑淡入/淡出，全程稳定在较高亮度——
+        // 亮度变化范围收窄（旧行性 0→1→0 线性梯形，前段偏暗、平台期过曝），观感更平滑。
+        timeFx.aurora=h24>=0&&h24<5?.88*ss01(h24/.12)*ss01((5-h24)/.12):0;   // 凌晨极光
         timeFx.meteor=h24>=19?Math.min(h24-19,1):0;                          // 夜晚流星
         timeFx.gull=h24>=7&&h24<11?Math.min(h24-7,11-h24,1):h24>=13&&h24<17?Math.min(h24-13,17-h24,1):0; // 上午/下午海鸥
         timeFx.noon=h24>=11&&h24<13?Math.min(h24-11,13-h24,1):0;             // 中午动物云
@@ -507,10 +510,10 @@ export function createEnvironment(ctx){
         waterColFoam.set(0xeafcff).lerp(new THREE.Color(0x3a5a78),nightF);if(sunsetF>.15)waterColFoam.lerp(new THREE.Color(0xffc9a0),sunsetF*.5);
         // 雾色与地平线颜色一致，远处水面自然融入天空
         scene.fog.color.copy(skyMat.uniforms.horizonColor.value);
-        // 极光以彩虹级亮度照亮夜空与水面，而不是只在远处隐约可见。
-        const auroraGlow=timeFx.aurora*.55; // 极光峰值亮度减半（凌晨不再过曝）
-        renderer.toneMappingExposure=.68+dayF*.36+sunsetF*.15+auroraGlow*.62;
-        if(auroraGlow>0){ambLight.intensity+=auroraGlow*.55;hemiLight.intensity+=auroraGlow*.3}
+        // 极光照亮夜空与水面：亮度峰值收窄，配合时间曲线压缩整体明暗变化范围
+        const auroraGlow=timeFx.aurora*.5;
+        renderer.toneMappingExposure=.68+dayF*.36+sunsetF*.15+auroraGlow*.58;
+        if(auroraGlow>0){ambLight.intensity+=auroraGlow*.5;hemiLight.intensity+=auroraGlow*.28}
         // 暴风雨：天空压暗、雾气拉近、水面变灰、能见度降低
         if(stormFactor>0.001){
             const sf=stormFactor;
@@ -641,8 +644,8 @@ export function createEnvironment(ctx){
         }
         p.needsUpdate=true;
         m.material.map.offset.x+=dt*spd; // 内外两层反向流动 → 流体干涉感
-        m.material.opacity=Math.min(1,f*(1.3+Math.sin(t*.4+ph)*.22)); // 彩虹级亮度
-        m.material.color.setScalar(1+f*.35); // 轻 HDR 增益：加法混合下更鲜艳但不洗白
+        m.material.opacity=Math.min(1,f*(1.15+Math.sin(t*.4+ph)*.15)); // 亮度峰值收窄、呼吸波动更平滑
+        m.material.color.setScalar(1+f*.28); // 轻 HDR 增益：加法混合下更鲜艳但不洗白
     }
     // ---- 夜晚流星：黄色亮头 + 白色拖尾（光晕照亮周围天空），沿速度方向划过 ----
     const meteorTex=mkTex(224,112,(x)=>{
