@@ -13,7 +13,7 @@ export function initDuoRemoteDuck(c){ctx=c}
 export let duoRemoteDuck=null,duoRemoteTarget=null,duoLocalNameLabel=null,duoRemoteSkin=null,duoRemotePalette=null;
 let duoRemoteShield=null,duoRemoteMagnetRing=null,duoRemoteCrown=null,duoRemoteAura=null,duoRemoteMagGlow=null,duoRemoteMagnetPulse=[],duoRemoteMagParticles=null,duoRemoteMagParticleGeo=null,duoRemoteMagParticleData=[],duoRemoteMagParticleMat=null,duoRemoteMagVisualAccumulator=0;
 export const duoRemotePosition=new THREE.Vector3();
-// 远程鸭子航迹推算（Dead Reckoning）：对端状态约 5.5Hz 到达，按速度外推 + 柔性收敛，消除橡皮筋抖动
+// 远程鸭子航迹推算（Dead Reckoning）：对端状态约 8.3Hz 到达，按速度外推 + 柔性收敛，消除橡皮筋抖动
 let duoRemotePrevSnapT=0,duoRemotePrevTarget=null;
 const duoRemoteVel=new THREE.Vector3();
 export function setDuoRemoteIdentity(skin,palette){duoRemoteSkin=skin;duoRemotePalette=palette}
@@ -27,7 +27,7 @@ export function acceptDuoRemoteSnapshot(state,down){
         const snapDt=(now-duoRemotePrevSnapT)/1000,dx=x-duoRemotePrevTarget.x,dz=z-duoRemotePrevTarget.z;
         if(snapDt>.05&&snapDt<1.5&&dx*dx+dz*dz<16){
             const ivx=dx/snapDt,ivz=dz/snapDt;
-            duoRemoteVel.x+=(ivx-duoRemoteVel.x)*.35;duoRemoteVel.z+=(ivz-duoRemoteVel.z)*.35;
+            duoRemoteVel.x+=(ivx-duoRemoteVel.x)*.5;duoRemoteVel.z+=(ivz-duoRemoteVel.z)*.5;
             const spd=Math.hypot(duoRemoteVel.x,duoRemoteVel.z);
             if(spd>6){duoRemoteVel.x*=6/spd;duoRemoteVel.z*=6/spd}
         }else if(dx*dx+dz*dz>=16)duoRemoteVel.set(0,0,0);
@@ -199,7 +199,7 @@ export function updateDuoRemoteDuck(dt){
     const gameClock=ctx.getGameClock(),renderedWaveClock=ctx.getRenderedWaveClock();
     const y=ctx.waveHeight(tx,tz,renderedWaveClock)-.08+Math.sin(gameClock*1.8)*.035;
     // ---- 航迹推算：先按估计速度外推，再向最新快照柔性收敛 ----
-    // 旧实现 dt*6 硬 lerp 追 5.5Hz 的离散目标点 → 每个新快照到达都"弹射"一下（橡皮筋抖动）
+    // 旧实现 dt*6 硬 lerp 追 8.3Hz 的离散目标点 → 每个新快照到达都"弹射"一下（橡皮筋抖动）
     const nowMs=performance.now();
     // 快照已过去的时间：外推补偿网络延迟（封顶 400ms，避免无限发散）
     const age=Math.min(.4,(nowMs-duoRemotePrevSnapT)/1000);

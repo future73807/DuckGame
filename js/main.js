@@ -1830,7 +1830,7 @@ const Duo={
         duckSink.state='none';sinkFx=0;duckVel.set(0,0,0);duckModel.visible=true;cancelNearMissCandidates();
         duckModel.position.set(state.x,waveHeight(state.x,state.z,renderedWaveClock)-.08,state.z);duckModel.rotation.y=state.ry||0;
         const beforeHearts=hearts;hearts=1;recordHealthTransition(beforeHearts,hearts);invincible=Math.max(invincible,criticalHeartPolicy(true).invincibility);heartTimer=0;updateHeartsUI();gameActive=true;isPaused=false;
-        clearInterval(this._stateTimer);this._stateTimer=setInterval(()=>this.sync(),180);this.sync();
+        clearInterval(this._stateTimer);this._stateTimer=setInterval(()=>this.sync(),120);this.sync();
         toast('<i class="fa-solid fa-heart-pulse"></i> 伙伴救援成功，保留 1 颗心','s');
     },
     applyRoom(room){
@@ -1910,7 +1910,7 @@ const Duo={
         if(this._started)return;
         this._started=true;const other=this.other;
         if(other)createDuoRemoteDuck(other.name,other.state);setDuoLocalNameLabel(this.me?.name||this.name);
-        clearInterval(this._stateTimer);this._stateTimer=setInterval(()=>this.sync(),180);this.sync();
+        clearInterval(this._stateTimer);this._stateTimer=setInterval(()=>this.sync(),120);this.sync();
     },
     async sync(){
         const downHostCaretaker=duoIsDownHostCaretaker();
@@ -2554,6 +2554,7 @@ window.__perfState=()=>({
     visibility:document.visibilityState,role:Duo.active?Duo.role:null,fps:fpsValue,clock:gameClock,drs:quality.drsScale,quality:{requested:graphicsQuality,effective:quality.effectiveTier||graphicsQuality,shadows:renderer.shadowMap.enabled,waveHz:quality.waveUpdateHz,normalHz:quality.waveNormalHz,shadowHz:quality.shadowUpdateHz},water:waterGetUpdateStats(),
     frames:{...framePerf},network:snapshotDuoNetStats(),sceneSync:{...duoSceneStats,last:duoSceneStats.last?{...duoSceneStats.last}:null},
     camera:{x:camera.position.x,y:camera.position.y,z:camera.position.z},duck:duckModel?{x:duckModel.position.x,y:duckModel.position.y,z:duckModel.position.z}:null,
+    duoRemote:duoRemoteDuck?{x:+duoRemoteDuck.position.x.toFixed(3),z:+duoRemoteDuck.position.z.toFixed(3),visible:duoRemoteDuck.visible}:null,
     camShake,screenShakeT,items:items.length,renderer:{geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}
 });
 const _lanternUp=new THREE.Vector3(0,1,0);
