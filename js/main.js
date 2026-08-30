@@ -2639,14 +2639,16 @@ function updateWhirlpools(dt,surfaceChanged=true){
                 const nx=dx/d,nz=dz/d;
                 // 动态引力：越靠近中心越强（指数曲线 ratio^5），远处温和可感知，近处暴增
                 const ratio=1-d/R;          // 0=远，1=中心
-                const wr=whirlImmune?0:1-(activeRewards.whirlResist||0); // 祝福免伤优先，其次是成就永久抗性
+                // 漩涡护盾祝福只豁免扣心，吸力照常（描述即「吸入不扣心」）；成就抗性仍按比例减弱
+                const wr=1-(activeRewards.whirlResist||0); // 祝福免伤优先，其次是成就永久抗性
                 const pull=(Math.pow(ratio,5)*60+ratio*3)*wr;  // 边缘~3，中段~5，近处~63（暴增）
                 duckVel.x+=nx*pull*dt;duckVel.z+=nz*pull*dt;
                 // 切向旋涡（随距离指数增强）
                 const tan=(Math.pow(ratio,4)*15+ratio*2)*wr;
                 duckVel.x+=-nz*tan*dt;duckVel.z+=nx*tan*dt;
-                // 到达中心 → 触发沉没动画：护盾(hasShield)不能挡，只有无敌(invincible>0)可挡
-                if(d<SINK_R&&invincible<=0&&!whirlImmune){
+                // 到达中心 → 触发沉没动画：护盾(hasShield)不能挡，只有无敌(invincible>0)可挡；
+                // 漩涡护盾祝福「吸入不扣心」：沉没动画照常播放，扣心在结算处豁免
+                if(d<SINK_R&&invincible<=0){
                     cancelNearMissCandidates();if(w._nearMiss)w._nearMiss.done=true;
                     duckSink.state='sinking';duckSink.t=0;duckSink.whirl=w;
                     duckSink.startY=duckModel.position.y;duckSink.startX=duckModel.position.x;duckSink.startZ=duckModel.position.z;
@@ -2697,17 +2699,24 @@ function updateDuckSink(dt){
                 D.state='none';D.whirl=null;
                 return;
             }
-            // 完成沉没：直接扣心（绕过 takeDamage，护盾无法挡，只有 invincible 能在触发前挡）
-            const beforeHearts=hearts;hearts=Math.max(0,hearts-1);resetCollectionChain(runStats);recordHealthTransition(beforeHearts,hearts);if(hearts===1)heartTimer=0;updateHeartsUI();screenFlash();playSFX('whirl');
-            // 成就追踪：累计被漩涡吸入次数
-            Achievements.updateStat('whirlDeaths',1);
-            if(hearts<=0){D.state='none';gameOver();return}
+            // 完成沉没：漩涡护盾祝福「吸入不扣心」——动画照常、重生照常，只跳过扣心与沉没计数；
+            // 提示按是否豁免分流（toast 单例复用，同帧两条会互相覆盖）
+            const whirlShielded=Blessings.isWhirlImmune();
+            if(!whirlShielded){
+                const beforeHearts=hearts;hearts=Math.max(0,hearts-1);resetCollectionChain(runStats);recordHealthTransition(beforeHearts,hearts);if(hearts===1)heartTimer=0;updateHeartsUI();
+                Achievements.updateStat('whirlDeaths',1); // 成就追踪：累计被漩涡吸入次数（护盾豁免不计）
+                screenFlash();playSFX('whirl');
+                if(hearts<=0){D.state='none';gameOver();return}
+                toast('<i class="fa-solid fa-water"></i> 被漩涡吸入 -1 <i class="fa-solid fa-heart"></i>','m');
+            }else{
+                screenFlash();playSFX('whirl');
+                toast('<i class="fa-solid fa-tornado"></i> 漩涡护盾：吸入不扣心','s');
+            }
             // 重生到安全位置（原点附近）；吃掉鸭子的漩涡随之消散（防止重生后被同一漩涡反复吞没）
             duckModel.position.set(0,.05,0);duckVel.set(0,0,0);cancelNearMissCandidates();
             duckModel.scale.setScalar(.72);duckModel.rotation.y=0;
             if(D.whirl)D.whirl.life=0;
             invincible=2;
-            toast('<i class="fa-solid fa-water"></i> 被漩涡吸入 -1 <i class="fa-solid fa-heart"></i>','m');
             D.state='none';D.whirl=null;
         }
     }
