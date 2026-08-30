@@ -478,7 +478,12 @@ class FestivalScreenFx{
                     p.drawAlpha=u<.16?smoothstep(0,.16,u):u<.48?1:u<.66?1-smoothstep(.48,.66,u):0;break}
                 case'midAutumn':p.x=p.homeX+Math.sin(this.age*p.driftRate+p.phase)*p.driftR;p.y=p.homeY+Math.cos(this.age*p.driftRate*.9+p.phase)*p.driftR*.8;p.drawAlpha=.35+.65*(.5+.5*Math.sin(this.age*1.15+p.phase));break;
                 case'national':if(p.variant===0){p.x=p.homeX+Math.sin(this.age*p.driftRate+p.phase)*p.driftR;p.y=p.homeY+Math.cos(this.age*p.driftRate*.85+p.phase)*p.driftR*.8;p.drawAlpha=.5+.5*(.5+.5*Math.sin(this.age*1.2+p.phase))}else{
-                    const cycleLength=3.4,cycle=Math.floor(this.age/cycleLength),t=this.age-cycle*cycleLength,group=Math.floor(this._rand(cycle,210,0)*6);
+                    const cycleLength=3.4,cycle=Math.floor(this.age/cycleLength),t=this.age-cycle*cycleLength,
+                        round=Math.floor(cycle/6),slot=cycle%6,order=[0,1,2,3,4,5];
+                    // 每轮（6 次×3.4s≈20 秒）用轮次种子做确定性洗牌，6 个燃点全部轮到且顺序随机：
+                    // 保留凌乱感，又不会像纯随机那样连续多轮挤在同一处燃点、让其余点位长时间空着。
+                    for(let i=5;i>0;i--){const j=Math.floor(this._rand(round,230+i,0)*(i+1)),g=order[i];order[i]=order[j];order[j]=g}
+                    const group=order[slot];
                     const originX=((group%3)+.5)/3*W+(this._rand(cycle,201,0)-.5)*W*.07,originY=(Math.floor(group/3)*.38+.2)*H+(this._rand(cycle,202,0)-.5)*H*.07;
                     p.drawAlpha=t<=p.life?1-t/p.life:0;p.x=originX+Math.cos(p.angle)*p.speed*t;p.y=originY+Math.sin(p.angle)*p.speed*t+65*t*t}break;
                 case'winter':p.drawAlpha=Math.pow(.5+.5*Math.sin(this.age*.48+p.phase),1.3);break;
