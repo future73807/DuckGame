@@ -87,6 +87,10 @@ canvas{display:block}
   #loader .loader-title{font-size:24px;top:0;letter-spacing:3px}
   #loader .bar{width:300px;height:14px;margin-top:14px;transform:translateY(-6px)}
   #loader .txt{font-size:13px;margin-top:8px}
+  /* 按钮与缩放后的标题保持同比例 */
+  #start-btn,#duo-btn{min-width:150px;padding:10px 24px;font-size:15px;letter-spacing:1px}
+  #loader #start-btn{left:calc(50% - 8px)}
+  #duo-btn{left:calc(50% + 8px)}
 }
 @keyframes duckFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 #rotate-hint{position:fixed;inset:0;background:rgba(0,0,0,.92);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:300;font-size:15px}
@@ -271,7 +275,8 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 #gameover .go-highlight[data-kind="multiplier"],#gameover .go-highlight[data-kind="combo"]{--highlight-rgb:255,202,83}
 #gameover .go-highlight[data-kind="collection"],#gameover .go-highlight[data-kind="collector"],#gameover .go-highlight[data-kind="streak"]{--highlight-rgb:99,220,255}
 #gameover .go-highlight[data-kind="clutch"],#gameover .go-highlight[data-kind="survivor"],#gameover .go-highlight[data-kind="rescue"]{--highlight-rgb:255,126,145}
-#gameover .go-highlight-icon{flex:0 0 auto;color:#fff;font-size:12px}
+#gameover .go-highlight-icon{flex:0 0 auto;display:flex;align-items:center;color:#fff;font-size:12px}
+#gameover .go-highlight-icon svg{display:block}
 #gameover .go-highlight-icon:empty{display:none}
 #gameover .go-highlight-label{flex:0 0 auto;color:rgba(255,255,255,.82);font-weight:800}
 #gameover .go-highlight-text{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:650;color:rgba(255,255,255,.95)}
@@ -561,7 +566,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 /* 手机横屏 / 矮屏：利用宽度换高度，避免长面板和嵌套滚动 */
 @media(max-height:540px){
     #loader .icon svg{width:68px;height:68px}
-    #loader .loader-title{margin-top:10px;font-size:16px}
+    #loader .loader-title{margin-top:10px;font-size:20px}
     #loader .bar{margin-top:10px;transform:translateY(-6px)}
     #loader .txt{margin-top:7px}
     #loader #start-btn,#duo-btn{bottom:max(24px,calc(var(--safe-bottom) + 16px))}
