@@ -293,7 +293,7 @@ async function generateShareCardDataURL(){
         clutch:[255,126,145],survivor:[255,126,145],rescue:[255,126,145]
     };
     const highlightRGB=highlightColors[runHighlight.kind]||[255,205,103];
-    const highlightX=LX,highlightY=midCenterY+98,highlightMaxW=440,highlightH=48;
+    const highlightX=LX,highlightY=midCenterY+128,highlightMaxW=440,highlightH=48;
     ctx.font='700 20px "Microsoft YaHei",sans-serif';
     const hlLabel='本局高光',hlBodyRaw=' · '+runHighlight.text;
     const hlLabelW=ctx.measureText(hlLabel).width;
