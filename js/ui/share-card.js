@@ -6,7 +6,7 @@ import {formatScore} from '../core/format.js';
 
 let _ctx=null;
 
-const DEFAULT_RUN_HIGHLIGHT=Object.freeze({kind:'steady',icon:'✨',text:'勇敢完成本局'});
+const DEFAULT_RUN_HIGHLIGHT=Object.freeze({kind:'steady',icon:'fa-star',text:'勇敢完成本局'});
 
 function normalizeRunHighlight(value){
     if(typeof value==='string')value={text:value};
@@ -286,18 +286,19 @@ async function generateShareCardDataURL(){
     ctx.shadowColor='rgba(255,210,140,.5)';ctx.shadowBlur=36;
     ctx.fillText(scoreStr,LX,midCenterY+40);
     ctx.shadowBlur=0;
-    // 本局单项高光：保持单行，与二维码区域留出安全间距。
+    // 本局单项高光：单行胶囊，与分数保留约 34px 呼吸间距；图标用矢量四芒星（不用 emoji，跨平台渲染一致）。
     const highlightColors={
         multiplier:[255,202,83],combo:[255,202,83],
         collection:[99,220,255],collector:[99,220,255],streak:[99,220,255],
         clutch:[255,126,145],survivor:[255,126,145],rescue:[255,126,145]
     };
     const highlightRGB=highlightColors[runHighlight.kind]||[255,205,103];
-    const highlightFullText=`本局高光 · ${runHighlight.icon} ${runHighlight.text}`;
-    const highlightX=LX,highlightY=midCenterY+79,highlightMaxW=380,highlightH=46;
-    ctx.font='700 20px "Microsoft YaHei","Segoe UI Emoji",sans-serif';
-    const highlightText=ellipsizeText(ctx,highlightFullText,highlightMaxW-30);
-    const highlightW=Math.min(highlightMaxW,Math.ceil(ctx.measureText(highlightText).width)+30);
+    const highlightX=LX,highlightY=midCenterY+98,highlightMaxW=440,highlightH=48;
+    ctx.font='700 20px "Microsoft YaHei",sans-serif';
+    const hlLabel='本局高光',hlBodyRaw=' · '+runHighlight.text;
+    const hlLabelW=ctx.measureText(hlLabel).width;
+    const hlBody=ellipsizeText(ctx,hlBodyRaw,highlightMaxW-hlLabelW-58);
+    const highlightW=Math.min(highlightMaxW,Math.ceil(hlLabelW+ctx.measureText(hlBody).width)+58);
     const highlightBg=ctx.createLinearGradient(highlightX,0,highlightX+highlightW,0);
     highlightBg.addColorStop(0,`rgba(${highlightRGB.join(',')},.16)`);
     highlightBg.addColorStop(1,`rgba(${highlightRGB.join(',')},.045)`);
@@ -305,17 +306,28 @@ async function generateShareCardDataURL(){
     roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.fill();
     ctx.strokeStyle=`rgba(${highlightRGB.join(',')},.28)`;ctx.lineWidth=1;
     roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.stroke();
+    // 矢量四芒星图标（纯色平涂，不加发光）
+    ctx.save();
     ctx.fillStyle=`rgb(${highlightRGB.join(',')})`;
+    const sparkX=highlightX+24;
+    ctx.beginPath();
+    for(let i=0;i<8;i++){const a=-Math.PI/2+i*Math.PI/4,r=i%2?3:8.5;const px=sparkX+Math.cos(a)*r,py=highlightY+Math.sin(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}
+    ctx.closePath();ctx.fill();
+    ctx.restore();
+    // 两段文字：标签用高光色，正文用白色
     ctx.textBaseline='middle';
-    ctx.fillText(highlightText,highlightX+15,highlightY+1);
+    ctx.fillStyle=`rgb(${highlightRGB.join(',')})`;
+    ctx.fillText(hlLabel,highlightX+42,highlightY+1);
+    ctx.fillStyle='rgba(255,255,255,.92)';
+    ctx.fillText(hlBody,highlightX+42+hlLabelW,highlightY+1);
     ctx.textBaseline='alphabetic';
     // ===== 底部 URL 区（对应 sm-bottom）=====
     // 上方分割线
     ctx.strokeStyle='rgba(212,175,100,.25)';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(LX,contentBottom-50);ctx.lineTo(RX_right,contentBottom-50);ctx.stroke();
-    // URL 文字
-    ctx.fillStyle='rgba(255,255,255,.4)';ctx.font='300 16px sans-serif';
-    ctx.fillText(url,LX,contentBottom-25);
+    // URL 文字（24px 保证缩略查看时可读）
+    ctx.fillStyle='rgba(255,255,255,.58)';ctx.font='400 24px sans-serif';
+    ctx.fillText(ellipsizeText(ctx,url,W-LX*2-40),LX,contentBottom-22);
     // ===== 右侧区域：二维码 + 鸭子列（对应 sm-right，水平排列）=====
     // 鸭子位置（略右略下），垂直居中偏下
     const duckSize=280;

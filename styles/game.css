@@ -261,7 +261,7 @@ body>.dbg-csel-list .dbg-csel-opt.sel{background:rgba(255,255,255,.16);border-co
 #gameover .go-highlight[data-kind="multiplier"],#gameover .go-highlight[data-kind="combo"]{--highlight-rgb:255,202,83}
 #gameover .go-highlight[data-kind="collection"],#gameover .go-highlight[data-kind="collector"],#gameover .go-highlight[data-kind="streak"]{--highlight-rgb:99,220,255}
 #gameover .go-highlight[data-kind="clutch"],#gameover .go-highlight[data-kind="survivor"],#gameover .go-highlight[data-kind="rescue"]{--highlight-rgb:255,126,145}
-#gameover .go-highlight-icon{flex:0 0 auto;color:rgb(var(--highlight-rgb));font-size:12px;filter:drop-shadow(0 0 5px rgba(var(--highlight-rgb),.35))}
+#gameover .go-highlight-icon{flex:0 0 auto;color:rgb(var(--highlight-rgb));font-size:12px}
 #gameover .go-highlight-icon:empty{display:none}
 #gameover .go-highlight-label{flex:0 0 auto;color:rgba(var(--highlight-rgb),.86);font-weight:800}
 #gameover .go-highlight-text{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:650}

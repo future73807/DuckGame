@@ -64,22 +64,23 @@ export function selectRunHighlight(stats){
     const candidates=[];
 
     // ×10 与连续收集 10 件处在同一强度；同分时优先更清晰的连胜倍率。
+    // icon 统一用 FontAwesome 名称（结算面板渲染 <i>），不在画布/面板里使用 emoji。
     if(maxMultiplier>=5)candidates.push({
-        kind:'multiplier',icon:'🔥',text:`最高连胜倍率 ×${Math.round(maxMultiplier)}`,
+        kind:'multiplier',icon:'fa-fire',text:`最高连胜倍率 ×${Math.round(maxMultiplier)}`,
         prominence:maxMultiplier*10,priority:2
     });
     if(maxChain>0)candidates.push({
-        kind:'collection',icon:'💎',text:`连续收集 ${maxChain} 件`,
+        kind:'collection',icon:'fa-gem',text:`连续收集 ${maxChain} 件`,
         prominence:Math.min(150,maxChain*10),priority:1
     });
     // 从 1 心恢复是三类高光中最稀有的事件；坚持时间用于同类事件的细分。
     if(escapes>0)candidates.push({
-        kind:'rescue',icon:'🛟',
+        kind:'rescue',icon:'fa-life-ring',
         text:escapes===1?`1 心逃生 · ${Math.max(1,Math.round(lowHealthSeconds))} 秒后回血`:`1 心逃生 ${escapes} 次`,
         prominence:110+(escapes-1)*15+Math.min(10,lowHealthSeconds),priority:3
     });
 
-    if(!candidates.length)return{kind:'multiplier',icon:'✨',text:'最高连胜倍率 ×1',prominence:0};
+    if(!candidates.length)return{kind:'multiplier',icon:'fa-star',text:'最高连胜倍率 ×1',prominence:0};
     candidates.sort((a,b)=>b.prominence-a.prominence||b.priority-a.priority);
     const {priority,...highlight}=candidates[0];
     return highlight;
