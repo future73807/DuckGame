@@ -1988,9 +1988,8 @@ function getRunHighlight(){return runStats.highlight||selectRunHighlight(runStat
 function updateGameOverHighlight(){
     const highlight=getRunHighlight(),el=document.getElementById('go-highlight');if(!el)return;
     el.dataset.kind=highlight.kind||'multiplier';
-    const icon=el.querySelector('.go-highlight-icon'),text=el.querySelector('.go-highlight-text');
-    // 图标统一用 FontAwesome（icon 字段存 fa-xx 名称），不使用 emoji。
-    if(icon){const ic=String(highlight.icon||'fa-star').replace(/^fa-/,'');icon.innerHTML='<i class="fa-solid fa-'+ic+'"></i>'}
+    const text=el.querySelector('.go-highlight-text');
+    // 图标固定为白色四芒星（与分享卡片一致），随高光类型只更新文字
     if(text)text.textContent=highlight.text||'最高连胜倍率 ×1';
 }
 async function showGameOver(data, nameConflict, conflictedName, pwdWrong, isFirstTime, submittedName){

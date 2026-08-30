@@ -3,7 +3,9 @@
 html,body{width:100%;height:100%;height:100dvh}
 body{overflow:hidden;background:#000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;touch-action:none;-webkit-user-select:none;user-select:none;color:var(--text-main);text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
 canvas{display:block}
-#loader{position:fixed;inset:0;background:#1a2a5e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;transition:opacity 1s}
+#loader{position:fixed;inset:0;background:#1a2a5e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;transition:opacity 1s;
+  /* 底部预留模式按钮区：flex 居中内容在任意视口高度都不会沉进 position:fixed 的按钮里 */
+  padding-bottom:calc(max(48px,var(--safe-bottom) + 36px) + 88px)}
 #loader.done{opacity:0;pointer-events:none}
 #loader .wvBack1{animation:wvFlow 2.6s linear infinite}
 #loader .wvBack2{animation:wvFlow 2.1s linear infinite}
@@ -78,6 +80,14 @@ canvas{display:block}
 #loader #start-btn:hover{transform:translateX(-100%) scale(1.06)}
 #loader #start-btn:active{transform:translateX(-100%) scale(.95)}
 @media(max-width:480px){#start-btn,#duo-btn{min-width:0;padding:10px 15px;font-size:14px;letter-spacing:1px;border-radius:11px}#loader #start-btn{left:calc(50% - 6px)}#duo-btn{left:calc(50% + 6px)}}
+/* 矮视口（横屏手机/小窗）：整体缩小加载页内容，保证标题、进度条与底部按钮互不遮挡 */
+@media(max-height:600px){
+  #loader .icon svg{width:110px;height:110px}
+  #loader .duck-wrap{width:76px}
+  #loader .loader-title{font-size:24px;top:0;letter-spacing:3px}
+  #loader .bar{width:300px;height:14px;margin-top:14px;transform:translateY(-6px)}
+  #loader .txt{font-size:13px;margin-top:8px}
+}
 @keyframes duckFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 #rotate-hint{position:fixed;inset:0;background:rgba(0,0,0,.92);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:300;font-size:15px}
 #rotate-hint .ri{font-size:56px;animation:rp 2s ease-in-out infinite}
