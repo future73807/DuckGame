@@ -670,8 +670,9 @@ if (isHotFe) {
         let fp = path.join(ROOT, pn === '/' ? '3d-duck.html' : pn);
         if (!fp.startsWith(ROOT)) { res2.writeHead(403); res2.end('Forbidden'); return; }
         fs2.readFile(fp, (err, data) => {
-            if (err) { res2.writeHead(404); res2.end('404: ' + pn); }
-            else { const ext = path.extname(fp); res2.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' }); res2.end(data); }
+            // no-store：版本回退/模块重组后浏览器必须拿到最新 JS/CSS，禁止启发式缓存旧模块
+            if (err) { res2.writeHead(404, { 'Cache-Control': 'no-store' }); res2.end('404: ' + pn); }
+            else { const ext = path.extname(fp); res2.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' }); res2.end(data); }
         });
     });
 
