@@ -287,36 +287,30 @@ async function generateShareCardDataURL(){
     ctx.fillText(scoreStr,LX,midCenterY+40);
     ctx.shadowBlur=0;
     // 本局单项高光：单行胶囊，与分数保留约 34px 呼吸间距；图标用矢量四芒星（不用 emoji，跨平台渲染一致）。
-    const highlightColors={
-        multiplier:[255,202,83],combo:[255,202,83],
-        collection:[99,220,255],collector:[99,220,255],streak:[99,220,255],
-        clutch:[255,126,145],survivor:[255,126,145],rescue:[255,126,145]
-    };
-    const highlightRGB=highlightColors[runHighlight.kind]||[255,205,103];
     const highlightX=LX,highlightY=midCenterY+128,highlightMaxW=440,highlightH=48;
     ctx.font='700 20px "Microsoft YaHei",sans-serif';
     const hlLabel='本局高光',hlBodyRaw=' · '+runHighlight.text;
     const hlLabelW=ctx.measureText(hlLabel).width;
     const hlBody=ellipsizeText(ctx,hlBodyRaw,highlightMaxW-hlLabelW-58);
     const highlightW=Math.min(highlightMaxW,Math.ceil(hlLabelW+ctx.measureText(hlBody).width)+58);
-    // 白色胶囊：白底 + 彩色星芒 + 深色文字，在深色卡面上更清爽
-    ctx.fillStyle='#ffffff';
+    // 白色半透明胶囊：白星 + 白字，压在深色卡面上呈磨砂玻璃感
+    ctx.fillStyle='rgba(255,255,255,.16)';
     roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.fill();
-    ctx.strokeStyle='rgba(15,23,36,.08)';ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=1;
     roundRect(ctx,highlightX,highlightY-highlightH/2,highlightW,highlightH,highlightH/2);ctx.stroke();
-    // 矢量四芒星图标（纯色平涂，不加发光）
+    // 矢量四芒星图标（纯白平涂，不加发光）
     ctx.save();
-    ctx.fillStyle=`rgb(${highlightRGB.join(',')})`;
+    ctx.fillStyle='#ffffff';
     const sparkX=highlightX+24;
     ctx.beginPath();
     for(let i=0;i<8;i++){const a=-Math.PI/2+i*Math.PI/4,r=i%2?3:8.5;const px=sparkX+Math.cos(a)*r,py=highlightY+Math.sin(a)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}
     ctx.closePath();ctx.fill();
     ctx.restore();
-    // 两段文字：标签用中性深灰，正文用近黑
+    // 两段文字：全白，标签稍降不透明度
     ctx.textBaseline='middle';
-    ctx.fillStyle='rgba(30,42,58,.78)';
+    ctx.fillStyle='rgba(255,255,255,.82)';
     ctx.fillText(hlLabel,highlightX+42,highlightY+1);
-    ctx.fillStyle='rgba(15,23,36,.92)';
+    ctx.fillStyle='rgba(255,255,255,.95)';
     ctx.fillText(hlBody,highlightX+42+hlLabelW,highlightY+1);
     ctx.textBaseline='alphabetic';
     // ===== 底部 URL 区（对应 sm-bottom）=====
