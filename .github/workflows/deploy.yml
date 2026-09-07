@@ -1,0 +1,25 @@
+name: Deploy to Retinbox Web Hosting
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Deploy both sites (prod + dev)
+        env:
+          RTH_API_KEY: ${{ secrets.RTH_API_KEY }}
+        run: npm run deploy

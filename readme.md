@@ -74,6 +74,12 @@
 
 ## 📝 更新日志
 
+### v7.6 (2026-09-07)
+
+- **接入热铁盒自动部署（双站点）**：新增 `scripts/prepare-deploy.js` 部署准备脚本——把项目复制到 `.deploy/<站点>/` 临时目录并按站点改写运行模式，实现同一份源码发布到两个线上站点：`3d-duck`（`MODE=prod`，隐藏调试按钮）与 `duck-game`（`MODE=dev`，开发模式）；`.env`（API 密钥）、`.git`、`node_modules`、本地脚本等一律排除，绝不随站点上传；`package.json` 新增 `deploy:prod` / `deploy:dev` / `deploy` 三条命令，按客服建议改用 `--site` + `--outdir` 参数配置，不再依赖 `rth-host.json` 文件（已删除）。
+- **CI/CD 改为 tag 触发**：`.github/workflows/deploy.yml` 从 `on: push` 改为 `on: push: tags: ['v*']`——只有推送 `v` 开头的 tag 才触发自动部署（同时发布两个站点），日常 push 不再触发；运行环境升级为官方 `setup-deno` + `setup-node`，替代旧的第三方 helper 容器。
+- **修复 API 密钥泄露风险**：配置向导把 `RTH_API_KEY` 写入了 `.env`，而 `.env` 此前被 git 跟踪——已将其移出跟踪（保留本地文件），并加入 `.gitignore`；部署产物目录 `.deploy/*` 同样忽略。
+
 ### v7.5 (2026-08-31)
 
 - **资源完全本地化（离线可玩）**：three.js 0.160.0 主库与 addons（GLTFLoader/BufferGeometryUtils/OrbitControls）、FontAwesome 6.7.2（css + 4 个 woff2 字体）、qrcodejs 全部收入 `vendor/` 并改写 importmap 与引用——实测页面 30 个资源请求全部来自本机，零外部 CDN 依赖，断网或 CDN 故障不再影响游戏；服务器 MIME 表补充 woff2/woff/ttf。

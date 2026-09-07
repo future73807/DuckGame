@@ -1,6 +1,6 @@
 {
   "name": "duckgame",
-  "version": "2.7.0",
+  "version": "7.6.0",
   "description": "小黄鸭漂流记 - Web3D 休闲收集游戏",
   "main": "server.node.js",
   "scripts": {
@@ -14,7 +14,11 @@
     "check:feedback": "node scripts/check-run-feedback.js",
     "check:festival": "node scripts/check-festival-fx.js",
     "check": "npm run check:client && npm run check:server && npm run check:duo && npm run check:water && npm run check:feedback && npm run check:festival",
-    "test": "npm run check"
+    "deploy:prod": "node scripts/prepare-deploy.js --site 3d-duck --mode prod && deno -A https://host.retiehe.com/cli deploy --site 3d-duck --outdir .deploy/3d-duck",
+    "deploy:dev": "node scripts/prepare-deploy.js --site duck-game --mode dev && deno -A https://host.retiehe.com/cli deploy --site duck-game --outdir .deploy/duck-game",
+    "deploy": "npm run deploy:prod && npm run deploy:dev",
+    "test": "npm run check",
+    "deploy": "deno -Ar https://host.retiehe.com/cli deploy"
   },
   "keywords": [
     "game",
