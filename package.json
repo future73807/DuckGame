@@ -8,7 +8,7 @@
     "server": "node server.node.js",
     "client": "npx serve . -l 5500",
     "check:client": "node scripts/check-client.js",
-    "check:server": "node --check server.node.js",
+    "check:server": "node --check server.node.js && node --check ws.node.js && node --check duo-core.node.js && node --check duo-ws-service.node.js",
     "check:duo": "node scripts/check-duo-delta.js",
     "check:water": "node scripts/check-water-scheduler.js",
     "check:feedback": "node scripts/check-run-feedback.js",

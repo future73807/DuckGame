@@ -1786,38 +1786,170 @@ function updateTransientFx(dt){
     }
 }
 
-const duoNetStats={attempts:0,successes:0,failures:0,requestChars:0,responseChars:0,parseMs:0,maxRequestChars:0,maxResponseChars:0,maxRoundTripMs:0,last:null,byAction:Object.create(null),applyRoomMs:0,maxApplyRoomMs:0};
-function recordDuoRequest(action,requestChars,responseChars,roundTripMs,parseMs,ok){
+const duoNetStats={attempts:0,successes:0,failures:0,requestChars:0,responseChars:0,parseMs:0,maxRequestChars:0,maxResponseChars:0,maxRoundTripMs:0,last:null,byAction:Object.create(null),byTransport:{http:{attempts:0,successes:0,failures:0},ws:{attempts:0,successes:0,failures:0}},applyRoomMs:0,maxApplyRoomMs:0};
+function recordDuoRequest(action,requestChars,responseChars,roundTripMs,parseMs,ok,transport='http'){
     const bucket=duoNetStats.byAction[action]||(duoNetStats.byAction[action]={attempts:0,successes:0,failures:0,requestChars:0,responseChars:0});
-    duoNetStats.attempts++;bucket.attempts++;duoNetStats.requestChars+=requestChars;duoNetStats.responseChars+=responseChars;duoNetStats.parseMs+=parseMs;bucket.requestChars+=requestChars;bucket.responseChars+=responseChars;
-    if(ok){duoNetStats.successes++;bucket.successes++}else{duoNetStats.failures++;bucket.failures++}
+    const channel=duoNetStats.byTransport[transport]||(duoNetStats.byTransport[transport]={attempts:0,successes:0,failures:0});
+    duoNetStats.attempts++;bucket.attempts++;channel.attempts++;duoNetStats.requestChars+=requestChars;duoNetStats.responseChars+=responseChars;duoNetStats.parseMs+=parseMs;bucket.requestChars+=requestChars;bucket.responseChars+=responseChars;
+    if(ok){duoNetStats.successes++;bucket.successes++;channel.successes++}else{duoNetStats.failures++;bucket.failures++;channel.failures++}
     duoNetStats.maxRequestChars=Math.max(duoNetStats.maxRequestChars,requestChars);duoNetStats.maxResponseChars=Math.max(duoNetStats.maxResponseChars,responseChars);duoNetStats.maxRoundTripMs=Math.max(duoNetStats.maxRoundTripMs,roundTripMs);
-    duoNetStats.last={action,requestChars,responseChars,roundTripMs:+roundTripMs.toFixed(2),parseMs:+parseMs.toFixed(2),ok};
+    duoNetStats.last={action,requestChars,responseChars,roundTripMs:+roundTripMs.toFixed(2),parseMs:+parseMs.toFixed(2),ok,transport};
 }
-function snapshotDuoNetStats(){return{...duoNetStats,byAction:Object.fromEntries(Object.entries(duoNetStats.byAction).map(([key,value])=>[key,{...value}]))}}
+function snapshotDuoNetStats(){return{...duoNetStats,byAction:Object.fromEntries(Object.entries(duoNetStats.byAction).map(([key,value])=>[key,{...value}])),byTransport:{...duoNetStats.byTransport}}}
 const Duo={
-    active:false,role:null,room:null,remoteState:null,_apiURL:null,_pollTimer:null,_pollPending:false,_stateTimer:null,_statePending:false,_started:false,_down:false,_teamDefeated:false,_respawnTicker:null,_nameSyncTimer:null,_name:'',_remoteSeq:-1,_remoteFingerprint:null,_roomRev:-1,_uiKey:'',
-    get API_URLS(){const base=location.protocol+'//'+location.hostname+':8123/api/duo';return [...new Set([base,'/api/duo'].map(url=>new URL(url,location.href).href))]},
+    active:false,role:null,room:null,remoteState:null,_apiURL:null,_pollTimer:null,_pollPending:false,_stateTimer:null,_statePending:false,_started:false,_down:false,_teamDefeated:false,_respawnTicker:null,_nameSyncTimer:null,_name:'',_remoteSeq:-1,_remoteFingerprint:null,_roomRev:-1,_uiKey:'',_ws:null,_wsOpen:false,_wsURL:null,_wsSeq:0,_wsPending:null,_wsRetryTimer:null,_wsFailures:0,_wsBlockedUntil:0,
+    // 同源优先（本地 Node 与热铁盒都提供），其次本地开发时的 8123 端口，
+    // 最后 /ws.node.js 的 HTTP 模式（热铁盒回退路径）。
+    get API_URLS(){const base=location.protocol+'//'+location.hostname+':8123/api/duo';return [...new Set(['/api/duo',base,'/ws.node.js'].map(url=>new URL(url,location.href).href))]},
+    // 热铁盒与本地 Node 都提供同一路径的 WebSocket 端点；协议与 HTTP 版完全一致。
+    // 同源优先（线上就是这种），其次尝试本地 8123 端口（页面由静态服务托管时）。
+    get WS_URLS(){
+        const proto=location.protocol==='https:'?'wss://':'ws://';
+        return [...new Set([proto+location.host+'/ws.node.js',proto+location.hostname+':8123/ws.node.js'])];
+    },
+    get transport(){return this._wsOpen?'ws':'http'},
     get playerId(){return Leaderboard.getUserId()},
     get name(){return (document.getElementById('duo-name').value||this._name||'').trim().slice(0,12)},
     get me(){return this.role==='host'?this.room?.host:this.room?.guest},
     get other(){return this.role==='host'?this.room?.guest:this.room?.host},
+    // ---- WebSocket 通道 ----
+    _wsConnect(){
+        if(this._ws||typeof WebSocket==='undefined')return;
+        // 退避窗口内不重试：否则每个 120ms 的 state 请求都会重新握手一次。
+        if(Date.now()<(this._wsBlockedUntil||0))return;
+        const urls=this._wsURL?[this._wsURL,...this.WS_URLS.filter(url=>url!==this._wsURL)]:this.WS_URLS;
+        this._wsTry(urls,0);
+    },
+    // 逐个候选端点串行尝试；任一成功即停止，全部失败则回退 HTTP 并安排重连。
+    _wsTry(urls,index){
+        if(this._ws)return;
+        if(index>=urls.length){this._wsScheduleRetry();return}
+        const url=urls[index];
+        let socket;try{socket=new WebSocket(url)}catch(error){this._wsTry(urls,index+1);return}
+        this._ws=socket;this._wsOpen=false;
+        let settled=false;
+        const next=()=>{
+            if(settled)return;
+            settled=true;
+            if(this._ws===socket){this._ws=null;this._wsOpen=false}
+            try{socket.close()}catch(error){}
+            this._wsTry(urls,index+1);
+        };
+        const timer=setTimeout(next,2500);
+        socket.onopen=()=>{
+            if(settled)return;
+            settled=true;clearTimeout(timer);
+            this._wsURL=url;this._wsOpen=true;this._wsFailures=0;
+            clearTimeout(this._wsRetryTimer);this._wsRetryTimer=null;
+        };
+        socket.onmessage=event=>{
+            if(this._ws!==socket)return;
+            let data;try{data=JSON.parse(event.data)}catch(error){return}
+            if(data?.type==='ready')return;
+            const pending=this._wsPending;if(!pending)return;
+            const entry=pending.get(Number(data?.msgId));if(!entry)return;
+            pending.delete(Number(data.msgId));clearTimeout(entry.timer);entry.resolve(data);
+        };
+        socket.onerror=()=>{clearTimeout(timer);next()};
+        socket.onclose=()=>{
+            clearTimeout(timer);
+            if(!settled){next();return}
+            if(this._ws!==socket)return;
+            this._ws=null;this._wsOpen=false;
+            this._wsRejectPending();
+            this._wsScheduleRetry();
+        };
+    },
+    _wsRejectPending(){
+        const pending=this._wsPending;if(!pending)return;
+        for(const entry of pending.values()){clearTimeout(entry.timer);entry.reject(Object.assign(new Error('WS_CLOSED'),{code:'WS_CLOSED'}))}
+        pending.clear();
+    },
+    _wsScheduleRetry(){
+        if(this._wsRetryTimer)return;
+        // 断开后先等 8 秒试探；连续失败按次数退避，最长 60 秒，避免无 ws 的静态托管环境频繁重连。
+        const delay=Math.min(60000,8000*Math.max(1,this._wsFailures));
+        this._wsFailures=Math.min(8,this._wsFailures+1);
+        this._wsBlockedUntil=Date.now()+delay;
+        this._wsRetryTimer=setTimeout(()=>{
+            this._wsRetryTimer=null;this._wsBlockedUntil=0;
+            // 非对局状态不主动重连：下一次 request() 的预热会接手，避免空闲页面白跑连接。
+            if(this.active)this._wsConnect();
+        },delay);
+    },
+    // 首次 create/join 之前预热连接，避免请求先行而去、被阻塞在 HTTP 回退上。
+    async _wsEnsureOpen(timeoutMs=1200){
+        if(this._wsOpen)return true;
+        if(!this._ws)return false;
+        const socket=this._ws,started=performance.now();
+        while(performance.now()-started<timeoutMs){
+            if(this._ws!==socket)return this._wsOpen;
+            if(socket.readyState===1)return true;
+            if(socket.readyState===2||socket.readyState===3)return false;
+            await new Promise(resolve=>setTimeout(resolve,25));
+        }
+        return this._wsOpen;
+    },
+    _wsSend(message){
+        const socket=this._ws;
+        if(!socket||!this._wsOpen)return null;
+        if(!this._wsPending)this._wsPending=new Map();
+        const msgId=++this._wsSeq;
+        return new Promise((resolve,reject)=>{
+            const timer=setTimeout(()=>{this._wsPending?.delete(msgId);reject(Object.assign(new Error('WS_TIMEOUT'),{code:'WS_TIMEOUT'}))},3500);
+            this._wsPending.set(msgId,{resolve,reject,timer});
+            try{socket.send(JSON.stringify({...message,msgId}))}catch(error){clearTimeout(timer);this._wsPending.delete(msgId);reject(error)}
+        });
+    },
+    _closeWs(){
+        clearTimeout(this._wsRetryTimer);this._wsRetryTimer=null;this._wsBlockedUntil=0;
+        this._wsRejectPending();
+        const socket=this._ws;this._ws=null;this._wsOpen=false;
+        if(socket){
+            // 主动关闭不触发重连：先摘掉回调，避免 onclose 重新安排退避。
+            socket.onclose=null;socket.onerror=null;socket.onmessage=null;socket.onopen=null;
+            try{socket.close()}catch(error){}
+        }
+    },
     async request(action,payload={}){
+        const message={action,playerId:this.playerId,name:this.name,role:this.role,sceneHash:this.role==='guest'&&Number.isFinite(duoItemsHash)?duoItemsHash:null,...payload};
+        // 房间接口优先走长连接：首次 create/join 时先预热（等待久一点），
+        // 对局中只等握手片刻，避免掉帧；不通时自动回退 HTTP。
+        if(!this._ws&&typeof WebSocket!=='undefined')this._wsConnect();
+        if(!this._wsOpen&&this._ws)await this._wsEnsureOpen(this.active?1200:4000);
+        if(this._wsOpen){
+            const started=performance.now();
+            try{
+                const data=await this._wsSend(message);
+                const requestChars=JSON.stringify(message).length;
+                const responseChars=JSON.stringify(data||null).length;
+                recordDuoRequest(action,requestChars,responseChars,performance.now()-started,0,!!data?.ok,'ws');
+                if(data?.ok)return data;
+                if(data?.error){const apiError=new Error(data.error);apiError.code=data.error;throw apiError}
+            }catch(error){
+                // 场景协议错误必须原样抛给调用方；其余 ws 异常静默回退 HTTP 重试同一请求。
+                if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA')throw error;
+            }
+        }
+        return this._httpRequest(action,message);
+    },
+    async _httpRequest(action,message){
+        const body=JSON.stringify(message);
         const urls=this._apiURL?[this._apiURL,...this.API_URLS.filter(url=>url!==this._apiURL)]:this.API_URLS;
         let lastError=null;
         for(const url of urls){
             const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),3500);
-            const body=JSON.stringify({action,playerId:this.playerId,name:this.name,role:this.role,sceneHash:this.role==='guest'&&Number.isFinite(duoItemsHash)?duoItemsHash:null,...payload}),started=performance.now();let responseChars=0,parseMs=0,recorded=false;
+            const started=performance.now();let responseChars=0,parseMs=0,recorded=false;
             try{const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body});
                 const responseText=await response.text();responseChars=responseText.length;const parseStarted=performance.now();const data=JSON.parse(responseText);parseMs=performance.now()-parseStarted;
-                recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,response.ok&&!!data?.ok);recorded=true;
+                recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,response.ok&&!!data?.ok,'http');recorded=true;
                 if(response.ok&&data.ok){this._apiURL=url;return data}
                 if(data?.error){const apiError=new Error(data.error);apiError.code=data.error;throw apiError}
-            }catch(error){lastError=error;if(!recorded)recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,false);if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA')throw error}finally{clearTimeout(timeout)}
+            }catch(error){lastError=error;if(!recorded)recordDuoRequest(action,body.length,responseChars,performance.now()-started,parseMs,false,'http');if(error?.code==='SCENE_BASE_MISMATCH'||error?.code==='INVALID_SCENE_DELTA')throw error}finally{clearTimeout(timeout)}
         }
         throw lastError||new Error('SERVER_UNAVAILABLE');
     },
-    activate(result){resetDuoSceneSync(true);resetDuoRemoteMotion();this._remoteSeq=-1;this._remoteFingerprint=null;this._roomRev=-1;this._uiKey='';this.active=true;this.role=result.role;this.applyRoom(result.room);this.startPolling()},
+    activate(result){resetDuoSceneSync(true);resetDuoRemoteMotion();this._remoteSeq=-1;this._remoteFingerprint=null;this._roomRev=-1;this._uiKey='';this.active=true;this.role=result.role;this.applyRoom(result.room);this.startPolling();this._wsFailures=0;this._wsConnect()},
     showRespawn(downAt){
         const overlay=document.getElementById('duo-respawn'),time=document.getElementById('duo-respawn-time');
         const refresh=()=>{const left=Math.max(0,Math.ceil((10000-(Date.now()-(downAt||Date.now())))/1000));time.textContent=left||'…'};
@@ -1951,7 +2083,7 @@ const Duo={
     },
     async start(){const result=await this.request('start',{room:this.room.code});this.applyRoom(result.room);closeDuoModal();startGameSession()},
     async restart(){if(this.role!=='host')throw new Error('ONLY_HOST_CAN_RESTART');const result=await this.request('restart',{room:this.room.code});this._started=false;this.applyRoom(result.room)},
-    reset(){clearInterval(this._pollTimer);clearInterval(this._stateTimer);clearTimeout(this._nameSyncTimer);this.hideRespawn();this.active=false;this.room=null;this.remoteState=null;this._pollPending=false;this._statePending=false;this._started=false;this._down=false;this._teamDefeated=false;this._name='';this._remoteSeq=-1;this._remoteFingerprint=null;this._roomRev=-1;this._uiKey='';resetDuoSceneSync();if(duckModel)duckModel.visible=true;removeDuoRemoteDuck();removeDuoLocalNameLabel();document.getElementById('duo-hud').classList.remove('show')}
+    reset(){clearInterval(this._pollTimer);clearInterval(this._stateTimer);clearTimeout(this._nameSyncTimer);this._closeWs();this.hideRespawn();this.active=false;this.room=null;this.remoteState=null;this._pollPending=false;this._statePending=false;this._started=false;this._down=false;this._teamDefeated=false;this._name='';this._remoteSeq=-1;this._remoteFingerprint=null;this._roomRev=-1;this._uiKey='';this._wsFailures=0;resetDuoSceneSync();if(duckModel)duckModel.visible=true;removeDuoRemoteDuck();removeDuoLocalNameLabel();document.getElementById('duo-hud').classList.remove('show')}
 };
 window.Duo=Duo; // 双人模块（scene-sync/remote-duck）通过全局守卫访问
 window.openDuoModal=function(){

@@ -66,8 +66,139 @@ async function waitForServer(url, child, getLog) {
     throw new Error(`测试服务启动超时\n${getLog()}`);
 }
 
+// ---- WebSocket 通道回归：与 HTTP 同一套房间语义，消息带 msgId 多路复用 ----
+async function openDuoWebSocket(url) {
+    const socket = new WebSocket(url);
+    const pending = new Map();
+    let seq = 0;
+    await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('WebSocket 连接超时')), 5000);
+        socket.addEventListener('open', () => { clearTimeout(timer); resolve(); });
+        socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('WebSocket 连接失败')); });
+    });
+    socket.addEventListener('message', event => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'ready') return;
+        const entry = pending.get(Number(data.msgId));
+        if (!entry) return;
+        pending.delete(Number(data.msgId));
+        entry.resolve(data);
+    });
+    socket.addEventListener('close', () => {
+        for (const entry of pending.values()) entry.reject(new Error('WebSocket 已关闭'));
+        pending.clear();
+    });
+    return {
+        send(payload) {
+            const msgId = ++seq;
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => { pending.delete(msgId); reject(new Error(`WebSocket 请求超时: ${payload.action}`)); }, 5000);
+                pending.set(msgId, { resolve, reject, timer });
+                socket.send(JSON.stringify({ ...payload, msgId }));
+            });
+        },
+        close() { try { socket.close(); } catch (_) {} }
+    };
+}
+
+async function checkWebSocketChannel(origin, salt) {
+    const ws = await openDuoWebSocket(`${origin.replace(/^http/, 'ws')}/ws.node.js`);
+    try {
+        const hostId = `ws-host-${salt}`, guestId = `ws-guest-${salt}`;
+        const created = await ws.send({ action: 'create', playerId: hostId, name: 'ws-host' });
+        assert.equal(created.ok, true);
+        assert.equal(created.role, 'host');
+        assert.equal(created.room.status, 'waiting');
+        const room = created.room.code;
+
+        const joined = await ws.send({ action: 'join', playerId: guestId, name: 'ws-guest', role: 'guest', room });
+        assert.equal(joined.ok, true);
+        assert.equal(joined.room.status, 'ready');
+        assert.equal(joined.room.guest.name, 'ws-guest');
+
+        const started = await ws.send({ action: 'start', playerId: hostId, role: 'host', room });
+        assert.equal(started.ok, true);
+        assert.equal(started.room.status, 'running');
+
+        const items = [['rock', 1, 2, 1, null, 1, 0, 0], ['flower', 3, 4, 1, null, 2, 0, 0]];
+        const scene = {
+            clk: 1, evT: 30, evN: null, evTm: 0, wS: 1, wST: 1, eWT: 1, ih: 1,
+            items, whirls: [[5, 6, 1]], waveDir: [1, 0], waveStr: 1, waveActive: 0, waveDur: 0,
+            shark: null, windAct: 0, windMul: 1, evWindDir: [1, 0], stormAct: 0, rbAct: 0
+        };
+        const hostState = (scenePayload, extra = {}) => ({ x: 0, y: 0, z: 0, ry: 0, score: 0, hearts: 3, skin: 'classic', scene: scenePayload, ...extra });
+        const fullUpload = snapshot => ({ ...snapshot, uploadProtocol: 2 });
+        const first = await ws.send({ action: 'state', playerId: hostId, name: 'ws-host', role: 'host', room, state: hostState(fullUpload(scene)) });
+        assert.equal(first.ok, true);
+        assert.equal(first.sceneAck.protocol, 2);
+        assert.equal(first.sceneAck.mode, 'full');
+        const baseRev = first.sceneAck.rev;
+
+        // 客机拿到完整场景 + server-issued ih
+        const guestSync = await ws.send({ action: 'state', playerId: guestId, name: 'ws-guest', role: 'guest', room, state: { x: 1, y: 0, z: 1, ry: 0, score: 0, hearts: 3, skin: 'classic' } });
+        assert.equal(guestSync.ok, true);
+        assert.equal(guestSync.room.host.state.scene.items.length, 2);
+        assert.equal(guestSync.room.host.state.scene.ih, baseRev);
+
+        // metadata-only 不推进 items rev
+        const metadataScene = { ...scene, clk: 1.1 };
+        delete metadataScene.items;
+        const metadata = await ws.send({ action: 'state', playerId: hostId, role: 'host', room, state: hostState({ ...metadataScene, uploadProtocol: 2, baseRev }) });
+        assert.equal(metadata.sceneAck.mode, 'metadata');
+        assert.equal(metadata.sceneAck.rev, baseRev);
+
+        // delta 只传变化项
+        const moved = scene.items[0].slice();
+        moved[1] = 9;
+        const delta = await ws.send({ action: 'state', playerId: hostId, role: 'host', room, state: hostState({ ...metadataScene, clk: 1.2, uploadProtocol: 2, baseRev, itemDelta: { upserts: [moved], removed: [] } }) });
+        assert.equal(delta.sceneAck.mode, 'delta');
+        assert.ok(delta.sceneAck.rev > baseRev);
+
+        // 旧 baseRev 重放必须 409 且带 expectedSceneRev，且不附带房间快照（客户端据此清基线）
+        const stale = await ws.send({ action: 'state', playerId: hostId, role: 'host', room, state: hostState({ ...metadataScene, clk: 99, uploadProtocol: 2, baseRev, itemDelta: { upserts: [moved], removed: [] } }) });
+        assert.equal(stale.ok, false);
+        assert.equal(stale.error, 'SCENE_BASE_MISMATCH');
+        assert.equal(stale.expectedSceneRev, delta.sceneAck.rev);
+        assert.equal(stale.room, undefined, '场景协议错误不得附带房间快照');
+
+        // 同一房间在 HTTP 通道仍可见（两条通道共用房间存储）
+        const httpRoom = await (await fetch(`${origin}/api/duo?room=${room}`)).json();
+        assert.equal(httpRoom.ok, true);
+        assert.equal(httpRoom.room.status, 'running');
+        assert.equal(httpRoom.room.guest.name, 'ws-guest');
+
+        // 错误码映射
+        const missing = await ws.send({ action: 'status', playerId: guestId, role: 'guest', room: '000000' });
+        assert.equal(missing.error, 'ROOM_NOT_FOUND');
+
+        // 通过 HTTP 关闭对局后，WS 立即读到 finished
+        await fetch(`${origin}/api/duo`, {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'finish', playerId: hostId, name: 'ws-host', role: 'host', room, score: 10, playTime: 5 })
+        });
+        const finished = await ws.send({ action: 'finish', playerId: guestId, name: 'ws-guest', role: 'guest', room, score: 20, playTime: 6 });
+        assert.equal(finished.ok, true);
+        assert.equal(finished.room.status, 'finished');
+        assert.ok(finished.room.duoEntry, '结算后应生成双人榜条目');
+        assert.equal(finished.room.duoEntry.score, 30);
+
+        console.log('OK: WebSocket 通道 create/join/start/state(全量→metadata→delta)/409/跨通道共享/结算');
+    } finally {
+        ws.close();
+    }
+}
+
 async function main() {
     checkClientUploadCapabilityFallback();
+    // 结算回归会向 leaderboard.json 写入双人榜；测试前备份、结束时还原，避免污染仓库文件。
+    const leaderboardPath = path.join(ROOT, 'leaderboard.json');
+    const leaderboardBackup = fs.existsSync(leaderboardPath) ? fs.readFileSync(leaderboardPath, 'utf8') : null;
+    const restoreLeaderboard = () => {
+        try {
+            if (leaderboardBackup === null) { if (fs.existsSync(leaderboardPath)) fs.unlinkSync(leaderboardPath); }
+            else fs.writeFileSync(leaderboardPath, leaderboardBackup);
+        } catch (_) {}
+    };
     const port = await reserveFreePort();
     let serverLog = '';
     const child = spawn(process.execPath, ['server.node.js'], {
@@ -370,8 +501,11 @@ async function main() {
         assert.ok(rescueDown.itemDelta.upserts.some(item => item[0] === 'heart' && item[5] === nextItemId), '客机未收到倒地房主同步的救场血瓶');
 
         console.log(`OK: host upload ${initialHost.requestBytes}B full -> ${metadataHost.requestBytes}B metadata / ${movedHost.requestBytes}B delta; guest download ${initial.bytes}B full -> ${moved.bytes}B delta`);
+
+        await checkWebSocketChannel(origin, salt);
     } finally {
         if (child.exitCode === null) child.kill();
+        restoreLeaderboard();
     }
 }
 
