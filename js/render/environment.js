@@ -223,10 +223,27 @@ export function createEnvironment(ctx){
     sunGroup.add(sunHalo,sunRays,sunDisc);
     scene.add(sunGroup);
 
-    // 月亮
+    // 月亮：canvas 贴图（径向渐变 + 陨石坑 + 月缘暗角），与太阳同一完成度；
+    // 保留 transparent 以便 setCartoonSky 继续用 opacity 做过渡动画。
+    const moonTex=mkTex(256,256,(x)=>{
+        const g=x.createRadialGradient(128,128,10,128,128,128);
+        g.addColorStop(0,'#fdfdf2');g.addColorStop(.55,'#ececdb');g.addColorStop(.85,'#d9d9c6');g.addColorStop(1,'#c9c9b4');
+        x.fillStyle=g;x.fillRect(0,0,256,256);
+        // 陨石坑：暗色坑底 + 一侧亮色坑沿，营造球面凹凸感
+        const craters=[[84,92,17],[150,74,12],[176,140,20],[106,164,10],[64,150,8],[196,96,7],[128,116,6]];
+        for(const[cx,cy,cr]of craters){
+            x.fillStyle='rgba(168,168,150,.42)';x.beginPath();x.arc(cx,cy,cr,0,Math.PI*2);x.fill();
+            x.fillStyle='rgba(255,255,246,.3)';x.beginPath();x.arc(cx-cr*.28,cy-cr*.3,cr*.72,0,Math.PI*2);x.fill();
+            x.fillStyle='rgba(190,190,170,.35)';x.beginPath();x.arc(cx,cy,cr*.5,0,Math.PI*2);x.fill();
+        }
+        // 月缘暗角：模拟球面明暗（左下缘略暗）
+        const v=x.createRadialGradient(96,96,40,96,96,190);
+        v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(90,90,80,.22)');
+        x.fillStyle=v;x.fillRect(0,0,256,256);
+    });
     const moonDisc=new THREE.Mesh(
         new THREE.CircleGeometry(7,32),
-        new THREE.MeshBasicMaterial({color:0xeeeedd,side:THREE.DoubleSide,transparent:true,opacity:.9,fog:false})
+        new THREE.MeshBasicMaterial({map:moonTex,side:THREE.DoubleSide,transparent:true,opacity:.9,fog:false})
     );
     scene.add(moonDisc);
 

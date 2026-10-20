@@ -82,9 +82,20 @@ export function createWater(ctx){
     }
 
     // ===== 深层底板（在浪谷下方兜住视野，跟随鸭子移动） =====
+    // 低频正弦"水纹"画布贴图：打破远处"纯色塑料"感；只用低频（无颗粒噪声），避免摩尔纹。
+    const waterBaseTex=(()=>{const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+        x.fillStyle='#fff';x.fillRect(0,0,256,256);
+        for(let i=0;i<6;i++){const ph=i*1.7,fx=.5+i*.17,fy=.34+i*.11;
+            x.fillStyle=i%2?'rgba(0,0,0,.045)':'rgba(0,0,0,.08)';
+            for(let py=0;py<256;py+=2)for(let px=0;px<256;px+=2){
+                const v=Math.sin(px*.02*fx+ph)*Math.sin(py*.02*fy+ph);
+                if(v>.55)x.fillRect(px,py,2,2);
+            }}
+        const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+        t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(6,6);return t})();
     const waterGeo=new THREE.PlaneGeometry(400,400,1,1);
     waterGeo.rotateX(-Math.PI/2);
-    const waterMat=new THREE.MeshStandardMaterial({color:0x1a6aa8,roughness:.95,metalness:0,side:THREE.DoubleSide});
+    const waterMat=new THREE.MeshStandardMaterial({color:0x1a6aa8,map:waterBaseTex,roughness:.95,metalness:0,side:THREE.DoubleSide});
     const waterMesh=new THREE.Mesh(waterGeo,waterMat);
     waterMesh.position.y=-3.6;
     scene.add(waterMesh);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {mergeGeometries,mergeVertices} from 'three/addons/utils/BufferGeometryUtils.js';
 import {genUUID,escapeHtml,formatTime,formatDate,formatScore} from './core/format.js';
 import {EVENTS,EV_TINT,EV_BORDER,EV_W_NORMAL,EV_W_MERCY,STREAK_ICONS,STREAK_COLORS,DEFAULT_DUCK_SKIN,DUCK_SKINS,WING_BLOBS,isValidDuckSkin} from './core/config.js';
 import * as Storage from './core/storage.js';
@@ -455,7 +455,7 @@ function disposeItemVisual(item){
     const root=item.mesh||item;
     // 节日道具实例共享模板的 Geometry / Material；单个实例移除时不能释放共享资源。
     if(!root)return;
-    if(root.userData?.sharedItemResources){itemResourceStats.sharedSkips++;return}
+    if(root.userData?.sharedItemResources||item.sharedItemResources){itemResourceStats.sharedSkips++;return}
     const geometries=new Set(),materials=new Set();
     root.traverse?.(node=>{
         if(node.geometry)geometries.add(node.geometry);
@@ -470,7 +470,31 @@ function removeItemAt(index){
     const item=items[index];if(!item)return;
     scene.remove(item.mesh);disposeItemVisual(item);items.splice(index,1);
 }
-function mkRock(p,s){const g=new THREE.DodecahedronGeometry(1,1);const a=g.attributes.position;for(let i=0;i<a.count;i++){let x=a.getX(i),y=a.getY(i),z=a.getZ(i);const n=Math.sin(x*3.7)*Math.cos(y*2.3)*Math.sin(z*4.1)*.15;x+=n;y+=n*.5;z+=n;y*=.55;a.setXYZ(i,x,y,z)}g.computeVertexNormals();const tint=.92+Math.random()*.16;const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:new THREE.Color(0x8d8177).multiplyScalar(tint),roughness:.85,flatShading:true}));m.position.copy(p);m.scale.setScalar(s);m.rotation.set(Math.random(),Math.random(),0);m.castShadow=true;m.receiveShadow=true;return m}
+// 岩石模板：4 份「确定性噪声变体」共享几何；实例仅随机旋转/缩放/颜色，不再逐实例分配。
+// 噪声相位按变体错开（振幅减半），detail 2 的二十面体顶点更密，消除五边形切面感。
+// 法线平滑：IcosahedronGeometry 非索引，mergeVertices 合并球面重合顶点后 computeVertexNormals
+// 得到平滑法线（去 flatShading 块感）；再按「压扁 + 噪声隆起」烘焙顶点色 AO 模拟——
+// 顶点色在平滑法线生效的前提下提供面状明暗，是"圆润 + 有体积感"的关键。
+const ROCK_NOISE_PHASES=[0,2.1,4.2,6.3];
+const rockTemplateGeos=ROCK_NOISE_PHASES.map(phase=>{
+    let g=mergeVertices(new THREE.IcosahedronGeometry(1,2),1e-4);
+    const a=g.attributes.position;
+    for(let i=0;i<a.count;i++){let x=a.getX(i),y=a.getY(i),z=a.getZ(i);const n=Math.sin(x*3.7+phase)*Math.cos(y*2.3+phase)*Math.sin(z*4.1+phase)*.08;x+=n;y+=n*.5;z+=n;y*=.55;a.setXYZ(i,x,y,z)}
+    // 边缘硬度：二次合并用低容差，只真正重合的边保持折痕，避免平滑法线把外缘"磨圆"漏光
+    g=mergeVertices(g,1e-6);
+    g.computeVertexNormals();
+    // 顶点色：底部/凹陷处暗，顶部/隆起处亮（近似 AO，配合平滑法线）
+    const pa=g.attributes.position,cols=new Float32Array(pa.count*3),cBase=new THREE.Color(0x8d8177);
+    for(let i=0;i<pa.count;i++){
+        const y=pa.getY(i),ny=Math.max(0,Math.min(1,(y+.55)/1.1));
+        const shade=.72+ny*.38;
+        cols[i*3]=cBase.r*shade;cols[i*3+1]=cBase.g*shade;cols[i*3+2]=cBase.b*shade;
+    }
+    g.setAttribute('color',new THREE.BufferAttribute(cols,3));
+    g.userData={sharedItemResources:true};
+    return g;
+});
+function mkRock(p,s){const tint=.92+Math.random()*.16;const m=new THREE.Mesh(rockTemplateGeos[Math.floor(Math.random()*rockTemplateGeos.length)],new THREE.MeshStandardMaterial({vertexColors:true,color:new THREE.Color(0x8d8177).multiplyScalar(tint),roughness:.85}));m.position.copy(p);m.scale.setScalar(s);m.rotation.set(Math.random(),Math.random(),0);m.castShadow=true;m.receiveShadow=true;m.userData={sharedItemResources:true};return m}
 function bakeItemPart(geometry,configure){
     const transform=new THREE.Object3D();
     configure(transform);transform.updateMatrix();geometry.applyMatrix4(transform.matrix);
@@ -557,18 +581,35 @@ function mkLily(x,z,s){
 let flowerTemplate=null;
 function buildFlowerTemplate(){
     const g=new THREE.Group(),parts=[];
+    const ni=geo=>geo.index?geo.toNonIndexed():geo; // mergeGeometries 要求索引一致：Cylinder/Sphere 有索引，ExtrudeGeometry 无
     const stemGeo=new THREE.CylinderGeometry(.015,.02,.5,8);
-    bakeItemPart(stemGeo,o=>{o.position.y=.25});parts.push(colorItemPart(stemGeo,0x2a6a2a));
+    bakeItemPart(stemGeo,o=>{o.position.y=.25});parts.push(colorItemPart(ni(stemGeo),0x2a6a2a));
     for(const side of[-1,1]){
         const geo=new THREE.SphereGeometry(.07,8,6);
-        bakeItemPart(geo,o=>{o.scale.set(1.7,.25,.7);o.position.set(side*.09,.16,0);o.rotation.z=side*.5});parts.push(colorItemPart(geo,0x3f8f3f));
+        bakeItemPart(geo,o=>{o.scale.set(1.7,.25,.7);o.position.set(side*.09,.16,0);o.rotation.z=side*.5});parts.push(colorItemPart(ni(geo),0x3f8f3f));
     }
+    // 花瓣：Shape 泪滴形 + 微挤出（替代压扁球体，近景轮廓不再是"球"）
+    const petalShape=new THREE.Shape();
+    petalShape.moveTo(0,0);
+    petalShape.bezierCurveTo(.07,.02,.09,.09,.07,.16);
+    petalShape.bezierCurveTo(.05,.2,0,.22,0,.22);
+    petalShape.bezierCurveTo(0,.22,-.05,.2,-.07,.16);
+    petalShape.bezierCurveTo(-.09,.09,-.07,.02,0,0);
+    const petalGeo=new THREE.ExtrudeGeometry(petalShape,{depth:.012,bevelEnabled:false,curveSegments:6});
+    petalGeo.translate(0,0,-.006);
+    // 花瓣：去索引 + 补法线（ExtrudeGeometry 默认无法线）；补一个 0 填充的 uv 使属性集与球体/圆柱一致
+    const petalGeoNoIndex=petalGeo.toNonIndexed();petalGeo.dispose();
+    petalGeoNoIndex.deleteAttribute('uv');
+    petalGeoNoIndex.computeVertexNormals();
+    const pn=petalGeoNoIndex.attributes.position.count;
+    petalGeoNoIndex.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(pn*2),2));
     for(let i=0;i<8;i++){
-        const a=i/8*Math.PI*2,geo=new THREE.SphereGeometry(.07,10,8);
-        bakeItemPart(geo,o=>{o.scale.set(1,.4,1.7);o.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);o.rotation.y=Math.PI/2-a;o.rotateX(-.3)});parts.push(colorItemPart(geo,0xffd93c));
+        const a=i/8*Math.PI*2,geo=petalGeoNoIndex.clone();
+        bakeItemPart(geo,o=>{o.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);o.rotation.y=Math.PI/2-a;o.rotateX(-.3)});parts.push(colorItemPart(geo,0xffd93c));
     }
+    petalGeoNoIndex.dispose();
     const coreGeo=new THREE.SphereGeometry(.055,12,10);
-    bakeItemPart(coreGeo,o=>{o.position.y=.52;o.scale.y=.7});parts.push(colorItemPart(coreGeo,0xff8c1a));
+    bakeItemPart(coreGeo,o=>{o.position.y=.52;o.scale.y=.7});parts.push(colorItemPart(ni(coreGeo),0xff8c1a));
     const merged=mergeGeometries(parts,false);parts.forEach(geometry=>geometry.dispose());
     if(!merged)throw new Error('花朵几何合并失败');
     merged.computeBoundingSphere();g.add(new THREE.Mesh(merged,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5})));
@@ -678,7 +719,10 @@ function openingGraceProgress(){
 function createSpawnItem(type,x,z){
     let mesh=null,radius=0;
     switch(type){
-        case'rock':{const rs=.3+Math.random()*.5,rm=1+Math.floor(Math.random()*5)*.5;mesh=isFestival('festival_national_day')?mkCake(new THREE.Vector3(x,-.1,z),rs):mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);radius=rs*1.2*rm;break}
+        case'rock':{const rs=.3+Math.random()*.5,rm=1+Math.floor(Math.random()*5)*.5;mesh=isFestival('festival_national_day')?mkCake(new THREE.Vector3(x,-.1,z),rs):mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);
+            // 碰撞用圆半径（×1.2 余量）而非贴合噪声轮廓：视觉轮廓逐变体不同且被压扁，
+            // 精确贴合需要每变体做有向距离采样，成本高收益低，目前"擦边撞岩"反馈少，不建议改
+            radius=rs*1.2*rm;break}
         case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;break}
         case'grass':{const gm=1+Math.floor(Math.random()*3)*.5;mesh=isFestival('festival_dragon_boat')?mkZongzi(x,z):mkGrass(x,z,5+Math.floor(Math.random()*4));mesh.scale.multiplyScalar(gm);radius=.4*gm;break}
         case'lily':{const ls=.3+Math.random()*.25,lm=1+Math.floor(Math.random()*3)*.5;mesh=mkLily(x,z,ls);mesh.scale.multiplyScalar(lm);radius=ls*lm;break}
@@ -1694,6 +1738,7 @@ const transientFx=[];
 const transientResourceStats={disposeCalls:0,geometriesDisposed:0,materialsDisposed:0};
 function disposeTransientVisual(root){
     if(!root)return;
+    if(root.userData?.sharedTransientResources){transientResourceStats.sharedSkips=(transientResourceStats.sharedSkips||0)+1;return}
     const geometries=new Set(),materials=new Set();
     root.traverse?.(node=>{if(node.geometry)geometries.add(node.geometry);if(node.material){const mats=Array.isArray(node.material)?node.material:[node.material];for(const mat of mats)if(mat)materials.add(mat)}});
     for(const geometry of geometries)geometry.dispose();
@@ -2880,10 +2925,13 @@ const sharkShadowTex=mkTex(256,256,(x)=>{
     x.bezierCurveTo(-28,-52,-18,-84,0,-96);
     x.fill();
 });
-// 攻击水花特效
+// 攻击水花特效：12 颗水滴共享一份 geometry/material（细分 6→8 去棱边），
+// 消除每次攻击瞬发 24 次资源分配 + GC；回收路径按 sharedTransientResources 豁免。
+const SPLASH_PARTS={geo:new THREE.SphereGeometry(.06,8,6),mat:new THREE.MeshBasicMaterial({color:0xdff2ff,transparent:true,opacity:.95,fog:false})};
 function spawnSplash(pos){
     for(let i=0;i<12;i++){
-        const m=new THREE.Mesh(new THREE.SphereGeometry(.06,6,6),new THREE.MeshBasicMaterial({color:0xdff2ff,transparent:true,opacity:.95,fog:false}));
+        const m=new THREE.Mesh(SPLASH_PARTS.geo,SPLASH_PARTS.mat);
+        m.userData.sharedTransientResources=true;
         m.position.copy(pos);m.position.y+=.2;scene.add(m);
         const a=Math.random()*Math.PI*2,sp=1.5+Math.random()*2;
         transientFx.push({m,vx:Math.cos(a)*sp,vy:2+Math.random()*1.5,vz:Math.sin(a)*sp,life:.7,max:.7,gravity:6});
