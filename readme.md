@@ -74,6 +74,15 @@
 
 ## 📝 更新日志
 
+### v7.7 (2026-10-19)
+
+- **双人联机改用 WebSocket 长连接**：传输层从 HTTP 短轮询切换为 WebSocket（对局内仍保持 120ms/次的状态同步频率）。新增 `ws.node.js` 作为热铁盒 WebSocket 云函数端点（`wss://<域名>/ws.node.js`），单连接多路复用——每条消息带 `msgId`，响应原样带回，请求/响应协议与 HTTP 版完全一致；同一文件也接受普通 HTTP 请求，作为不支持 ws 环境的回退入口。
+- **房间状态落 KV 数据库**：热铁盒的 WebSocket 每次事件独立调用、跨事件不能靠模块级变量，因此房间按 key 拆分存储（`room:<code>` / `player:<code>:host|guest` / `history:<code>`），避开内置数据库单值 65535 字符上限；单个玩家数据超预算时自动降级为 metadata（不含 items），房主下一个 delta 会因 baseRev 失配自动重传全量，可自愈。
+- **房间逻辑单一来源**：抽出 `duo-core.node.js`（与存储无关的状态机：数据清洗/场景版本校验/全量-metadata-delta 重建/倒地复活/结算）与 `duo-ws-service.node.js`（HTTP 与 ws 共用的服务层），线上 `ws.node.js` 与本地 `server.node.js` 复用同一套规则，避免两条通道行为漂移。
+- **本地 Node 内置零依赖 WebSocket**：`server.node.js` 实现最小 RFC6455（握手、掩码、分片、ping/pong、close），不引入第三方包；房间接口同时支持 `/api/duo` 与 `/ws.node.js` 两种路径，HTTP 与 ws 共享同一内存房间表，可混连。
+- **客户端 ws 优先 + 自动回退**：`Duo.request` 优先走长连接，握手/收发失败自动回退现有 HTTP 轮询；断开后按指数退避重连（8s 起、最长 60s），退避窗口内不重复握手，避免 120ms 的 state 请求触发重连风暴；场景协议错误（`SCENE_BASE_MISMATCH` / `INVALID_SCENE_DELTA`）不降级而是原样抛出，触发本地基线重置并重传全量。网络统计新增按通道维度（`byTransport`）。
+- **测试**：`npm run check` 六项全绿；`scripts/check-duo-delta.js` 新增 WebSocket 通道回归（创建/加入/开始/全量→metadata→delta/409 失配/HTTP 与 ws 共享房间/结算落榜），并让测试在结束后还原 `leaderboard.json`，不再污染仓库文件；浏览器实测页面房主 + Node ws 客机双向同步（客机收到 243 项完整场景、上行状态正确回传），断线回退 HTTP 与约 9 秒后自动重连均通过。
+
 ### v7.6 (2026-09-07)
 
 - **接入热铁盒自动部署（双站点）**：新增 `scripts/prepare-deploy.js` 部署准备脚本——把项目复制到 `.deploy/<站点>/` 临时目录并按站点改写运行模式，实现同一份源码发布到两个线上站点：`3d-duck`（`MODE=prod`，隐藏调试按钮）与 `duck-game`（`MODE=dev`，开发模式）；`.env`（API 密钥）、`.git`、`node_modules`、本地脚本等一律排除，绝不随站点上传；`package.json` 新增 `deploy:prod` / `deploy:dev` / `deploy` 三条命令，按客服建议改用 `--site` + `--outdir` 参数配置，不再依赖 `rth-host.json` 文件（已删除）。
