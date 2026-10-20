@@ -42,6 +42,46 @@ function checkClientUploadCapabilityFallback() {
     assert.equal(oldServer.upload.baseRev, undefined);
 }
 
+// 热铁盒 KV 只接受 ASCII 字母/数字/下划线/连字符的键名；
+// 本地内存存储不会拒绝非法字符，必须在这里挡住，避免部署后才炸。
+function checkStorageKeyRules() {
+    const { createDuoService, LEGAL_KEY, ROOM_CODE, makeKey, normalizeCode } = require(path.join(ROOT, 'duo-ws-service.node.js'));
+    assert.ok(LEGAL_KEY.test('room-123456'), '合法键名应通过校验');
+    for (const bad of ['room:123456', 'player:123456:host', 'a b', '中文']) {
+        assert.equal(LEGAL_KEY.test(bad), false, `非法键名不应通过校验: ${bad}`);
+    }
+    assert.throws(() => makeKey(['room', '1:2']), /ILLEGAL_STORAGE_KEY/, 'makeKey 必须拦截非法字符');
+    assert.equal(normalizeCode(' 123456 '), '123456');
+    assert.equal(normalizeCode('12 34'), null, '含空格房间号必须判为无效');
+    assert.equal(normalizeCode('12:456'), null, '含非法字符房间号必须判为非法');
+    assert.ok(ROOM_CODE.test('000000'));
+
+    // 用严格存储后端驱动一遍完整房间生命周期：任何非法键名都会在这里抛错。
+    const seenKeys = [];
+    const strictStore = {
+        async get(key) { assert.match(key, LEGAL_KEY, `读取到非法键名: ${key}`); seenKeys.push(key); return null; },
+        async set(key, value) { assert.match(key, LEGAL_KEY, `写入非法键名: ${key}`); seenKeys.push(key); assert.ok(JSON.stringify(value).length <= 65535, `单值超过热铁盒 65535 上限: ${key}`); },
+        async delete(key) { assert.match(key, LEGAL_KEY); }
+    };
+    const service = createDuoService({ store: strictStore });
+    return (async () => {
+        const created = await service.handle({ action: 'create', playerId: 'k-host', name: 'kh' });
+        assert.equal(created.ok, true);
+        const room = created.room.code;
+        assert.ok(ROOM_CODE.test(room), `房间号必须为 6 位数字: ${room}`);
+        await service.handle({ action: 'join', playerId: 'k-guest', name: 'kg', role: 'guest', room });
+        await service.handle({ action: 'start', playerId: 'k-host', role: 'host', room });
+        await service.handle({
+            action: 'state', playerId: 'k-host', role: 'host', room,
+            state: { x: 0, y: 0, z: 0, ry: 0, score: 0, hearts: 3, skin: 'classic', scene: { ih: 1, items: [['rock', 1, 2, 1, null, 1, 0, 0]], whirls: [] } }
+        });
+        assert.ok(seenKeys.length > 0);
+        assert.ok(seenKeys.every(key => LEGAL_KEY.test(key)), '所有访问过的键名都必须合法');
+        const missing = await service.handle({ action: 'status', playerId: 'k-guest', role: 'guest', room: '00:001' });
+        assert.equal(missing.error, 'ROOM_NOT_FOUND', '非法房间号必须安全返回 ROOM_NOT_FOUND 而不是抛错');
+    })();
+}
+
 function reserveFreePort() {
     return new Promise((resolve, reject) => {
         const probe = net.createServer();
@@ -190,6 +230,7 @@ async function checkWebSocketChannel(origin, salt) {
 
 async function main() {
     checkClientUploadCapabilityFallback();
+    await checkStorageKeyRules();
     // 结算回归会向 leaderboard.json 写入双人榜；测试前备份、结束时还原，避免污染仓库文件。
     const leaderboardPath = path.join(ROOT, 'leaderboard.json');
     const leaderboardBackup = fs.existsSync(leaderboardPath) ? fs.readFileSync(leaderboardPath, 'utf8') : null;
@@ -227,8 +268,7 @@ async function main() {
     }
 
     try {
-        await waitForServer(`${origin}/3d-duck.html`, child, () => serverLog);
-        const hostId = `delta-host-${salt}`, guestId = `delta-guest-${salt}`;
+        await waitForServer(`${origin}/3d-duck.html`, child, () => serverLog);        const hostId = `delta-host-${salt}`, guestId = `delta-guest-${salt}`;
         const created = await request({ action: 'create', playerId: hostId, name: 'host' });
         const room = created.data.room.code;
         const readRoom = async () => {

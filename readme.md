@@ -74,6 +74,16 @@
 
 ## 📝 更新日志
 
+### v7.7.1 (2026-10-20)
+
+- **岩石模型升级**：`DodecahedronGeometry(1,1)` → `IcosahedronGeometry(1,2)`，噪声振幅 `.15→.08`，按 4 个相位变体烘焙共享几何（实例只随机旋转/缩放/色偏）；`mergeVertices` 平滑法线取代 `flatShading`，并按高度烘焙顶点色 AO（底部暗、顶部亮）补回体积感；`disposeItemVisual` 同步识别 `item.sharedItemResources`，移除岩石时不会误释放共享资源。
+- **月亮贴图化**：纯色 `CircleGeometry` 平板改为 256×256 canvas 贴图（径向渐变 + 7 个陨石坑 + 月缘暗角），保留 `transparent` 以兼容昼夜 opacity 过渡，完成度与太阳对齐。
+- **水花资源共享**：`spawnSplash` 的 12 颗水滴改用模块级共享 geometry/material（细分 6→8 去棱边），每次攻击不再瞬发 24 个资源对象；`disposeTransientVisual` 新增 `sharedTransientResources` 豁免与 `sharedSkips` 统计，避免回收时释放共享资源。
+- **水面底板细节**：深层底板加 256×256 低频正弦"水纹"canvas 贴图（sRGB + repeat 6×6），消除远处水面"纯色塑料"感，且不引入高频噪点/moiré。
+- **花朵花瓣 Shape 化**：8 片压扁球体花瓣改为贝塞尔泪滴形 + `ExtrudeGeometry` 微挤出（茎/叶/花心/颜色/数量均不变），近景轮廓不再是"球"。修复由此引发的合并失败：`ExtrudeGeometry` 无索引/无法线，与索引几何的球体、圆柱属性集不一致——统一 `toNonIndexed()`、补 `computeVertexNormals()`、补 0 填充 `uv` 后才能 `mergeGeometries`。
+- **双人联机稳定性修复**：热铁盒 KV 键名只允许 ASCII 字母、数字、下划线和连字符，房间存储键由 `room:<code>` / `player:<code>:host` / `history:<code>` 改为连字符分隔，并新增 `LEGAL_KEY` / `ROOM_CODE` / `makeKey` / `normalizeCode`；本地内存存储不会拒绝非法键名，因此在 `scripts/check-duo-delta.js` 中新增存储键规则回归，避免部署后才报错。同时修复 WebSocket 端点：热铁盒环境 `fs` 全局兜底、`msgId` 原样回显、连接在 `await` 期间关闭时 `send` 失败不再中断事件处理。
+- **测试**：`check-client.js` 22 项语法检查全过；浏览器实测开局、道具生成、花朵/荷叶/岩石渲染、水面与鲨鱼暗影均正常，无运行时报错。
+
 ### v7.7 (2026-10-19)
 
 - **双人联机改用 WebSocket 长连接**：传输层从 HTTP 短轮询切换为 WebSocket（对局内仍保持 120ms/次的状态同步频率）。新增 `ws.node.js` 作为热铁盒 WebSocket 云函数端点（`wss://<域名>/ws.node.js`），单连接多路复用——每条消息带 `msgId`，响应原样带回，请求/响应协议与 HTTP 版完全一致；同一文件也接受普通 HTTP 请求，作为不支持 ws 环境的回退入口。

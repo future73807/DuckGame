@@ -16,6 +16,9 @@
 // ============================================================
 'use strict';
 
+// 热铁盒提供全局 fs；本地调试时退回 require。
+const nodeFs = typeof fs !== 'undefined' ? fs : require('fs');
+
 const core = (() => {
     try { return require('duo-core.node.js'); } catch (error) { return require('./duo-core.node.js'); }
 })();
@@ -35,19 +38,23 @@ if (hasSocket) {
     websocket.on('message', async raw => {
         let data;
         try { data = JSON.parse(raw); } catch (error) { data = null; }
+        const msgId = data && typeof data === 'object' && Number.isSafeInteger(data.msgId) ? data.msgId : null;
+        // 发送前兜底：连接可能在 await 期间关闭，send 失败不应中断事件处理。
+        const send = payload => {
+            if (msgId !== null) payload.msgId = msgId;
+            try { websocket.send(JSON.stringify(payload)); } catch (error) {}
+        };
         if (!data || typeof data !== 'object') {
-            websocket.send(JSON.stringify({ ok: false, error: 'INVALID_JSON' }));
+            send({ ok: false, error: 'INVALID_JSON' });
             return;
         }
-        const msgId = Number.isSafeInteger(data.msgId) ? data.msgId : null;
         let payload;
         try {
             payload = await service.handle(data);
         } catch (error) {
             payload = { ok: false, error: 'SERVER_ERROR' };
         }
-        if (msgId !== null) payload.msgId = msgId;
-        websocket.send(JSON.stringify(payload));
+        send(payload);
     });
 
     websocket.on('close', () => {});
@@ -125,14 +132,14 @@ function buildDuoEntry(room) {
         ts: Date.now()
     };
     let data = { entries: [], duoEntries: [] };
-    try { data = JSON.parse(fs.readFileSync('leaderboard.json', 'utf8')); } catch (error) {}
+    try { data = JSON.parse(nodeFs.readFileSync('leaderboard.json', 'utf8')); } catch (error) {}
     if (!Array.isArray(data.entries)) data.entries = [];
     if (!Array.isArray(data.duoEntries)) data.duoEntries = [];
     data.duoEntries = data.duoEntries.filter(item => item?.roomId !== room.code);
     data.duoEntries.push(entry);
     data.duoEntries.sort((a, b) => (b.score || 0) - (a.score || 0) || (a.playTime || 0) - (b.playTime || 0));
     data.duoEntries = data.duoEntries.slice(0, 50);
-    try { fs.writeFileSync('leaderboard.json', JSON.stringify(data, null, 2)); } catch (error) {}
+    try { nodeFs.writeFileSync('leaderboard.json', JSON.stringify(data, null, 2)); } catch (error) {}
     room.duoEntry = entry;
     return entry;
 }
@@ -146,10 +153,10 @@ function createStore() {
     if (typeof Database === 'undefined') {
         const FILE = 'duo-rooms.json';
         const readAll = () => {
-            try { return JSON.parse(fs.readFileSync(FILE, 'utf8')) || {}; } catch (error) { return {}; }
+            try { return JSON.parse(nodeFs.readFileSync(FILE, 'utf8')) || {}; } catch (error) { return {}; }
         };
         const writeAll = data => {
-            try { fs.writeFileSync(FILE, JSON.stringify(data)); } catch (error) {}
+            try { nodeFs.writeFileSync(FILE, JSON.stringify(data)); } catch (error) {}
         };
         return {
             async get(key) { const all = readAll(); return Object.prototype.hasOwnProperty.call(all, key) ? all[key] : null; },

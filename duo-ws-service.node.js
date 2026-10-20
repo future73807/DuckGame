@@ -8,10 +8,11 @@
 //   await store.get(key)        → 对象 / JSON 字符串 / null
 //   await store.set(key, value) → value 为普通对象，由 store 自行序列化
 // 房间按 key 拆分存储，避免单个 KV 值超过热铁盒 65535 字符上限：
-//   room:<code>         房间元信息（状态/轮次/版本/祝福/客机 id）
-//   player:<code>:host  房主数据
-//   player:<code>:guest 客机数据
-//   history:<code>      客机增量下发用的场景历史（按体积预算裁剪）
+//   room-<code>          房间元信息（状态/轮次/版本/祝福/客机 id）
+//   player-<code>-host   房主数据
+//   player-<code>-guest  客机数据
+//   history-<code>       客机增量下发用的场景历史（按体积预算裁剪）
+// 注意：热铁盒 KV 的键名只允许 ASCII 字母、数字、下划线和连字符，不能使用冒号分隔。
 // ============================================================
 'use strict';
 
@@ -60,6 +61,22 @@ const playerOf = player => player ? {
     touchedAt: player.touchedAt || 0
 } : null;
 
+// 热铁盒 KV 的键名只允许 ASCII 字母、数字、下划线和连字符。
+// 本地内存存储不会拒绝非法字符，只有线上 KV 才会报错，因此这里统一拦截，
+// 让这类问题在本地回归里就暴露出来，而不是部署后才炸。
+const LEGAL_KEY = /^[A-Za-z0-9_-]+$/;
+const makeKey = parts => {
+    const key = parts.join('-');
+    if (!LEGAL_KEY.test(key)) throw new Error('ILLEGAL_STORAGE_KEY: ' + key);
+    return key;
+};
+// 房间号固定 6 位数字（generateCode 生成），先校验格式再拼 key。
+const ROOM_CODE = /^[0-9]{6}$/;
+const normalizeCode = raw => {
+    const code = core.safeText(raw, 6).toUpperCase();
+    return ROOM_CODE.test(code) ? code : null;
+};
+
 /**
  * @param {object} options
  * @param {object} options.store            存储实现
@@ -68,9 +85,9 @@ const playerOf = player => player ? {
  * @param {number} [options.historyBudget]  场景历史总体积上限
  */
 function createDuoService({ store, saveEntry = () => null, valueBudget = DEFAULT_VALUE_BUDGET, historyBudget = DEFAULT_HISTORY_BUDGET }) {
-    const keyRoom = code => 'room:' + code;
-    const keyPlayer = (code, role) => 'player:' + code + ':' + role;
-    const keyHistory = code => 'history:' + code;
+    const keyRoom = code => makeKey(['room', code]);
+    const keyPlayer = (code, role) => makeKey(['player', code, role]);
+    const keyHistory = code => makeKey(['history', code]);
 
     const write = async (key, value) => {
         if (Number.isFinite(valueBudget) && JSON.stringify(value).length > valueBudget) return false;
@@ -201,7 +218,7 @@ function createDuoService({ store, saveEntry = () => null, valueBudget = DEFAULT
             return { ok: true, role: 'host', room: core.publicDuoRoom(room, 'host', data.sceneHash) };
         }
 
-        const code = core.safeText(data.room, 6).toUpperCase();
+        const code = normalizeCode(data.room);
         if (!code) return { ok: false, error: 'ROOM_NOT_FOUND' };
         const loaded = await loadRoom(code);
         if (!loaded) return { ok: false, error: 'ROOM_NOT_FOUND' };
@@ -237,7 +254,9 @@ function createDuoService({ store, saveEntry = () => null, valueBudget = DEFAULT
 
     /** 只读房间快照（HTTP GET 兼容路径）。 */
     const peek = async code => {
-        const loaded = await loadRoom(core.safeText(code, 6).toUpperCase());
+        const normalized = normalizeCode(code);
+        if (!normalized) return null;
+        const loaded = await loadRoom(normalized);
         if (!loaded) return null;
         const { room } = loaded;
         if (core.resolveDuoRespawn(room)) {
@@ -252,4 +271,4 @@ function createDuoService({ store, saveEntry = () => null, valueBudget = DEFAULT
     return { handle, peek, loadRoom };
 }
 
-module.exports = { createDuoService, ROOM_TTL, DEFAULT_VALUE_BUDGET, DEFAULT_HISTORY_BUDGET };
+module.exports = { createDuoService, ROOM_TTL, DEFAULT_VALUE_BUDGET, DEFAULT_HISTORY_BUDGET, LEGAL_KEY, ROOM_CODE, makeKey, normalizeCode };
