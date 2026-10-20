@@ -69,7 +69,7 @@ export function duoSerializeScene(){
         if(!Number.isInteger(it.duoId)||it.duoId<=0)it.duoId=duoNextItemId++;
         if(!Number.isSafeInteger(it.duoGen)||it.duoGen<0)it.duoGen=0;
         const fallY=it.falling!==undefined&&it.falling>0&&it.mesh.position.y>1?Math.round(it.mesh.position.y*100)/100:null;
-        its.push([it.type,it.mesh.position.x,it.mesh.position.z,it.mesh.scale.y,fallY,it.duoId,it.respawning?1:0,it.duoGen]);
+        its.push([it.type,it.mesh.position.x,it.mesh.position.z,it.mesh.scale.y,fallY,it.duoId,it.respawning?1:0,it.duoGen,it.type==='flower'?(Number.isInteger(it.flowerTier)?it.flowerTier:0):0]);
     }
     // 漩涡：房主权威同步（位置 + 缩放）
     const ws=[];
@@ -118,15 +118,15 @@ export {duoSameSerializedItem,duoBuildHostSceneUpload,duoAcceptHostSceneAck};
 const DUO_ITEM_BASE_RADIUS={rock:.6,flower:.4,grass:.4,lily:.4,magnet:.35,heart:.6};
 export function duoParseItemSnapshot(raw){
     if(!Array.isArray(raw)||raw.length<4)return null;
-    const[type,x,z,scale,fy,id,hidden,generation]=raw;
+    const[type,x,z,scale,fy,id,hidden,generation,flowerTier]=raw;
     if(!Object.prototype.hasOwnProperty.call(DUO_ITEM_BASE_RADIUS,type)||!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(scale))return null;
-    return{type,x,z,scale,fy,id:Number.isInteger(id)&&id>0?id:null,hidden:!!hidden,generation:Number.isSafeInteger(generation)&&generation>=0?generation:0};
+    return{type,x,z,scale,fy,id:Number.isInteger(id)&&id>0?id:null,hidden:!!hidden,generation:Number.isSafeInteger(generation)&&generation>=0?generation:0,flowerTier:Number.isInteger(flowerTier)&&flowerTier>=0&&flowerTier<=4?flowerTier:0};
 }
 export function duoCreateItemFromSnapshot(snap){
     const{type,x,z,scale,fy,id,hidden}=snap;let mesh;
     switch(type){
         case'rock':{const rs=.5;mesh=ctx.isFestival('festival_national_day')?ctx.mkCake(new THREE.Vector3(x,-.1,z),rs):ctx.mkRock(new THREE.Vector3(x,-.1,z),rs);break}
-        case'flower':mesh=ctx.mkFlower(x,z);break;
+        case'flower':mesh=ctx.mkFlower(x,z,snap.flowerTier);break;
         case'grass':mesh=ctx.isFestival('festival_dragon_boat')?ctx.mkZongzi(x,z):ctx.mkGrass(x,z,7);break;
         case'lily':mesh=ctx.mkLily(x,z,.4);break;
         case'magnet':mesh=ctx.mkMagnet(x,z);break;
@@ -137,7 +137,7 @@ export function duoCreateItemFromSnapshot(snap){
     const isFalling=typeof fy==='number'&&fy>1;
     if(isFalling)mesh.position.y=fy;
     ctx.scene.add(mesh);
-    const item={mesh,type,r:DUO_ITEM_BASE_RADIUS[type]*scale,coll:hidden,respawning:hidden,duoHidden:hidden,duoId:id,duoGen:snap.generation,duoHX:x,duoHZ:z,duoTargetX:x,duoTargetZ:z};
+    const item={mesh,type,r:DUO_ITEM_BASE_RADIUS[type]*scale,coll:hidden,respawning:hidden,duoHidden:hidden,duoId:id,duoGen:snap.generation,duoHX:x,duoHZ:z,duoTargetX:x,duoTargetZ:z,flowerTier:snap.flowerTier};
     mesh.visible=!hidden;
     if(isFalling){item.falling=10;item.fallVy=0}
     ctx.items.push(item);return item;
@@ -148,6 +148,7 @@ export function duoApplyItemSnapshot(item,snap,firstAuthority=false){
     if(claim&&(snap.generation>claim.generation||snap.generation===claim.generation&&snap.hidden)){duoCollectedPending.delete(snap.id);claim=null}
     const collectionPending=!!claim;
     item.duoId=snap.id;item.duoGen=snap.generation;item.duoHX=snap.x;item.duoHZ=snap.z;item.duoTargetX=snap.x;item.duoTargetZ=snap.z;item.duoHidden=snap.hidden;
+    if(item.type==='flower'&&Number.isInteger(snap.flowerTier)){item.flowerTier=snap.flowerTier;if(item.mesh?.userData)item.mesh.userData.flowerTier=snap.flowerTier}
     if(duoIsGuest()&&Number.isInteger(snap.id)&&snap.hidden){
         if(item.respawnTimer){clearTimeout(item.respawnTimer);item.respawnTimer=null}
         item.coll=true;item.respawning=true;item.mesh.visible=false;

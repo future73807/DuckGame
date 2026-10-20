@@ -166,7 +166,7 @@ export function dbgSpawnItem(type,count=1){
                 case'heart':{mesh=ctx.mkHeart(x,z);radius=.6;break}
                 default:continue;
             }
-            if(mesh){ctx.scene.add(mesh);ctx.items.push({mesh,type,r:radius,coll:false})}
+            if(mesh){ctx.scene.add(mesh);ctx.items.push({mesh,type,r:radius,coll:false,flowerTier:mesh.userData?.flowerTier??0})}
         }
     }
     const lbl={flower:'花',grass:'水草',lily:'荷叶',rock:'石头',heart:'血瓶',magnet:'磁铁',whirlpool:'漩涡'}[type]||type;

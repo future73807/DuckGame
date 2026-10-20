@@ -578,47 +578,44 @@ function mkLily(x,z,s){
 }
 
 // 花朵的茎/叶/花瓣/花心统一烘焙成一个顶点色 Mesh；小尺寸下保留颜色和轮廓最重要。
-let flowerTemplate=null;
-function buildFlowerTemplate(){
+// 花瓣保持原版圆润椭球，开合档位只改变花瓣抬起角度：
+// 档位 0 = 完全展开（1× 分数，最常见）… 档位 4 = 合拢花苞（5× 分数，最稀有）。
+const FLOWER_BLOOM_LEVELS=[1,.82,.64,.45,.28]; // bloom 值：1 平铺 → 越小越合拢
+const FLOWER_BLOOM_WEIGHTS=[.40,.27,.18,.10,.05]; // 刷新概率从高到低（合计 1）
+const FLOWER_SCORE_MUL=[1,2,3,4,5]; // 基础分数倍率：展开 1× → 合拢 5×
+let flowerTemplates=null;
+function pickFlowerBloomIndex(){
+    const r=Math.random();let acc=0;
+    for(let i=0;i<FLOWER_BLOOM_WEIGHTS.length;i++){acc+=FLOWER_BLOOM_WEIGHTS[i];if(r<acc)return i}
+    return FLOWER_BLOOM_LEVELS.length-1;
+}
+function buildFlowerTemplate(bloom){
     const g=new THREE.Group(),parts=[];
-    const ni=geo=>geo.index?geo.toNonIndexed():geo; // mergeGeometries 要求索引一致：Cylinder/Sphere 有索引，ExtrudeGeometry 无
     const stemGeo=new THREE.CylinderGeometry(.015,.02,.5,8);
-    bakeItemPart(stemGeo,o=>{o.position.y=.25});parts.push(colorItemPart(ni(stemGeo),0x2a6a2a));
+    bakeItemPart(stemGeo,o=>{o.position.y=.25});parts.push(colorItemPart(stemGeo,0x2a6a2a));
     for(const side of[-1,1]){
         const geo=new THREE.SphereGeometry(.07,8,6);
-        bakeItemPart(geo,o=>{o.scale.set(1.7,.25,.7);o.position.set(side*.09,.16,0);o.rotation.z=side*.5});parts.push(colorItemPart(ni(geo),0x3f8f3f));
+        bakeItemPart(geo,o=>{o.scale.set(1.7,.25,.7);o.position.set(side*.09,.16,0);o.rotation.z=side*.5});parts.push(colorItemPart(geo,0x3f8f3f));
     }
-    // 花瓣：Shape 泪滴形 + 微挤出（替代压扁球体，近景轮廓不再是"球"）
-    const petalShape=new THREE.Shape();
-    petalShape.moveTo(0,0);
-    petalShape.bezierCurveTo(.07,.02,.09,.09,.07,.16);
-    petalShape.bezierCurveTo(.05,.2,0,.22,0,.22);
-    petalShape.bezierCurveTo(0,.22,-.05,.2,-.07,.16);
-    petalShape.bezierCurveTo(-.09,.09,-.07,.02,0,0);
-    const petalGeo=new THREE.ExtrudeGeometry(petalShape,{depth:.012,bevelEnabled:false,curveSegments:6});
-    petalGeo.translate(0,0,-.006);
-    // 花瓣：去索引 + 补法线（ExtrudeGeometry 默认无法线）；补一个 0 填充的 uv 使属性集与球体/圆柱一致
-    const petalGeoNoIndex=petalGeo.toNonIndexed();petalGeo.dispose();
-    petalGeoNoIndex.deleteAttribute('uv');
-    petalGeoNoIndex.computeVertexNormals();
-    const pn=petalGeoNoIndex.attributes.position.count;
-    petalGeoNoIndex.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(pn*2),2));
+    // 原版圆润花瓣：bloom=1 时回到原来的 -17° 微抬平铺；bloom 越小，花瓣越立起越像花苞
+    const petalRotX=-.3-(1-bloom)*1.1;
     for(let i=0;i<8;i++){
-        const a=i/8*Math.PI*2,geo=petalGeoNoIndex.clone();
-        bakeItemPart(geo,o=>{o.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);o.rotation.y=Math.PI/2-a;o.rotateX(-.3)});parts.push(colorItemPart(geo,0xffd93c));
+        const a=i/8*Math.PI*2,geo=new THREE.SphereGeometry(.07,10,8);
+        bakeItemPart(geo,o=>{o.scale.set(1,.4,1.7);o.position.set(Math.cos(a)*.1,.5,Math.sin(a)*.1);o.rotation.y=Math.PI/2-a;o.rotateX(petalRotX)});parts.push(colorItemPart(geo,0xffd93c));
     }
-    petalGeoNoIndex.dispose();
     const coreGeo=new THREE.SphereGeometry(.055,12,10);
-    bakeItemPart(coreGeo,o=>{o.position.y=.52;o.scale.y=.7});parts.push(colorItemPart(ni(coreGeo),0xff8c1a));
+    bakeItemPart(coreGeo,o=>{o.position.y=.52;o.scale.y=.7});parts.push(colorItemPart(coreGeo,0xff8c1a));
     const merged=mergeGeometries(parts,false);parts.forEach(geometry=>geometry.dispose());
     if(!merged)throw new Error('花朵几何合并失败');
     merged.computeBoundingSphere();g.add(new THREE.Mesh(merged,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5})));
     g.userData.sharedItemResources=true;return g;
 }
-function mkFlower(x,z){
-    if(!flowerTemplate)flowerTemplate=buildFlowerTemplate();
-    const instance=flowerTemplate.clone(true);
-    instance.userData.sharedItemResources=true;instance.position.set(x,-.02,z);instance.rotation.y=Math.random()*Math.PI*2;
+function mkFlower(x,z,forcedTier){
+    if(!flowerTemplates)flowerTemplates=FLOWER_BLOOM_LEVELS.map(level=>buildFlowerTemplate(level));
+    const tier=Number.isInteger(forcedTier)&&forcedTier>=0&&forcedTier<FLOWER_SCORE_MUL.length?forcedTier:pickFlowerBloomIndex();
+    const instance=flowerTemplates[tier].clone(true);
+    instance.userData.sharedItemResources=true;instance.userData.flowerTier=tier;
+    instance.position.set(x,-.02,z);instance.rotation.y=Math.random()*Math.PI*2;
     return instance;
 }
 // 磁铁只构建一次共享模板：避免每次刷新都重新创建高细分 TubeGeometry、贴图和材质。
@@ -717,18 +714,18 @@ function openingGraceProgress(){
     return THREE.MathUtils.clamp(runActiveSeconds/OPENING_GRACE_DURATION,0,1);
 }
 function createSpawnItem(type,x,z){
-    let mesh=null,radius=0;
+    let mesh=null,radius=0,flowerTier=0;
     switch(type){
         case'rock':{const rs=.3+Math.random()*.5,rm=1+Math.floor(Math.random()*5)*.5;mesh=isFestival('festival_national_day')?mkCake(new THREE.Vector3(x,-.1,z),rs):mkRock(new THREE.Vector3(x,-.1,z),rs);mesh.scale.multiplyScalar(rm);
             // 碰撞用圆半径（×1.2 余量）而非贴合噪声轮廓：视觉轮廓逐变体不同且被压扁，
             // 精确贴合需要每变体做有向距离采样，成本高收益低，目前"擦边撞岩"反馈少，不建议改
             radius=rs*1.2*rm;break}
-        case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;break}
+        case'flower':{const fm=1+Math.floor(Math.random()*3)*.5;mesh=mkFlower(x,z);mesh.scale.multiplyScalar(fm);radius=.4*fm;flowerTier=mesh.userData.flowerTier??0;break}
         case'grass':{const gm=1+Math.floor(Math.random()*3)*.5;mesh=isFestival('festival_dragon_boat')?mkZongzi(x,z):mkGrass(x,z,5+Math.floor(Math.random()*4));mesh.scale.multiplyScalar(gm);radius=.4*gm;break}
         case'lily':{const ls=.3+Math.random()*.25,lm=1+Math.floor(Math.random()*3)*.5;mesh=mkLily(x,z,ls);mesh.scale.multiplyScalar(lm);radius=ls*lm;break}
         case'magnet':{const mm=1+Math.floor(Math.random()*3)*.5;mesh=mkMagnet(x,z);mesh.scale.multiplyScalar(mm);radius=.35*mm;break}
     }
-    return mesh?{mesh,radius}:null;
+    return mesh?{mesh,radius,flowerTier}:null;
 }
 function findOpeningMagnetSpot(cx,cz){
     // 单人放在镜头前方；双人以两只鸭子的中点为原点，让房主和客机都能公平到达。
@@ -771,7 +768,7 @@ function spawnAround(cx,cz){
     if(guaranteeOpeningMagnet){const spot=findOpeningMagnetSpot(cx,cz);x=spot.x;z=spot.z}
     else{const ang=Math.random()*Math.PI*2,dist=3+Math.sqrt(Math.random())*(SPAWN_R-3);x=cx+Math.cos(ang)*dist;z=cz+Math.sin(ang)*dist}
     const spawned=createSpawnItem(type,x,z);
-    if(spawned){scene.add(spawned.mesh);items.push({mesh:spawned.mesh,type,r:spawned.radius,coll:false});cnt[type]++;if(guaranteeOpeningMagnet)openingMagnetGuaranteed=true}}}
+    if(spawned){scene.add(spawned.mesh);items.push({mesh:spawned.mesh,type,r:spawned.radius,coll:false,flowerTier:spawned.flowerTier??0});cnt[type]++;if(guaranteeOpeningMagnet)openingMagnetGuaranteed=true}}}
     // 双人房主同时维护客机附近的权威道具；否则两人相距较远时，围绕残血客机生成的
     // 救场血瓶会被下一次以房主为中心的刷新立即回收。
     const guest=Duo.active&&Duo.role==='host'?Duo.other:null,guestState=guest?.state;
@@ -1406,7 +1403,13 @@ const rockScale=it.mesh.scale.x;
 spawnRockShatter(it.mesh.position.clone(),rockScale);
     it.coll=true;scene.remove(it.mesh); // 立即从场景移除，下一帧由 despawn 逻辑清理 items
     break;}
-case'flower':addScore(2,'flower');if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +2','p');playSFX('flower');trackStreak('flower');scheduleItemRespawn(it,2000,-.02);break;
+case'flower':{
+    // 开合档位 = 基础分数倍率：展开 1×（2 分）→ 合拢 5×（10 分）
+    const tier=Number.isInteger(it.flowerTier)?THREE.MathUtils.clamp(it.flowerTier,0,FLOWER_SCORE_MUL.length-1):0;
+    const mul=FLOWER_SCORE_MUL[tier],gain=2*mul;
+    addScore(gain,'flower');if(rainbowActive)addScore(5);
+    if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-sun"></i> +'+gain+(mul>1?' <b style="color:#ffd93c">×'+mul+'</b>':''),'p');
+    playSFX('flower');trackStreak('flower');scheduleItemRespawn(it,2000,-.02);break;}
 case'grass':addScore(1,'grass');if(rainbowActive)addScore(5);if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-seedling"></i> +1','p');playSFX('grass');trackStreak('grass');scheduleItemRespawn(it,2000,0);break;
 case'lily':if(!it.coll){addScore(3,'lily');if(!streakActive||scoreMultiplier<=1)toast('<i class="fa-solid fa-spa" style="color:#ff9ec7"></i> 荷叶','p');playSFX('collect');trackStreak('lily');activateShield();scheduleItemRespawn(it,3000,.01)}break;
     case'heart':heal(1);playSFX('heal');trackStreak('heart');it.coll=true;scene.remove(it.mesh);spawnHeartParticles(it.mesh.position.clone());break;
@@ -2640,6 +2643,25 @@ window.__auraTest={
 // 调试：强制切换节日（key 如 'lantern'/'dragon_boat'，null 清除）+ 附近生成物品
 window.__debugFestival=key=>Blessings.applyDebugSelection(null,key);
 window.__dbgSpawn=(type,count)=>dbgSpawnItem(type,count);
+// 调试：花朵档位（1×-5× 基础分数倍率）与场景内花朵分布
+window.__flowerTest={
+    levels:FLOWER_BLOOM_LEVELS,weights:FLOWER_BLOOM_WEIGHTS,scoreMul:FLOWER_SCORE_MUL,
+    // dist 很小时（如 .3）会在下一次碰撞检测中立即被鸭子拾取，用于验证分数
+    spawnTier:(tier,count=1,dist=3)=>{
+        if(!duckModel)return 0;
+        const t=THREE.MathUtils.clamp(Math.round(Number(tier)||0),0,FLOWER_SCORE_MUL.length-1),d=Math.max(0,Number(dist)||0);
+        let n=0;
+        for(let i=0;i<count;i++){
+            const a=Math.random()*Math.PI*2,dd=d+Math.random()*.2;
+            const mesh=mkFlower(duckModel.position.x+Math.cos(a)*dd,duckModel.position.z+Math.sin(a)*dd,t);
+            scene.add(mesh);
+            items.push({mesh,type:'flower',r:.4,coll:false,flowerTier:t});
+            n++;
+        }
+        return n;
+    },
+    info:()=>items.filter(i=>i.type==='flower').map(i=>({tier:i.flowerTier??0,mul:FLOWER_SCORE_MUL[i.flowerTier??0]||1,x:Math.round(i.mesh.position.x*10)/10,z:Math.round(i.mesh.position.z*10)/10})),
+};
 window.__debugEvent=key=>{if(activeEvent)endEvent();if(key)startEvent(key);return activeEvent};
 window.__setGameClock=value=>{const next=Number(value);if(Number.isFinite(next))gameClock=Math.max(0,next);return gameClock};
 window.__comboHintState=()=>comboTargetDebugState();
